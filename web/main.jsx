@@ -13,7 +13,6 @@ import {
   Controls,
   Handle,
   Position,
-  addEdge,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -27,6 +26,7 @@ import {
   canConnect,
   parseWorkflow,
 } from "../src/catalog.mjs";
+import { nodeKinds, fileTypes, fileCategory, nodeKind, nodeItem, processOptions, defaultOptions, adaptNodes, connectNodes } from "../src/node-builder.mjs";
 import { Icon } from "./icons.jsx";
 import "./styles.css";
 
@@ -44,7 +44,8 @@ function readWorkspace() {
 }
 const workspace = readWorkspace();
 const activeWorkflow = workspace.workflows.find((entry) => entry.id === workspace.activeId);
-const initial = activeWorkflow?.workflow || defaultWorkflow();
+const initialWorkflow = activeWorkflow?.workflow || defaultWorkflow();
+const initial = { ...initialWorkflow, nodes: adaptNodes(initialWorkflow.nodes, initialWorkflow.edges) };
 const formatBytes = (bytes) =>
   bytes < 1024
     ? `${bytes} B`
@@ -55,12 +56,40 @@ const nodeTypes = { operation: OperationNode };
 const isUpload = (type) => ["file.upload", "image.upload"].includes(type);
 const isPreview = (type) => ["artifact.preview", "image.preview"].includes(type);
 
+// Group badge helper
+function NodeGroupBadge({ group }) {
+  if (!group) return null;
+  const classes = { Input: "badge-input", Transform: "badge-transform", Output: "badge-output", Pipe: "badge-pipe" };
+  return <span className={`node-group-badge ${classes[group] || ""}`}>{group}</span>;
+}
+
+// Subtitle helper
+function NodeSubtitle({ item, data }) {
+  if (isUpload(item.type)) return data.filename || "Drop or upload a file";
+  if (item.type === "document.toMarkdown") return "via Pandoc · Markdown";
+  if (item.type === "context.clean") return "Normalize spacing";
+  if (item.type === "artifact.preview") return "Preview & download .md";
+  if (item.type === "image.preview") return "Preview & download PNG";
+  if (item.type.startsWith("image.") && item.type !== "image.upload") return "ImageMagick · PNG";
+  return item.description || "";
+}
+
 function OperationNode({ data, selected }) {
-  const item = catalog.find((item) => item.type === data.operation);
+  const node = { data };
+  const item = nodeItem(node);
+  const kind = nodeKind(node);
+  const catalogItem = catalog.find((c) => c.type === item.type);
+  const group = catalogItem?.group;
+  const statusState = data.status || "idle";
+
   return (
     <div
-      className={`operation-node ${item.color} ${selected ? "is-selected" : ""} state-${data.status || "idle"}`}
+      className={`operation-node card-node ${item.color} ${selected ? "is-selected" : ""} state-${statusState}`}
     >
+      {/* Gradient accent bar at top */}
+      <div className="card-accent-bar" />
+
+      {/* Hover action buttons */}
       <div className="node-actions nodrag nopan">
         <button
           aria-label={`Configure ${item.title}`}
@@ -70,7 +99,7 @@ function OperationNode({ data, selected }) {
             data.onConfigure();
           }}
         >
-          <Icon name="settings" size={14} />
+          <Icon name="settings" size={13} />
         </button>
         <button
           aria-label={`Delete ${item.title}`}
@@ -81,34 +110,63 @@ function OperationNode({ data, selected }) {
             data.onRemove();
           }}
         >
-          <Icon name="trash" size={14} />
+          <Icon name="trash" size={13} />
         </button>
       </div>
-      <div className="node-tile">
-        {!isUpload(item.type) && (
-          <Handle
-            type="target"
-            position={data.reverse ? Position.Right : Position.Left}
-            aria-label={`${item.title} input`}
-          />
-        )}
-        <Icon name={item.icon} size={37} />
-        {data.status === "succeeded" ? (
-          <span className="node-success">
-            <Icon name="check" size={13} />
-          </span>
-        ) : data.status === "running" ? (
-          <span className="spinner" />
-        ) : data.status === "failed" ? (
-          <span className="node-failure">!</span>
-        ) : null}
-        {!isPreview(item.type) && (
-          <Handle
-            type="source"
-            position={data.reverse ? Position.Left : Position.Right}
-            aria-label={`${item.title} output`}
-          />
-        )}
+
+      {/* Card body */}
+      <div className="card-body">
+        {/* Icon with handles and status ring */}
+        <div className="card-icon-col">
+          {!isUpload(item.type) && (
+            <Handle
+              type="target"
+              position={data.reverse ? Position.Right : Position.Left}
+              aria-label={`${item.title} input`}
+            />
+          )}
+          <div className={`card-icon-ring state-${statusState}`}>
+            <div className="card-icon-inner">
+              <Icon name={item.icon} size={24} />
+            </div>
+            {data.status === "succeeded" && (
+              <span className="node-success">
+                <Icon name="check" size={10} />
+              </span>
+            )}
+            {data.status === "running" && <span className="spinner" />}
+            {data.status === "failed" && <span className="node-failure">!</span>}
+          </div>
+          {!isPreview(item.type) && (
+            <Handle
+              type="source"
+              position={data.reverse ? Position.Left : Position.Right}
+              aria-label={`${item.title} output`}
+            />
+          )}
+        </div>
+
+        {/* Text content */}
+        <div className="card-text">
+          <NodeGroupBadge group={group} />
+          <h3 className="card-heading">{item.title}</h3>
+          <p className="card-subtitle">
+            <NodeSubtitle item={item} data={data} />
+          </p>
+          {data.status && (
+            <span className={`node-status-pill status-${statusState}`}>
+              {statusState === "succeeded"
+                ? `✓ ${Math.round(data.durationMs)} ms`
+                : statusState === "running" || statusState === "started"
+                  ? "Running…"
+                  : statusState === "failed"
+                    ? "Failed"
+                    : statusState}
+            </span>
+          )}
+        </div>
+
+        {/* Append button */}
         {data.canAppend && (
           <button
             className="append-node nodrag nopan"
@@ -120,31 +178,44 @@ function OperationNode({ data, selected }) {
               data.onAddAfter();
             }}
           >
-            <Icon name="plus" size={14} />
+            <Icon name="plus" size={13} />
           </button>
         )}
       </div>
-      <h3>{item.title}</h3>
-      <p>
-        {isUpload(item.type)
-          ? data.filename || "Start with a document"
-          : item.type === "document.toMarkdown"
-            ? "Pandoc"
-            : item.type === "context.clean"
-              ? "Normalize spacing"
-              : item.type.startsWith("image.") ? "ImageMagick · PNG" : "Markdown output"}
-      </p>
-      {data.status && (
-        <span className="node-status">
-          {data.status === "succeeded"
-            ? `${Math.round(data.durationMs)} ms`
-            : data.status === "started"
-              ? "Running"
-              : data.status}
-        </span>
+
+      {/* Process node selectors */}
+      {kind === "process" && (
+        <div className="card-selectors nodrag nopan">
+          <FileTypeSelector category={data.fileType} locked={data.inferred}
+            disabled={data.running} onChange={data.onFileTypeChange} />
+          <OperationSelector category={data.fileType} operation={data.operation}
+            inputType={data.inputType} disabled={data.running} onChange={data.onOperationChange} />
+        </div>
       )}
     </div>
   );
+}
+
+function FileTypeSelector({ category, locked, disabled, onChange }) {
+  return <label className="process-selector nodrag nopan" onClick={(event) => event.stopPropagation()}>
+    <span>File type{locked && <small>From input</small>}</span>
+    <select aria-label="File type" value={category} disabled={disabled || locked}
+      onKeyDown={(event) => event.stopPropagation()} onChange={(event) => onChange(event.target.value)}>
+      {fileTypes.map((type) => <option key={type}>{type}</option>)}
+    </select>
+  </label>;
+}
+
+function OperationSelector({ category, operation, inputType, disabled, onChange }) {
+  const options = processOptions(category, inputType);
+  return <label className="process-selector nodrag nopan" onClick={(event) => event.stopPropagation()}>
+    <span>Operation</span>
+    <select aria-label="Operation" value={operation} disabled={disabled || !options.length}
+      onKeyDown={(event) => event.stopPropagation()} onChange={(event) => onChange(event.target.value)}>
+      {!options.length && <option value="">No operations available yet</option>}
+      {options.map((item) => <option key={item.type} value={item.type}>{item.title}</option>)}
+    </select>
+  </label>;
 }
 
 function App() {
@@ -153,6 +224,9 @@ function App() {
   const [name, setName] = useState(initial.name);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
+  const [pickerProcess, setPickerProcess] = useState(false);
+  const [pickerFileType, setPickerFileType] = useState("Text");
+  const [pickerOperation, setPickerOperation] = useState("document.toMarkdown");
   const [showLibrary, setShowLibrary] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -180,9 +254,7 @@ function App() {
   const searchRef = useRef(null);
   const flow = useReactFlow();
   const selected = nodes.find((node) => node.id === selectedId);
-  const selectedItem = catalog.find(
-    (item) => item.type === selected?.data.operation,
-  );
+  const selectedItem = selected ? nodeItem(selected) : null;
   const output = result?.output?.value;
   const imageMode = nodes.some((node) => node.data.operation === "image.upload");
   const imageOutput = selectedItem?.type === "image.preview" && result?.output?.type === "image" ? output : null;
@@ -246,10 +318,8 @@ function App() {
 
   async function chooseFile(candidate) {
     if (!candidate || running) return;
-    if (!(imageMode ? /\.(png|jpe?g)$/i : /\.(docx|html?|epub|md)$/i).test(candidate.name)) {
-      setMessage(
-        imageMode ? "Choose a PNG or JPEG image." : "Choose a DOCX, HTML, EPUB, or Markdown document. Use the image template to resize PNG or JPEG files.",
-      );
+    if (!/\.(png|jpe?g|docx|html?|epub|md)$/i.test(candidate.name)) {
+      setMessage("Choose a PNG, JPEG, DOCX, HTML, EPUB, or Markdown file. Audio and video tools are coming soon.");
       return;
     }
     if (candidate.size === 0 || candidate.size > 20 * 1024 * 1024) {
@@ -264,7 +334,8 @@ function App() {
         reader.readAsDataURL(candidate);
       });
       setFile({ name: candidate.name, data, size: candidate.size });
-      invalidate(false);
+      setNodes((current) => adaptNodes(current, edges, candidate.name));
+      invalidate();
     } catch (error) {
       setMessage(error.message);
     }
@@ -273,6 +344,12 @@ function App() {
   function openLibrary(id = null) {
     setAnchorId(id);
     setSearch("");
+    const source = nodes.find((node) => node.id === id);
+    const sourceItem = source ? nodeItem(source) : null;
+    const category = sourceItem?.category || (file ? fileCategory(file.name) : "Text");
+    setPickerFileType(category);
+    setPickerOperation(processOptions(category, sourceItem?.outputType)[0]?.type || "");
+    setPickerProcess(Boolean(source));
     setShowLibrary(true);
     setInspectorOpen(false);
   }
