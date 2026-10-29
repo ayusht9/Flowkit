@@ -153,6 +153,7 @@ function App() {
   const [showLog, setShowLog] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showCanvasHint, setShowCanvasHint] = useState(true);
   const fileRef = useRef(null);
   const importRef = useRef(null);
   const abortRef = useRef(null);
@@ -577,7 +578,7 @@ function App() {
   ).length;
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" onClickCapture={showCanvasHint ? () => setShowCanvasHint(false) : undefined}>
       <main className="workspace">
         <div
           className="flow-canvas"
@@ -816,10 +817,10 @@ function App() {
           )}
         </footer>
 
-        <span className="canvas-hint">
+        {showCanvasHint && <span className="canvas-hint">
           Drag to move · Scroll to zoom · Select a connection and press Delete
           to remove it
-        </span>
+        </span>}
       </main>
       {showLibrary && (
         <aside className="node-picker" aria-label="Node library">

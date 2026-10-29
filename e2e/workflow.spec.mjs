@@ -7,6 +7,7 @@ test("sample document runs through the visual workflow and downloads real Markdo
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
+  await expect(page.locator(".canvas-hint")).toBeVisible();
   await expect(
     page.getByRole("textbox", { name: "Workflow name" }),
   ).toHaveValue("Document to context");
@@ -15,11 +16,13 @@ test("sample document runs through the visual workflow and downloads real Markdo
     .getByRole("button", { name: "Try with a sample document" })
     .click();
   await expect(page.getByRole("button", { name: /sample.html/ })).toBeVisible();
+  await expect(page.locator(".canvas-hint")).toHaveCount(0);
   await page.getByRole("button", { name: "Run workflow", exact: true }).click();
   await expect(
     page.getByLabel("Markdown output", { exact: true }),
   ).toContainText("# FlowKit project brief");
   await expect(page.locator(".node-success")).toHaveCount(4);
+  await expect(page.locator(".canvas-hint")).toHaveCount(0);
   const downloadPromise = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Download Markdown", exact: true })
