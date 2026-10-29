@@ -16,9 +16,11 @@ Open **http://127.0.0.1:3000**. The app runs on your machine; uploaded documents
 On Windows PowerShell, use `npm.cmd run dev` if execution policy blocks `npm.ps1`.
 
 1. Choose **Try with a sample document**, or upload a DOCX, HTML, EPUB, or Markdown file.
-2. Move nodes around, drag new nodes from the library, and connect compatible handles. Clicking library buttons also adds nodes; the inspector's **Next node** selector provides a keyboard alternative for connections.
+2. Open **Add node** to search the on-demand picker, then drag a compact block onto the canvas. Blocks snap to the grid. The **+** beside an unconnected output opens compatible next steps and connects the new node automatically.
 3. Choose **Run workflow**. Inspect each step's progress and output, then download the generated Markdown.
-4. Export the workflow as JSON to keep its layout and settings. Import it to continue later. Workflow exports never include your uploaded file.
+4. Open the left **hamburger menu** to create a workflow, load the template, import/export JSON, or read the guide. Workflow exports never include your uploaded file.
+
+The canvas occupies the entire window, with no fixed sidebar or top navigation. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections, and `/` opens node search. Execution logs also open on demand.
 
 The default template is **Upload document → Convert to Markdown → Clean Markdown → Preview & download**. The cleanup node normalizes line endings and optionally collapses extra blank lines, preserving code spacing. Workflows support a single connected chain with up to 20 nodes.
 
@@ -42,7 +44,7 @@ npm run build
 npm run test:e2e
 ```
 
-Browser tests use an installed Google Chrome. Set `PANDOC_PATH` for the native adapter tests, or put Pandoc on PATH; missing Pandoc reports skips in those tests. The workflow API and browser tests can also discover the local portable installation.
+Browser tests use an installed Google Chrome and a separate local server on port 4317, leaving the app on port 3000 alone. Set `PANDOC_PATH` for the native adapter tests, or put Pandoc on PATH; missing Pandoc reports skips in those tests. The workflow API and browser tests can also discover the local portable installation. The application port can be changed through `PORT`.
 
 ## Convert a real document
 
@@ -99,4 +101,4 @@ Original planning material is retained locally under `archieve/`, which is ignor
 
 ## Git workflow
 
-Use a branch per feature, verify it, and commit it. Leave merging for a later explicit step. `feature/workflow-app` builds on `feature/pandoc-conversion`, which builds on `feature/pipeline-executor` and the archive-cleanup branch. These branches remain unmerged into `main`.
+Use a branch per feature, verify it, and commit it. Leave merging for a later explicit step. `feature/canvas-first-editor` builds on `feature/workflow-app`, `feature/pandoc-conversion`, `feature/pipeline-executor`, and the archive-cleanup branch. These branches remain unmerged into `main`.

@@ -1,6 +1,7 @@
 import React from "react";
 
 const paths = {
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   workflow: (
     <>
       <rect x="3" y="3" width="6" height="6" rx="1.5" />

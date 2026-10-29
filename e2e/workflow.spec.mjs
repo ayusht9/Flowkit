@@ -52,11 +52,17 @@ test("supports node dragging, adding, deleting, and safe workflow import/export"
   await page.mouse.up();
   const after = await node.boundingBox();
   expect(after.x).toBeGreaterThan(before.x + 20);
+  await page.getByRole("button", { name: "Add node", exact: true }).click();
   await page.getByTitle("Drag or click to add Clean Markdown").click();
   await expect(page.locator(".operation-node")).toHaveCount(5);
-  await page.getByRole("button", { name: "Delete selected node" }).click();
+  await page
+    .locator(
+      '.react-flow__node.selected .node-actions button[title="Delete node"]',
+    )
+    .click();
   await expect(page.locator(".operation-node")).toHaveCount(4);
   const promise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
   await page.getByRole("button", { name: "Export workflow" }).click();
   const exported = await promise;
   const stream = await exported.createReadStream();
@@ -85,6 +91,7 @@ test("shows missing-input and disconnected-workflow errors", async ({
     .getByRole("button", { name: "Try with a sample document" })
     .click();
   await expect(page.getByRole("button", { name: /sample.html/ })).toBeVisible();
+  await page.locator('.react-flow__node[data-id="convert"] .node-tile').click();
   await page.getByRole("button", { name: "Delete selected node" }).click();
   await page.getByRole("button", { name: "Run workflow", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
@@ -97,6 +104,13 @@ test("mobile layout remains usable without horizontal page overflow", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  const canvas = await page.locator(".flow-canvas").boundingBox();
+  expect(canvas.width).toBe(390);
+  expect(canvas.height).toBe(844);
+  await expect(
+    page.locator(".rail, .library, .app-header, .workflow-toolbar"),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Node editor", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Run workflow", exact: true }),
   ).toBeVisible();
@@ -111,19 +125,76 @@ test("mobile layout remains usable without horizontal page overflow", async ({
   });
 });
 
+test("hamburger menu and compact canvas leave all workspace available until panels are requested", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const canvas = await page.locator(".flow-canvas").boundingBox();
+  expect(canvas).toMatchObject({ x: 0, y: 0, width: 1440, height: 1000 });
+  await expect(page.getByLabel("Node library", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Node editor", { exact: true })).toHaveCount(0);
+  const tile = await page.locator(".node-tile").first().boundingBox();
+  expect(tile.width).toBeLessThan(110);
+  await page.screenshot({
+    path: "test-results/canvas-editor.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Workflow menu" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "New workflow", exact: true }).click();
+  await expect(page.locator(".operation-node")).toHaveCount(0);
+  await page.getByRole("button", { name: "Add first step" }).click();
+  await page.getByTitle("Drag or click to add Upload document").click();
+  await page.getByRole("button", { name: "Add after Upload document" }).click();
+  await expect(page.locator(".palette-node")).toHaveCount(1);
+  await page.getByTitle("Drag or click to add Convert to Markdown").click();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Add after Convert to Markdown" })
+    .click();
+  await page.getByTitle("Drag or click to add Clean Markdown").click();
+  await page.getByRole("button", { name: "Add after Clean Markdown" }).click();
+  await page.getByTitle("Drag or click to add Preview & download").click();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+  await page
+    .getByRole("button", { name: "Try with a sample document" })
+    .click();
+  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+  await expect(
+    page.getByLabel("Markdown output", { exact: true }),
+  ).toContainText("# FlowKit project brief");
+});
+
+test("drags a node from the picker to its chosen canvas position", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Add node", exact: true }).click();
+  await page
+    .getByTitle("Drag or click to add Clean Markdown")
+    .dragTo(page.locator(".flow-canvas"), {
+      targetPosition: { x: 600, y: 250 },
+    });
+  await expect(page.locator(".operation-node")).toHaveCount(5);
+  await expect(page.getByLabel("Node library", { exact: true })).toHaveCount(0);
+  const added = await page.locator(".react-flow__node.selected").boundingBox();
+  expect(Math.abs(added.x - 600)).toBeLessThan(30);
+  expect(Math.abs(added.y - 250)).toBeLessThan(30);
+});
+
 test("can build connections on the canvas and configure them from the inspector", async ({
   page,
 }) => {
   await page.goto("/");
   const workflow = defaultWorkflow();
   workflow.edges = [];
-  await page
-    .locator('input[type=file][accept=".json"]')
-    .setInputFiles({
-      name: "workflow.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(workflow)),
-    });
+  await page.locator('input[type=file][accept=".json"]').setInputFiles({
+    name: "workflow.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(workflow)),
+  });
   await expect(page.locator(".react-flow__edge")).toHaveCount(0);
   for (const [source, target] of [
     ["upload", "convert"],
@@ -150,6 +221,7 @@ test("uploads a real file and supports keyboard guide and search interactions", 
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
   await page.getByRole("button", { name: "Quick guide" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");

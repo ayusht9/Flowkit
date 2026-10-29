@@ -48,30 +48,29 @@ export function defaultWorkflow() {
       {
         id: "upload",
         type: "operation",
-        position: { x: 60, y: 110 },
+        position: { x: 80, y: 240 },
         data: { operation: "file.upload", options: {} },
       },
       {
         id: "convert",
         type: "operation",
-        position: { x: 390, y: 110 },
+        position: { x: 340, y: 240 },
         data: { operation: "document.toMarkdown", options: {} },
       },
       {
         id: "clean",
         type: "operation",
-        position: { x: 390, y: 360 },
+        position: { x: 600, y: 240 },
         data: {
           operation: "context.clean",
           options: { collapseBlankLines: true },
-          reverse: true,
         },
       },
       {
         id: "preview",
         type: "operation",
-        position: { x: 60, y: 360 },
-        data: { operation: "artifact.preview", options: {}, reverse: true },
+        position: { x: 860, y: 240 },
+        data: { operation: "artifact.preview", options: {} },
       },
     ],
     edges: [
