@@ -116,6 +116,8 @@ The visual editor uses the pipeline executor. Future MCP agents can call `regist
 
 ## Current boundary
 
+The proposed audio/video nodes, FFmagic-inspired interaction, execution model, and fixture-based validation plan are documented in [Audio and video pipeline design](docs/MEDIA_PIPELINES.md). This is a design proposal; media execution is not implemented yet.
+
 The app performs real Pandoc conversion and ImageMagick resizing through the executor. OCR, other image operations, FFmpeg, PDF adapters, RAG, and MCP transport remain future work. OS/container worker isolation and persistent artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
 
 Original planning material is retained locally under `archieve/`, which is ignored by Git.
