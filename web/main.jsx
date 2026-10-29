@@ -88,8 +88,6 @@ function OperationNode({ data, selected }) {
     <div
       className={`operation-node card-node ${item.color} ${selected ? "is-selected" : ""} state-${statusState}`}
     >
-      {/* Gradient accent bar at top */}
-      <div className="card-accent-bar" />
       {kind === "process" && <div className="card-file-type nodrag nopan">
         <FileTypeSelector category={data.fileType} locked={data.inferred}
           disabled={data.running} onChange={data.onFileTypeChange} />
