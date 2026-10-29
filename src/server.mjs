@@ -68,8 +68,8 @@ function json(response, status, body) {
 }
 
 function compact(result) {
-  const serialize = (output) => output?.type === "image" ? {
-    type: "image", value: { ...output.value, data: Buffer.from(output.value.data).toString("base64") },
+  const serialize = (output) => ["image", "audio", "video"].includes(output?.type) ? {
+    type: output.type, value: { ...output.value, data: Buffer.from(output.value.data).toString("base64") },
   } : output;
   return {
     ...result,
@@ -86,14 +86,14 @@ function compact(result) {
               },
             },
           }
-        : output?.type === "image"
-          ? { output: { type: "image", value: { ...output.value, data: undefined, size: output.value.data.byteLength } } }
+        : ["image", "audio", "video"].includes(output?.type)
+          ? { output: { type: output.type, value: { ...output.value, data: undefined, size: output.value.data.byteLength } } }
           : { output }),
     })),
   };
 }
 
-export async function createApp({ executable, imageExecutable, dev = false, allowedOrigins = [] } = {}) {
+export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, dev = false, allowedOrigins = [] } = {}) {
   const origins = new Map();
   for (const value of allowedOrigins) {
     const url = new URL(value);
@@ -106,6 +106,7 @@ export async function createApp({ executable, imageExecutable, dev = false, allo
   const registry = createWorkflowRegistry({
     executable: executable || (await findPandoc()),
     imageExecutable,
+    ffmpeg, ffprobe,
   });
   let busy = false;
   let vite;
@@ -158,10 +159,10 @@ export async function createApp({ executable, imageExecutable, dev = false, allo
           }
           const ordered = validatePipeline(body.pipeline, registry);
           if (
-            !["file.upload", "image.upload"].includes(ordered[0].type) ||
-            ordered.filter((node) => ["file.upload", "image.upload"].includes(node.type)).length !==
+            catalog.find((item) => item.type === ordered[0].type)?.group !== "Input" ||
+            ordered.filter((node) => catalog.find((item) => item.type === node.type)?.group === "Input").length !==
               1 ||
-            !["artifact.preview", "image.preview"].includes(ordered.at(-1).type)
+            catalog.find((item) => item.type === ordered.at(-1).type)?.group !== "Output"
           ) {
             throw new TypeError(
               "Connect one upload node to a compatible preview node.",

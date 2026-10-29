@@ -1,4 +1,13 @@
 export const catalog = [
+  ...["audio", "video"].flatMap((type) => [
+    { type: `${type}.upload`, category: type === "audio" ? "Audio" : "Video", title: `Upload ${type}`, description: `Start with an ${type} file`, inputType: type, outputType: type, icon: "upload", color: "blue", group: "Input" },
+    { type: `${type}.pipe`, category: type === "audio" ? "Audio" : "Video", title: "Pipe", description: "Pass media through unchanged", inputType: type, outputType: type, icon: "arrow", color: "teal", group: "Pipe" },
+    { type: `${type}.preview`, category: type === "audio" ? "Audio" : "Video", title: `Preview & download ${type}`, description: `Play and download the ${type}`, inputType: type, outputType: type, icon: "download", color: "orange", group: "Output" },
+  ]),
+  { type: "audio.convert", category: "Audio", title: "Convert audio", description: "Convert to MP3 or WAV with FFmpeg", inputType: "audio", outputType: "audio", icon: "audio", color: "purple", group: "Transform" },
+  { type: "audio.trim", category: "Audio", title: "Trim audio", description: "Choose a start time and duration", inputType: "audio", outputType: "audio", icon: "audio", color: "purple", group: "Transform" },
+  { type: "video.trim", category: "Video", title: "Trim video", description: "Trim and encode a browser-ready MP4", inputType: "video", outputType: "video", icon: "video", color: "purple", group: "Transform" },
+  { type: "video.extractAudio", category: "Video", title: "Extract audio", description: "Save a video's audio track as MP3 or WAV", inputType: "video", outputType: "audio", icon: "audio", color: "purple", group: "Transform" },
   ...["document", "markdown", "image"].map((type) => ({
     type: `${type}.pipe`, category: type === "image" ? "Image" : "Text",
     title: "Pipe", description: "Pass the output to the next step unchanged",
@@ -52,6 +61,15 @@ export const catalog = [
     group: "Output",
   },
 ];
+
+export function mediaWorkflow(type = "audio") {
+  if (!["audio", "video"].includes(type)) throw new TypeError("Choose audio or video");
+  return { name: type === "audio" ? "Audio conversion" : "Video trim", nodes: [
+    { id: "media-upload", type: "operation", position: { x: 80, y: 240 }, data: { operation: `${type}.upload`, options: {} } },
+    { id: "media-process", type: "operation", position: { x: 380, y: 240 }, data: { operation: type === "audio" ? "audio.convert" : "video.trim", options: type === "audio" ? { format: "mp3" } : { startSeconds: 0, durationSeconds: 10 } } },
+    { id: "media-download", type: "operation", position: { x: 680, y: 240 }, data: { operation: `${type}.preview`, options: {} } },
+  ], edges: [{ id: "media-input", source: "media-upload", target: "media-process" }, { id: "media-output", source: "media-process", target: "media-download" }] };
+}
 
 export function imageWorkflow() {
   return {
@@ -128,8 +146,8 @@ export function canConnect(connection, nodes, edges) {
   if (
     !from ||
     !to ||
-    ["file.upload", "image.upload"].includes(to.type) ||
-    ["artifact.preview", "image.preview"].includes(from.type) ||
+    to.group === "Input" ||
+    from.group === "Output" ||
     from.outputType !== to.inputType
   )
     return false;

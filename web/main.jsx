@@ -22,10 +22,11 @@ import {
   catalog,
   defaultWorkflow,
   imageWorkflow,
+  mediaWorkflow,
   toPipeline,
   parseWorkflow,
 } from "../src/catalog.mjs";
-import { nodeKinds, fileTypes, fileCategory, nodeKind, nodeItem, processOptions, defaultOptions, adaptNodes, connectNodes } from "../src/node-builder.mjs";
+import { nodeKinds, fileTypes, fileCategory, outputCategory, nodeKind, nodeItem, processOptions, defaultOptions, adaptNodes, connectNodes } from "../src/node-builder.mjs";
 import { Icon } from "./icons.jsx";
 import "./styles.css";
 
@@ -52,8 +53,9 @@ const formatBytes = (bytes) =>
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const nodeTypes = { operation: OperationNode };
-const isUpload = (type) => ["file.upload", "image.upload"].includes(type);
-const isPreview = (type) => ["artifact.preview", "image.preview"].includes(type);
+const isUpload = (type) => catalog.find((item) => item.type === type)?.group === "Input";
+const isPreview = (type) => catalog.find((item) => item.type === type)?.group === "Output";
+const binaryMime = (value) => value.mimeType || ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", mkv: "video/x-matroska" })[value.name?.split(".").at(-1).toLowerCase()] || "application/octet-stream";
 
 // Group badge helper
 function NodeGroupBadge({ group }) {
@@ -258,7 +260,8 @@ function App() {
   const selected = nodes.find((node) => node.id === selectedId);
   const selectedItem = selected ? nodeItem(selected) : null;
   const output = result?.output?.value;
-  const imageMode = nodes.some((node) => node.data.operation === "image.upload");
+  const inputCategory = file ? fileCategory(file.name) : nodes.find((node) => isUpload(node.data.operation))?.data.fileType || "Text";
+  const mediaOutput = isPreview(selected?.data.operation) && ["audio", "video"].includes(result?.output?.type) ? output : null;
   const imageOutput = selectedItem?.type === "image.preview" && result?.output?.type === "image" ? output : null;
   const nodeOutput = result?.nodes?.find(
     (node) => node.id === selectedId,
@@ -320,8 +323,8 @@ function App() {
 
   async function chooseFile(candidate) {
     if (!candidate || running) return;
-    if (!/\.(png|jpe?g|docx|html?|epub|md)$/i.test(candidate.name)) {
-      setMessage("Choose a PNG, JPEG, DOCX, HTML, EPUB, or Markdown file. Audio and video tools are coming soon.");
+    if (!/\.(png|jpe?g|docx|html?|epub|md|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
+      setMessage("Choose a supported document, image, audio (WAV/MP3/M4A), or video (MP4/MOV/WebM/MKV) file.");
       return;
     }
     if (candidate.size === 0 || candidate.size > 20 * 1024 * 1024) {
@@ -348,7 +351,7 @@ function App() {
     setSearch("");
     const source = nodes.find((node) => node.id === id);
     const sourceItem = source ? nodeItem(source) : null;
-    const category = sourceItem?.category || (file ? fileCategory(file.name) : "Text");
+    const category = outputCategory(sourceItem) || (file ? fileCategory(file.name) : "Text");
     setPickerFileType(category);
     setPickerOperation(processOptions(category, sourceItem?.outputType)[0]?.type || "");
     setPickerProcess(Boolean(source));
@@ -379,10 +382,10 @@ function App() {
     if (kind === "upload" && nodes.some((node) => nodeKind(node) === "upload")) { setMessage("This workflow already has an Upload node."); return; }
     const id = crypto.randomUUID();
     const anchor = nodes.find((node) => node.id === anchorId);
-    const category = (anchor && nodeItem(anchor).category) || spec.fileType || (file ? fileCategory(file.name) : "Text");
+    const category = (anchor && outputCategory(nodeItem(anchor))) || spec.fileType || (file ? fileCategory(file.name) : "Text");
     const operation = spec.operation || (catalog.some((item) => item.type === spec.kind) ? spec.kind : {
-      upload: category === "Image" ? "image.upload" : "file.upload", process: processOptions(category)[0]?.type || "",
-      pipe: category === "Image" ? "image.pipe" : "document.pipe", download: category === "Image" ? "image.preview" : "artifact.preview",
+      upload: category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`, process: processOptions(category)[0]?.type || "",
+      pipe: category === "Text" ? "document.pipe" : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
     }[kind]);
     const location = position || (anchor ? { x: anchor.position.x + 300, y: anchor.position.y }
       : flow.screenToFlowPosition({ x: innerWidth / 2, y: innerHeight / 2 }));
@@ -408,10 +411,10 @@ function App() {
     if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
   }, [nodes, edges, running, file]);
 
-  function reset(blank = false, image = false) {
+  function reset(blank = false, image = false, media = null) {
     const template = blank
       ? { name: "Untitled workflow", nodes: [], edges: [] }
-      : image ? imageWorkflow() : defaultWorkflow();
+      : media ? mediaWorkflow(media) : image ? imageWorkflow() : defaultWorkflow();
     setFile(null);
     setWorkflowId(null);
     setNodes(adaptNodes(template.nodes, template.edges));
@@ -471,9 +474,9 @@ function App() {
 
   function exportResult(payload = result?.output) {
     if (!payload) return;
-    if (payload.type === "image") {
+    if (["image", "audio", "video"].includes(payload.type)) {
       download(Uint8Array.from(atob(payload.value.data), (character) => character.charCodeAt(0)), payload.value.name,
-        payload.value.mimeType || (/\.jpe?g$/i.test(payload.value.name) ? "image/jpeg" : "image/png"));
+        binaryMime(payload.value));
     } else {
       download(payload.value.text, `${(payload.value.source || "result").replace(/\.[^.]+$/, "")}.md`, "text/markdown");
     }
@@ -502,7 +505,7 @@ function App() {
 
   async function run() {
     if (!file) {
-      setMessage(imageMode ? "Upload a PNG or JPEG before processing." : "Upload a document before processing.");
+      setMessage(`Upload a ${inputCategory === "Text" ? "document" : inputCategory.toLowerCase() + " file"} before processing.`);
       return;
     }
     if (running) return;
@@ -644,7 +647,7 @@ function App() {
   );
   const anchor = nodes.find((node) => node.id === anchorId);
   const anchorItem = anchor ? nodeItem(anchor) : null;
-  const pickerCategory = anchorItem?.category || pickerFileType;
+  const pickerCategory = outputCategory(anchorItem) || pickerFileType;
   const pickerChoices = processOptions(pickerCategory, anchorItem?.outputType);
   const selectedOperation = pickerChoices.some((item) => item.type === pickerOperation) ? pickerOperation : pickerChoices[0]?.type || "";
   const filteredKinds = nodeKinds.filter((item) =>
@@ -994,15 +997,15 @@ function App() {
                   </p>
                 </div>
                 <div className="inspector-section">
-                  <label className="field-label">Source {imageMode ? "image" : "document"}</label>
+                  <label className="field-label">Source {inputCategory === "Text" ? "document" : inputCategory.toLowerCase()}</label>
                   <div className="source-summary">
-                    <Icon name={imageMode ? "image" : "document"} size={20} />
+                    <Icon name={({ Image: "image", Audio: "audio", Video: "video", Text: "document" })[inputCategory]} size={20} />
                     <div><strong>{file?.name || "No file uploaded"}</strong>
                       <small>{file ? formatBytes(file.size) : "Use Upload in the navbar, or drop a file on the canvas."}</small>
                     </div>
                   </div>
                   <p className="file-types">
-                    {imageMode ? "PNG, JPEG · Up to 20 MiB and 16 million pixels" : "DOCX, HTML, EPUB, Markdown · Up to 20 MiB"}
+                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: "DOCX, HTML, EPUB, Markdown" })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
                 {selectedItem?.type === "image.resize" && (
@@ -1027,6 +1030,25 @@ function App() {
                       </label>
                     ))}
                     <small>1–4096 pixels per dimension. Output: PNG.</small>
+                  </div>
+                )}
+                {selectedItem?.group === "Transform" && ["Audio", "Video"].includes(selectedItem.category) && (
+                  <div className="inspector-section resize-settings">
+                    <p>FFmpeg processes your file locally on the server. Maximum output: 8 MiB.</p>
+                    {selectedItem.outputType === "audio" && <label>Output format
+                      <select aria-label="Audio output format" disabled={running} value={selected.data.options?.format || "mp3"}
+                        onChange={(event) => { setNodes((current) => current.map((node) => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, format: event.target.value } } } : node)); invalidate(); }}>
+                        <option value="mp3">MP3</option><option value="wav">WAV</option>
+                      </select>
+                    </label>}
+                    {selectedItem.type.endsWith(".trim") && ["startSeconds", "durationSeconds"].map((key) => (
+                      <label key={key}>{key === "startSeconds" ? "Start (seconds)" : "Duration (seconds)"}
+                        <input type="number" min={key === "startSeconds" ? 0 : 0.01} max="300" step="0.01"
+                          aria-label={key === "startSeconds" ? "Start (seconds)" : "Duration (seconds)"} disabled={running}
+                          value={selected.data.options?.[key] ?? ""}
+                          onChange={(event) => { const value = Number(event.target.value); setNodes((current) => current.map((node) => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, [key]: value } } } : node)); invalidate(); }} />
+                      </label>
+                    ))}
                   </div>
                 )}
                 {selectedItem?.type === "context.clean" && (
@@ -1146,7 +1168,16 @@ function App() {
               </>
             ) : (
               <>
-                {imageOutput ? (
+                {mediaOutput ? (
+                  <div className="media-output">
+                    {result.output.type === "video"
+                      ? <video controls preload="metadata" aria-label="Video preview" src={`data:${binaryMime(mediaOutput)};base64,${mediaOutput.data}`} />
+                      : <audio controls preload="metadata" aria-label="Audio preview" src={`data:${binaryMime(mediaOutput)};base64,${mediaOutput.data}`} />}
+                    <p>{mediaOutput.name}</p>
+                    {mediaOutput.durationSeconds && <p>{mediaOutput.durationSeconds.toFixed(2)} seconds</p>}
+                    <button className="button primary download-result" onClick={() => exportResult()}><Icon name="download" size={16} /> Download media</button>
+                  </div>
+                ) : imageOutput ? (
                   <>
                     <img className="image-preview" alt="Resized image" src={`data:${imageOutput.mimeType || (/\.jpe?g$/i.test(imageOutput.name) ? "image/jpeg" : "image/png")};base64,${imageOutput.data}`} />
                     {imageOutput.width && <p>{imageOutput.width} × {imageOutput.height} pixels</p>}
@@ -1154,10 +1185,10 @@ function App() {
                       <Icon name="download" size={16} /> Download image
                     </button>
                   </>
-                ) : nodeOutput?.type === "image" ? (
+                ) : ["image", "audio", "video"].includes(nodeOutput?.type) ? (
                   <div className="output-document">
                     <strong>{nodeOutput.value.name}</strong>
-                    <p>{formatBytes(nodeOutput.value.size)} · {nodeOutput.value.width ? `${nodeOutput.value.width} × ${nodeOutput.value.height} pixels` : "Uploaded image"}</p>
+                    <p>{formatBytes(nodeOutput.value.size)} · {nodeOutput.value.width ? `${nodeOutput.value.width} × ${nodeOutput.value.height} pixels` : `${nodeOutput.type} file`}</p>
                   </div>
                 ) : nodeOutput?.type === "document" ? (
                   <div className="output-document">
@@ -1288,7 +1319,7 @@ function App() {
             event.preventDefault();
             if (workflowDialog === "copy") saveWorkflow(true, dialogName);
             else {
-              reset(template === "blank", template === "image");
+              reset(template === "blank", template === "image", ["audio", "video"].includes(template) ? template : null);
               setName(dialogName.trim() || "Untitled workflow"); setWorkflowDialog(null);
             }
           }}>
@@ -1302,6 +1333,8 @@ function App() {
                 <option value="blank">Blank canvas</option>
                 <option value="text">Text / document</option>
                 <option value="image">Image resize</option>
+                <option value="audio">Audio conversion</option>
+                <option value="video">Video trim</option>
               </select>
             </label>}
             <div className="dialog-actions">
@@ -1315,7 +1348,7 @@ function App() {
       <input
         ref={fileRef}
         type="file"
-        accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"
+        accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
         hidden
         onChange={(event) => {
           chooseFile(event.target.files[0]);

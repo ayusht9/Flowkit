@@ -18,7 +18,7 @@ test('upload, configure, resize, preview, and download a real PNG', async ({ pag
   await page.getByLabel('Workflow template').selectOption('image');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.operation-node')).toHaveCount(3);
-  await page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]').setInputFiles({ name: fixtureName, mimeType: 'image/png', buffer: fixture });
+  await page.locator('input[type=file][accept*=".png"]').setInputFiles({ name: fixtureName, mimeType: 'image/png', buffer: fixture });
   await page.locator('.react-flow__node[data-id="resize"] .card-body').click();
   await page.getByLabel('Maximum width (px)').fill('40');
   await page.getByLabel('Maximum height (px)').fill('40');
@@ -45,7 +45,7 @@ test('invalid resize settings produce a visible error before execution', async (
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByLabel('Workflow template').selectOption('image');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]').setInputFiles({ name: 'gradient.png', mimeType: 'image/png', buffer: sampleImage });
+  await page.locator('input[type=file][accept*=".png"]').setInputFiles({ name: 'gradient.png', mimeType: 'image/png', buffer: sampleImage });
   await page.locator('.react-flow__node[data-id="resize"] .card-body').click();
   await page.getByLabel('Maximum width (px)').fill('0');
   await page.getByRole('navigation', { name: 'Workflow actions' }).getByRole('button', { name: 'Process', exact: true }).click();

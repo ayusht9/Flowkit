@@ -29,12 +29,12 @@ test("operation options follow upstream payload types and survive metadata expor
   assert.deepEqual(toPipeline(restored.nodes, restored.edges), toPipeline(workflow.nodes, workflow.edges));
 });
 
-test("unavailable Audio/Video operations remain unconfigured and cannot execute", () => {
+test("Audio and Video select executable operations", () => {
   for (const fileType of ["Audio", "Video"]) {
     const [pending] = adaptNodes([{ ...node("p", "", "process"), data: { kind: "process", operation: "", fileType } }], []);
-    assert.equal(pending.data.operation, "");
-    assert.equal(nodeItem(pending).type, "");
-    assert.throws(() => toPipeline([pending], []), /Choose an available operation/);
+    assert.equal(pending.data.operation, fileType === "Audio" ? "audio.convert" : "video.trim");
+    assert.equal(nodeItem(pending).type, pending.data.operation);
+    assert.equal(toPipeline([pending], []).nodes[0].type, pending.data.operation);
     assert.equal(parseWorkflow({ name: "Draft", nodes: [pending], edges: [] }).nodes[0].data.fileType, fileType);
   }
 });

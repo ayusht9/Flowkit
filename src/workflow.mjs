@@ -1,15 +1,23 @@
 import { OperationRegistry, assertRecord } from "./operations.mjs";
 import { createDocumentToMarkdown } from "./document.mjs";
 import { createImageResize, validateImage } from "./image.mjs";
+import { createMediaOperation, validateMedia } from "./media.mjs";
 
-export function createWorkflowRegistry({ executable = "pandoc", imageExecutable } = {}) {
+export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe } = {}) {
   const convert = createDocumentToMarkdown({ executable });
   const markdown = (value) => {
     assertRecord(value, "Markdown");
     if (typeof value.text !== "string" || typeof value.source !== "string")
       throw new TypeError("Expected Markdown text and source");
   };
-  return new OperationRegistry()
+  const registry = new OperationRegistry();
+  for (const type of ["audio", "video"]) {
+    for (const action of ["upload", "pipe", "preview"])
+      registry.register(`${type}.${action}`, { inputType: type, outputType: type, validateInput: (value) => validateMedia(value, type), run: async (input) => input });
+  }
+  for (const operation of ["audio.convert", "audio.trim", "video.trim", "video.extractAudio"])
+    registry.register(operation, createMediaOperation(operation, { ffmpeg, ffprobe }));
+  return registry
     .register("document.pipe", { inputType: "document", outputType: "document", validateInput: convert.validateInput, run: async (input) => input })
     .register("markdown.pipe", { inputType: "markdown", outputType: "markdown", validateInput: markdown, run: async (input) => input })
     .register("image.pipe", { inputType: "image", outputType: "image", validateInput: validateImage, run: async (input) => input })

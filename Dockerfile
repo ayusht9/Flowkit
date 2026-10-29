@@ -1,6 +1,6 @@
 FROM node:24-bookworm-slim AS base
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pandoc imagemagick ca-certificates \
+    && apt-get install -y --no-install-recommends pandoc imagemagick ffmpeg ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 

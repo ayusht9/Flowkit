@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { setTimeout } from "node:timers/promises";
-import { defaultWorkflow, imageWorkflow, toPipeline } from "../src/catalog.mjs";
+import { defaultWorkflow, imageWorkflow, mediaWorkflow, toPipeline } from "../src/catalog.mjs";
+import { sampleAudio } from "../examples/fixtures/media.mjs";
 import { sampleImage } from "../examples/fixtures/image.mjs";
 
 const url = new URL(process.argv[2] || "http://127.0.0.1:3000");
@@ -52,4 +53,16 @@ const imageResult = (await resized.text()).trim().split("\n").map(line => JSON.p
 assert.equal(imageResult.status, "succeeded", imageResult.error?.message);
 const png = Buffer.from(imageResult.output.value.data, "base64");
 assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [40, 20]);
-console.log("Smoke test passed: frontend, API, Pandoc conversion, streamed Markdown, ImageMagick PNG resize.");
+const audio = mediaWorkflow("audio");
+const converted = await request("/api/run", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Origin: url.origin },
+  body: JSON.stringify({ pipeline: toPipeline(audio.nodes, audio.edges), input: { name: "tone.wav", data: sampleAudio.toString("base64") } }),
+});
+assert.equal(converted.status, 200);
+const audioResult = (await converted.text()).trim().split("\n").map(line => JSON.parse(line)).at(-1).result;
+assert.equal(audioResult.status, "succeeded", audioResult.error?.message);
+assert.equal(audioResult.output.type, "audio");
+assert.equal(audioResult.output.value.mimeType, "audio/mpeg");
+assert.ok(Buffer.from(audioResult.output.value.data, "base64").length > 100);
+console.log("Smoke test passed: frontend, API, Pandoc conversion, ImageMagick resize, FFmpeg audio conversion.");

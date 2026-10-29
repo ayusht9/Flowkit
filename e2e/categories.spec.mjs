@@ -30,16 +30,15 @@ test("Add Node offers four stages and Process configures file type above operati
   const config = page.getByLabel("Configure Process");
   await expect(config.getByLabel("File type", { exact: true })).toHaveValue("Text");
   await config.getByLabel("File type", { exact: true }).selectOption("Audio");
-  await expect(config.getByLabel("Operation", { exact: true })).toBeDisabled();
-  await expect(config.getByText("Audio operations are coming soon.")).toBeVisible();
-  await expect(config.getByRole("button", { name: "Add Process", exact: true })).toBeDisabled();
+  await expect(config.getByLabel("Operation", { exact: true })).toHaveValue("audio.convert");
+  await expect(config.getByRole("button", { name: "Add Process", exact: true })).toBeEnabled();
   await config.getByLabel("File type", { exact: true }).selectOption("Image");
   await expect(config.getByLabel("Operation", { exact: true })).toHaveValue("image.resize");
   await config.getByRole("button", { name: "Add Process", exact: true }).click();
   const process = page.locator(".react-flow__node.selected");
   await expect(process.getByLabel("File type", { exact: true })).toHaveValue("Image");
   await process.getByLabel("File type", { exact: true }).selectOption("Video");
-  await expect(process.getByLabel("Operation", { exact: true })).toBeDisabled();
+  await expect(process.getByLabel("Operation", { exact: true })).toHaveValue("video.trim");
   await expect(page.locator(".operation-node")).toHaveCount(5);
   expect(errors).toEqual([]);
 });
@@ -60,7 +59,7 @@ test("Upload infers Process type and a Pipe/Download chain executes after changi
   await page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Pipe", exact: true }).click();
   await page.getByRole("button", { name: "Add after Pipe", exact: true }).click();
   await page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Download", exact: true }).click();
-  const upload = page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]');
+  const upload = page.locator('input[type=file][accept*=".png"]');
   await upload.setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: sampleImage });
   const process = page.locator(".react-flow__node").filter({ has: page.locator(".card-selectors") });
   await expect(process.getByLabel("File type", { exact: true })).toHaveValue("Image");

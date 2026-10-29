@@ -1,10 +1,10 @@
 # FlowKit
 
-Visual workflows and MCP tools for document and media processing. Implemented: a drag-and-drop workflow studio, linear pipeline executor, real Pandoc document conversion, and ImageMagick image resizing.
+Visual workflows and MCP tools for document and media processing. Implemented: a drag-and-drop workflow studio, linear pipeline executor, real Pandoc document conversion, ImageMagick image resizing, and FFmpeg audio/video processing.
 
 ## Run
 
-Requires Node.js 22.12 or newer, Pandoc for document conversion, and ImageMagick for image resizing. Node.js 24 is used in CI and Docker.
+Requires Node.js 22.12 or newer, Pandoc for document conversion, ImageMagick for image resizing, and FFmpeg/FFprobe for audio/video processing. Node.js 24 is used in CI and Docker.
 
 ```sh
 npm install
@@ -15,12 +15,12 @@ Open **http://127.0.0.1:3000**. The app runs on your machine; uploaded documents
 
 On Windows PowerShell, use `npm.cmd run dev` if execution policy blocks `npm.ps1`.
 
-1. Use the default document workflow, or choose **New** in the hamburger popup to start with a blank, text/document, or image template.
+1. Use the default document workflow, or choose **New** in the hamburger popup to start with a blank, text/document, image, audio, or video template.
 2. Open **Add Node** to choose **Upload**, **Process**, **Pipe**, or **Download**. Click Process to choose a file type and operation, then add or drag it onto the canvas. The **+** beside an unconnected output adds and connects the next step.
-3. Use the navbar's single **Upload** button to choose a source file, then **Process** to run the workflow. **Export** in the navbar downloads the processed Markdown or PNG. **Add Node** opens the categorized node picker. Files can also be dropped onto the canvas. The sample controls have been removed.
+3. Use the navbar's single **Upload** button to choose a source file, then **Process** to run the workflow. **Export** in the navbar downloads the processed Markdown, PNG, audio, or video. **Add Node** opens the categorized node picker. Files can also be dropped onto the canvas. The sample controls have been removed.
 4. The **hamburger popup** contains **New**, **Save**, **Save as new**, **Import**, and **Export**. Save stores the current workflow in this browser; Save as new creates a separately named copy. Saved workflows can be reopened from the popup and the last saved one is restored on reload. Import/Export transfer workflow JSON. Uploaded files and execution results are never included in saved or exported workflows. Browser storage is local to this browser and origin; use Export for portable backups.
 
-The canvas fills the window beneath a connected navbar, with hamburger and branding on the left and Add Node, Upload, Process, and Export on the right. The node picker has four stages: **Upload**, **Process**, **Pipe**, and **Download**. Process cards have a file-type dropdown at the top and an operation dropdown at the bottom. Connecting an input automatically selects and locks the file type and filters operations to compatible payloads. Changing the uploaded file between a document and an image updates the connected chain. Pipe passes data unchanged through the linear executor. Audio/Video remain visible as file-type choices with no executable operations yet. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections and also updates inferred types. `/` opens node search. Execution logs also open on demand.
+The canvas fills the window beneath a connected navbar, with hamburger and branding on the left and Add Node, Upload, Process, and Export on the right. The node picker has four stages: **Upload**, **Process**, **Pipe**, and **Download**. Process cards have a file-type dropdown at the top and an operation dropdown at the bottom. Connecting an input automatically selects and locks the file type and filters operations to compatible payloads. Changing the uploaded file between a document and an image updates the connected chain. Pipe passes data unchanged through the linear executor. Audio supports MP3/WAV conversion and trimming; Video supports trimming to H.264 MP4 and audio extraction to MP3/WAV. The output panel includes playback and download. Video-to-audio extraction automatically adapts downstream nodes to Audio. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections and also updates inferred types. `/` opens node search. Execution logs also open on demand.
 
 The default template is **Upload document → Convert to Markdown → Clean Markdown → Preview & download**. The cleanup node normalizes line endings and optionally collapses extra blank lines, preserving code spacing. Workflows support a single connected chain with up to 20 nodes.
 
@@ -116,10 +116,13 @@ The visual editor uses the pipeline executor. Future MCP agents can call `regist
 
 ## Current boundary
 
-The app performs real Pandoc conversion and ImageMagick resizing through the executor. OCR, other image operations, FFmpeg, PDF adapters, RAG, and MCP transport remain future work. OS/container worker isolation and persistent artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
+The app performs real Pandoc conversion and ImageMagick resizing through the executor. OCR, other image operations, PDF adapters, RAG, and MCP transport remain future work. OS/container worker isolation and persistent artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
 
 Original planning material is retained locally under `archieve/`, which is ignored by Git.
 
 ## Git workflow
 
 Use a branch per feature, verify it, and commit it. Leave merging for a later explicit step. `feature/deployment-pipeline` builds on `feature/canvas-first-editor`, `feature/workflow-app`, `feature/pandoc-conversion`, `feature/pipeline-executor`, and the archive-cleanup branch. These branches remain unmerged into `main`.
+
+
+Audio inputs: WAV, MP3, M4A. Video inputs: MP4, MOV, WebM, MKV. Install FFmpeg and FFprobe on PATH, or set `FFMPEG_PATH` and `FFPROBE_PATH`. Media limits: 20 MiB input, five minutes duration, video up to 1080p pixel area and 60 fps, 8 MiB output, and a 30-second subprocess timeout. Native execution uses fixed arguments, one processing thread, and disabled network protocols; these limits do not replace OS worker isolation.
