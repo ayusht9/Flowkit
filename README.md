@@ -128,7 +128,7 @@ Original planning material is retained locally under `archieve/`, which is ignor
 
 ## Git workflow
 
-Start feature branches from `main`, verify and commit each feature, then open a pull request targeting `main`. Merge after review. The integrated app includes the executor, visual editor, document/image/media adapters, and local MCP server. Deployments are manual; ordinary pushes and pull requests run checks.
+Keep two long-lived branches: `main` for completed work and `develop` for integration. Create temporary feature branches from the latest `develop`; verify and commit each feature, merge it into `develop`, then merge the verified result into `main`. Delete completed feature branches locally and remotely after confirming their commits are included in `main`, and synchronize `develop` with `main`. Completed features do not require a separate request to merge. Preserve branches with unmerged work. Deployments remain manual; ordinary pushes and pull requests run checks.
 
 
 Audio inputs: WAV, MP3, M4A. Video inputs: MP4, MOV, WebM, MKV. Install FFmpeg and FFprobe on PATH, or set `FFMPEG_PATH` and `FFPROBE_PATH`. Media limits: 20 MiB input, five minutes duration, video up to 1080p pixel area and 60 fps, 8 MiB output, and a 30-second subprocess timeout. Native execution uses fixed arguments, one processing thread, and disabled network protocols; these limits do not replace OS worker isolation.
