@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import {
   catalog,
   defaultWorkflow,
+  imageWorkflow,
   toPipeline,
   canConnect,
   parseWorkflow,
@@ -37,6 +38,8 @@ const formatBytes = (bytes) =>
       ? `${(bytes / 1024).toFixed(1)} KB`
       : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const nodeTypes = { operation: OperationNode };
+const isUpload = (type) => ["file.upload", "image.upload"].includes(type);
+const isPreview = (type) => ["artifact.preview", "image.preview"].includes(type);
 
 function OperationNode({ data, selected }) {
   const item = catalog.find((item) => item.type === data.operation);
@@ -68,7 +71,7 @@ function OperationNode({ data, selected }) {
         </button>
       </div>
       <div className="node-tile">
-        {item.type !== "file.upload" && (
+        {!isUpload(item.type) && (
           <Handle
             type="target"
             position={data.reverse ? Position.Right : Position.Left}
@@ -85,7 +88,7 @@ function OperationNode({ data, selected }) {
         ) : data.status === "failed" ? (
           <span className="node-failure">!</span>
         ) : null}
-        {item.type !== "artifact.preview" && (
+        {!isPreview(item.type) && (
           <Handle
             type="source"
             position={data.reverse ? Position.Left : Position.Right}
@@ -109,13 +112,13 @@ function OperationNode({ data, selected }) {
       </div>
       <h3>{item.title}</h3>
       <p>
-        {item.type === "file.upload"
+        {isUpload(item.type)
           ? data.filename || "Start with a document"
           : item.type === "document.toMarkdown"
             ? "Pandoc"
             : item.type === "context.clean"
               ? "Normalize spacing"
-              : "Markdown output"}
+              : item.type.startsWith("image.") ? "ImageMagick · PNG" : "Markdown output"}
       </p>
       {data.status && (
         <span className="node-status">
@@ -162,6 +165,8 @@ function App() {
     (item) => item.type === selected?.data.operation,
   );
   const output = result?.output?.value;
+  const imageMode = nodes.some((node) => node.data.operation === "image.upload");
+  const imageOutput = selectedItem?.type === "image.preview" && result?.output?.type === "image" ? output : null;
   const nodeOutput = result?.nodes?.find(
     (node) => node.id === selectedId,
   )?.output;
@@ -222,9 +227,9 @@ function App() {
 
   async function chooseFile(candidate) {
     if (!candidate || running) return;
-    if (!/\.(docx|html?|epub|md)$/i.test(candidate.name)) {
+    if (!(imageMode ? /\.(png|jpe?g)$/i : /\.(docx|html?|epub|md)$/i).test(candidate.name)) {
       setMessage(
-        "Choose a DOCX, HTML, EPUB, or Markdown document. PDF and media tools are coming next.",
+        imageMode ? "Choose a PNG or JPEG image." : "Choose a DOCX, HTML, EPUB, or Markdown document. Use the image template to resize PNG or JPEG files.",
       );
       return;
     }
@@ -312,7 +317,7 @@ function App() {
         position: location,
         data: {
           operation: type,
-          options: type === "context.clean" ? { collapseBlankLines: true } : {},
+          options: type === "context.clean" ? { collapseBlankLines: true } : type === "image.resize" ? { width: 800, height: 800 } : {},
         },
       },
     ]);
@@ -348,10 +353,11 @@ function App() {
     [nodes, edges, running],
   );
 
-  function reset(blank = false) {
+  function reset(blank = false, image = false) {
     const template = blank
       ? { name: "Untitled workflow", nodes: [], edges: [] }
-      : defaultWorkflow();
+      : image ? imageWorkflow() : defaultWorkflow();
+    setFile(null);
     setNodes(template.nodes);
     setEdges(template.edges);
     setName(template.name);
@@ -407,7 +413,7 @@ function App() {
 
   async function run() {
     if (!file) {
-      setMessage("Upload a document or use the sample before running.");
+      setMessage(imageMode ? "Upload a PNG or JPEG before running." : "Upload a document or use the sample before running.");
       return;
     }
     if (running) return;
@@ -445,7 +451,7 @@ function App() {
             setInspectorOpen(true);
             setShowLibrary(false);
             setSelectedId(
-              nodes.find((node) => node.data.operation === "artifact.preview")
+              nodes.find((node) => isPreview(node.data.operation))
                 ?.id,
             );
           } else
@@ -515,7 +521,7 @@ function App() {
           filename: file?.name,
           running,
           canAppend:
-            node.data.operation !== "artifact.preview" &&
+            !isPreview(node.data.operation) &&
             !edges.some((edge) => edge.source === node.id),
           onAddAfter: () => openLibrary(node.id),
           onRemove: () => removeNode(node.id),
@@ -550,7 +556,7 @@ function App() {
   const filtered = catalog.filter(
     (item) =>
       (!anchorItem ||
-        (item.type !== "file.upload" &&
+        (!isUpload(item.type) &&
           item.inputType === anchorItem.outputType)) &&
       `${item.title} ${item.description}`
         .toLowerCase()
@@ -680,13 +686,13 @@ function App() {
             title="Choose source document"
           >
             <Icon name={file ? "document" : "upload"} size={16} />
-            <span>{file?.name || "Choose document"}</span>
+            <span>{file?.name || (imageMode ? "Choose image" : "Choose document")}</span>
           </button>
           <button
             className="sample-shortcut"
             aria-label="Try with a sample document"
             onClick={loadSample}
-            disabled={running}
+            disabled={running || imageMode}
           >
             Use sample
           </button>
@@ -955,7 +961,7 @@ function App() {
                   </p>
                 </div>
                 <div className="inspector-section">
-                  <label className="field-label">Source document</label>
+                  <label className="field-label">Source {imageMode ? "image" : "document"}</label>
                   <button
                     className={`upload-box ${file ? "has-file" : ""}`}
                     onClick={() => fileRef.current.click()}
@@ -969,7 +975,7 @@ function App() {
                     <span className="upload-symbol">
                       <Icon name={file ? "document" : "upload"} size={22} />
                     </span>
-                    <strong>{file?.name || "Drop your document here"}</strong>
+                    <strong>{file?.name || (imageMode ? "Drop your image here" : "Drop your document here")}</strong>
                     <small>
                       {file
                         ? `${formatBytes(file.size)} · Click to replace`
@@ -977,17 +983,41 @@ function App() {
                     </small>
                   </button>
                   <p className="file-types">
-                    DOCX, HTML, EPUB, Markdown · Up to 20 MiB
+                    {imageMode ? "PNG, JPEG · Up to 20 MiB and 16 million pixels" : "DOCX, HTML, EPUB, Markdown · Up to 20 MiB"}
                   </p>
                   <button
                     className="sample-button"
                     onClick={loadSample}
-                    disabled={running}
+                    disabled={running || imageMode}
                   >
                     <Icon name="document" size={14} /> Try with a sample
                     document <Icon name="arrow" size={14} />
                   </button>
                 </div>
+                {selectedItem?.type === "image.resize" && (
+                  <div className="inspector-section resize-settings">
+                    <p>Fit within these bounds while preserving aspect ratio. Leave one dimension blank to scale by the other.</p>
+                    {["width", "height"].map((dimension) => (
+                      <label key={dimension}>
+                        {dimension === "width" ? "Maximum width (px)" : "Maximum height (px)"}
+                        <input type="number" min="1" max="4096" step="1"
+                          value={selected.data.options?.[dimension] ?? ""} disabled={running}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setNodes((current) => current.map((node) => {
+                              if (node.id !== selectedId) return node;
+                              const options = { ...node.data.options };
+                              if (value === "") delete options[dimension];
+                              else options[dimension] = Number(value);
+                              return { ...node, data: { ...node.data, options } };
+                            }));
+                            invalidate();
+                          }} />
+                      </label>
+                    ))}
+                    <small>1–4096 pixels per dimension. Output: PNG.</small>
+                  </div>
+                )}
                 {selectedItem?.type === "context.clean" && (
                   <div className="inspector-section">
                     <label className="checkbox-setting">
@@ -1032,7 +1062,7 @@ function App() {
                       <Icon name="arrow" size={14} />
                       <span>{selectedItem.outputType}</span>
                     </div>
-                    {selectedItem.type !== "artifact.preview" && (
+                    {!isPreview(selectedItem.type) && (
                       <label className="next-node-setting">
                         <span>Next node</span>
                         <select
@@ -1122,7 +1152,21 @@ function App() {
               </>
             ) : (
               <>
-                {nodeOutput?.type === "document" ? (
+                {imageOutput ? (
+                  <>
+                    <img className="image-preview" alt="Resized image" src={`data:image/png;base64,${imageOutput.data}`} />
+                    <p>{imageOutput.width} × {imageOutput.height} pixels</p>
+                    <button className="button primary download-result" onClick={() => download(
+                      Uint8Array.from(atob(imageOutput.data), (character) => character.charCodeAt(0)),
+                      imageOutput.name, "image/png",
+                    )}><Icon name="download" size={16} /> Download PNG</button>
+                  </>
+                ) : nodeOutput?.type === "image" ? (
+                  <div className="output-document">
+                    <strong>{nodeOutput.value.name}</strong>
+                    <p>{formatBytes(nodeOutput.value.size)} · {nodeOutput.value.width ? `${nodeOutput.value.width} × ${nodeOutput.value.height} pixels` : "Uploaded image"}</p>
+                  </div>
+                ) : nodeOutput?.type === "document" ? (
                   <div className="output-document">
                     <Icon name="document" size={25} />
                     <strong>{nodeOutput.value.source}</strong>
@@ -1238,6 +1282,9 @@ function App() {
             <Icon name="workflow" />
             Use document template
           </button>
+          <button disabled={running} onClick={() => { setMenuOpen(false); reset(false, true); }}>
+            <Icon name="workflow" /> Use image resize template
+          </button>
           <div className="menu-divider" />
           <button
             disabled={running}
@@ -1268,14 +1315,14 @@ function App() {
             <Icon name="help" />
             Quick guide
           </button>
-          <p>Document workflows · Runs locally</p>
+          <p>Document and image workflows · Runs locally</p>
         </dialog>
       )}
 
       <input
         ref={fileRef}
         type="file"
-        accept=".docx,.html,.htm,.epub,.md"
+        accept={imageMode ? ".png,.jpg,.jpeg" : ".docx,.html,.htm,.epub,.md"}
         hidden
         onChange={(event) => {
           chooseFile(event.target.files[0]);
@@ -1314,7 +1361,7 @@ function App() {
           </span>
           <h2 id="help-title">A few steps. A useful result.</h2>
           <ol>
-            <li>Upload a document or try the included sample.</li>
+            <li>Choose a document or image template from the menu, then upload a file. A document sample is also included.</li>
             <li>
               Drag nodes from the library. Connect an output dot to a compatible
               input dot.
@@ -1323,7 +1370,7 @@ function App() {
               Run the workflow and inspect each step in the execution log.
             </li>
             <li>
-              Download your Markdown. Export the workflow to reuse its layout
+              Download your Markdown or resized PNG. Export the workflow to reuse its layout
               and settings.
             </li>
           </ol>

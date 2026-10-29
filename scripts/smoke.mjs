@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { setTimeout } from "node:timers/promises";
-import { defaultWorkflow, toPipeline } from "../src/catalog.mjs";
+import { defaultWorkflow, imageWorkflow, toPipeline } from "../src/catalog.mjs";
+import { sampleImage } from "../examples/fixtures/image.mjs";
 
 const url = new URL(process.argv[2] || "http://127.0.0.1:3000");
 assert.ok(["http:", "https:"].includes(url.protocol));
@@ -39,4 +40,16 @@ assert.equal(run.status, 200);
 const events = (await run.text()).trim().split("\n").map((line) => JSON.parse(line));
 assert.equal(events.at(-1).result?.status, "succeeded");
 assert.match(events.at(-1).result.output.value.text, /# FlowKit project brief/);
-console.log("Smoke test passed: frontend, API, Pandoc conversion, streamed Markdown.");
+const image = imageWorkflow();
+image.nodes[1].data.options = { width: 40, height: 40 };
+const resized = await request("/api/run", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Origin: url.origin },
+  body: JSON.stringify({ pipeline: toPipeline(image.nodes, image.edges), input: { name: "sample.png", data: sampleImage.toString("base64") } }),
+});
+assert.equal(resized.status, 200);
+const imageResult = (await resized.text()).trim().split("\n").map(line => JSON.parse(line)).at(-1).result;
+assert.equal(imageResult.status, "succeeded", imageResult.error?.message);
+const png = Buffer.from(imageResult.output.value.data, "base64");
+assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [40, 20]);
+console.log("Smoke test passed: frontend, API, Pandoc conversion, streamed Markdown, ImageMagick PNG resize.");

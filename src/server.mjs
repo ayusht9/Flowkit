@@ -68,8 +68,12 @@ function json(response, status, body) {
 }
 
 function compact(result) {
+  const serialize = (output) => output?.type === "image" ? {
+    type: "image", value: { ...output.value, data: Buffer.from(output.value.data).toString("base64") },
+  } : output;
   return {
     ...result,
+    output: serialize(result.output),
     nodes: result.nodes.map(({ output, ...state }) => ({
       ...state,
       ...(output?.type === "document"
@@ -82,12 +86,14 @@ function compact(result) {
               },
             },
           }
-        : { output }),
+        : output?.type === "image"
+          ? { output: { type: "image", value: { ...output.value, data: undefined, size: output.value.data.byteLength } } }
+          : { output }),
     })),
   };
 }
 
-export async function createApp({ executable, dev = false, allowedOrigins = [] } = {}) {
+export async function createApp({ executable, imageExecutable, dev = false, allowedOrigins = [] } = {}) {
   const origins = new Map();
   for (const value of allowedOrigins) {
     const url = new URL(value);
@@ -99,6 +105,7 @@ export async function createApp({ executable, dev = false, allowedOrigins = [] }
   }
   const registry = createWorkflowRegistry({
     executable: executable || (await findPandoc()),
+    imageExecutable,
   });
   let busy = false;
   let vite;
@@ -151,13 +158,13 @@ export async function createApp({ executable, dev = false, allowedOrigins = [] }
           }
           const ordered = validatePipeline(body.pipeline, registry);
           if (
-            ordered[0].type !== "file.upload" ||
-            ordered.filter((node) => node.type === "file.upload").length !==
+            !["file.upload", "image.upload"].includes(ordered[0].type) ||
+            ordered.filter((node) => ["file.upload", "image.upload"].includes(node.type)).length !==
               1 ||
-            ordered.at(-1).type !== "artifact.preview"
+            !["artifact.preview", "image.preview"].includes(ordered.at(-1).type)
           ) {
             throw new TypeError(
-              "Connect one Upload document node to a Preview & download node.",
+              "Connect one upload node to a compatible preview node.",
             );
           }
           const input = body.input;
@@ -176,7 +183,7 @@ export async function createApp({ executable, dev = false, allowedOrigins = [] }
             name: input.name,
             data: Buffer.from(input.data, "base64"),
           };
-          registry.get("file.upload").validateInput(value);
+          registry.get(ordered[0].type).validateInput(value);
           response.writeHead(200, {
             "Content-Type": "application/x-ndjson",
             "Cache-Control": "no-store",
@@ -187,7 +194,7 @@ export async function createApp({ executable, dev = false, allowedOrigins = [] }
               response.write(`${JSON.stringify(data)}\n`);
           };
           const result = await runPipeline(body.pipeline, registry, {
-            input: { type: "document", value },
+            input: { type: registry.get(ordered[0].type).inputType, value },
             signal: controller.signal,
             onEvent: send,
           });

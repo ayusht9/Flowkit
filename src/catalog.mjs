@@ -1,4 +1,7 @@
 export const catalog = [
+  { type: "image.upload", title: "Upload image", description: "Start with a PNG or JPEG", inputType: "image", outputType: "image", icon: "upload", color: "blue", group: "Input" },
+  { type: "image.resize", title: "Resize image", description: "Fit within dimensions, preserving aspect ratio", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" },
+  { type: "image.preview", title: "Preview & download image", description: "Inspect and download the resized PNG", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
   {
     type: "file.upload",
     title: "Upload document",
@@ -40,6 +43,18 @@ export const catalog = [
     group: "Output",
   },
 ];
+
+export function imageWorkflow() {
+  return {
+    name: "Resize image",
+    nodes: [
+      { id: "upload-image", type: "operation", position: { x: 80, y: 240 }, data: { operation: "image.upload", options: {} } },
+      { id: "resize", type: "operation", position: { x: 340, y: 240 }, data: { operation: "image.resize", options: { width: 800, height: 800 } } },
+      { id: "preview-image", type: "operation", position: { x: 600, y: 240 }, data: { operation: "image.preview", options: {} } },
+    ],
+    edges: [ { id: "image-resize", source: "upload-image", target: "resize" }, { id: "resize-preview", source: "resize", target: "preview-image" } ],
+  };
+}
 
 export function defaultWorkflow() {
   return {
@@ -101,8 +116,8 @@ export function canConnect(connection, nodes, edges) {
   if (
     !from ||
     !to ||
-    to.type === "file.upload" ||
-    from.type === "artifact.preview" ||
+    ["file.upload", "image.upload"].includes(to.type) ||
+    ["artifact.preview", "image.preview"].includes(from.type) ||
     from.outputType !== to.inputType
   )
     return false;

@@ -22,11 +22,12 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y pandoc
+      - run: sudo apt-get update && sudo apt-get install -y pandoc imagemagick
       - run: npm ci
       - run: npm test
         env:
           PANDOC_PATH: /usr/bin/pandoc
+          IMAGEMAGICK_PATH: /usr/bin/convert
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
