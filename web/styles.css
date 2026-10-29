@@ -109,7 +109,6 @@ svg {
 .hamburger {
   color: #666975;
 }
-.canvas-tools { position: absolute; top: 80px; right: 18px; z-index: 5; }
 .button {
   display: inline-flex;
   align-items: center;
@@ -136,17 +135,6 @@ svg {
   background: #fff1ef;
   color: #b45a49;
   border-color: #f0d6d0;
-}
-.add-node-button {
-  background: #fff;
-  border-color: #dedfe4;
-  color: #555c68;
-  box-shadow: 0 2px 6px #34374305;
-  height: 41px;
-}
-.add-node-button:hover {
-  background: #fdfbff;
-  border-color: #b8adca;
 }
 .canvas-hint {
   position: absolute;
@@ -498,7 +486,6 @@ svg {
   flex-direction: column;
   overflow: hidden;
 }
-.node-picker { top: 132px; }
 .panel-heading {
   display: flex;
   align-items: flex-start;
@@ -1089,10 +1076,8 @@ svg {
   .navbar-brand .icon-button { width: 28px; }
   .navbar-actions button { padding: 0 8px; font-size: 11px; height: 34px; }
   .navbar-actions button > svg { display: none; }
-  .canvas-tools { top: 68px; right: 12px; }
-  .add-node-button { height: 36px; padding: 0 11px; font-size: 11px; }
   .node-picker, .inspector { left: 12px; right: 12px; bottom: 62px; width: auto; }
-  .node-picker { top: 116px; }
+  .node-picker { top: 68px; }
   .inspector { top: 68px; }
   .workflow-menu { left: 12px; top: 64px; width: min(300px, calc(100% - 24px)); max-height: calc(100dvh - 80px); }
   .execution-toggle { right: 12px; bottom: 17px; width: 34px; height: 34px; padding: 0; }
