@@ -2,6 +2,10 @@
 
 Visual workflows and MCP tools for document and media processing. Implemented: a drag-and-drop workflow studio, linear pipeline executor, real Pandoc document conversion, ImageMagick image resizing, and FFmpeg audio/video processing.
 
+## MCP for LLMs
+
+FlowKit exposes local document, image, audio, and video tools over MCP stdio. The model can call each tool independently and chain returned file paths. Results contain compact metadata and bounded text previews. See [MCP.md](MCP.md) for the nine tools, connection configuration, and workspace limits; [mcp.example.json](mcp.example.json) is ready to adapt to your MCP host.
+
 ## Run
 
 Requires Node.js 22.12 or newer, Pandoc for document conversion, ImageMagick for image resizing, and FFmpeg/FFprobe for audio/video processing. Node.js 24 is used in CI and Docker.
@@ -112,11 +116,11 @@ Run `npm test` with ImageMagick available to include native PNG/JPEG, dimension,
 - `AbortSignal` supports cancellation before/between nodes and is forwarded to operations. Running operations must honor the signal themselves; this executor cannot forcibly terminate uncooperative code.
 - Operations are trusted server implementations. The registry validates payload envelopes; each real adapter must validate content, artifact access, and settings before calling native tools.
 
-The visual editor uses the pipeline executor. Future MCP agents can call `registry.execute(type, input, options, { signal })` directly and choose their own next steps; the MCP transport is not implemented yet.
+The visual editor uses the pipeline executor. The local MCP server calls `registry.execute(type, input, options, { signal })` directly, letting external agents choose their own next steps. See [MCP.md](MCP.md).
 
 ## Current boundary
 
-The app performs real Pandoc conversion and ImageMagick resizing through the executor. OCR, other image operations, PDF adapters, RAG, and MCP transport remain future work. OS/container worker isolation and persistent artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
+The app performs real Pandoc conversion, ImageMagick resizing, and FFmpeg media processing through the executor and local MCP tools. OCR, other image operations, PDF adapters, RAG, and authenticated remote MCP remain future work. OS/container worker isolation and persistent cloud artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
 
 Original planning material is retained locally under `archieve/`, which is ignored by Git.
 

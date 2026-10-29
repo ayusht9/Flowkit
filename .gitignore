@@ -1,3 +1,4 @@
+.flowkit-artifacts/
 archieve/
 node_modules/
 .env
