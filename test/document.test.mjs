@@ -55,7 +55,7 @@ test('HTML conversion preserves headings, lists, tables, and source filename', n
   assert.equal(result.value.source, 'sample.html');
   assert.match(result.value.text, /# FlowKit project brief/);
   assert.match(result.value.text, /## Supported tools/);
-  assert.match(result.value.text, /[-*] Pandoc for documents/);
+  assert.match(result.value.text, /[-*]\s+Pandoc for documents/);
   assert.match(result.value.text, /\|.*Feature.*\|.*Status.*\|/);
   const leftovers = (await readdir(tmpdir())).filter(name => name.startsWith('flowkit-pandoc-') && !before.includes(name));
   assert.deepEqual(leftovers, []);
@@ -80,7 +80,8 @@ for (const format of ['docx', 'epub']) {
       const source = join(directory, 'input.md');
       const document = join(directory, `source.${format}`);
       await writeFile(source, '# Quarterly report\n\nRevenue increased by **18%**.\n');
-      await execute(executable, ['--sandbox', '--from', 'commonmark', '--to', format, '--output', document, source]);
+      // Trusted test fixtures need Pandoc's system templates on distro builds.
+      await execute(executable, ['--from', 'commonmark', '--to', format, '--output', document, source]);
       const result = await runPipeline({
         nodes: [{ id: 'convert', type: 'document.toMarkdown' }], edges: [],
       }, registry, { input: { type: 'document', value: { name: `report.${format}`, data: await readFile(document) } } });

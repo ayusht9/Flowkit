@@ -33,7 +33,9 @@ npm run build
 npm start
 ```
 
-The backend binds to `127.0.0.1`, accepts same-origin requests, and runs one workflow at a time. Disconnecting or cancelling aborts the operation. This is a local hackathon app, without accounts, cloud storage, or a public multi-user service.
+The backend binds to `127.0.0.1` by default, accepts same-origin requests, and runs one workflow at a time per instance. Disconnecting or cancelling aborts the operation. Container deployments use `HOST=0.0.0.0` and explicitly configured `PUBLIC_ORIGINS`. This is a hackathon app without accounts or persistent cloud storage.
+
+For the GitHub Actions → Docker Hub → Vercel deployment pipeline and account configuration, see [DEPLOYMENT.md](DEPLOYMENT.md). The Docker image includes Pandoc and serves both the built frontend and API. Cloud uploads currently need to stay below roughly 3 MB because the API sends base64 through Vercel Functions.
 
 ## Verify
 
@@ -101,4 +103,4 @@ Original planning material is retained locally under `archieve/`, which is ignor
 
 ## Git workflow
 
-Use a branch per feature, verify it, and commit it. Leave merging for a later explicit step. `feature/canvas-first-editor` builds on `feature/workflow-app`, `feature/pandoc-conversion`, `feature/pipeline-executor`, and the archive-cleanup branch. These branches remain unmerged into `main`.
+Use a branch per feature, verify it, and commit it. Leave merging for a later explicit step. `feature/deployment-pipeline` builds on `feature/canvas-first-editor`, `feature/workflow-app`, `feature/pandoc-conversion`, `feature/pipeline-executor`, and the archive-cleanup branch. These branches remain unmerged into `main`.

@@ -1,0 +1,17 @@
+node_modules
+.git
+.github
+.agents
+.codex
+.aws
+.tools
+archieve
+dist
+coverage
+test-results
+playwright-report
+.vercel
+.deployment
+.env
+.env.*
+*.log

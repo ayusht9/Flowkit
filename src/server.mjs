@@ -87,7 +87,16 @@ function compact(result) {
   };
 }
 
-export async function createApp({ executable, dev = false } = {}) {
+export async function createApp({ executable, dev = false, allowedOrigins = [] } = {}) {
+  const origins = new Map();
+  for (const value of allowedOrigins) {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol) || url.origin !== value || url.username || url.password)
+      throw new TypeError("Deployment origins must be exact HTTP(S) origins without paths.");
+    const entries = origins.get(url.host) || new Set();
+    entries.add(url.origin);
+    origins.set(url.host, entries);
+  }
   const registry = createWorkflowRegistry({
     executable: executable || (await findPandoc()),
   });
@@ -95,14 +104,20 @@ export async function createApp({ executable, dev = false } = {}) {
   let vite;
   const server = createServer(async (request, response) => {
     const host = request.headers.host || "";
-    if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host))
-      return json(response, 403, { error: "Local access only." });
-    if (request.headers.origin && request.headers.origin !== `http://${host}`)
+    const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+    const accepted = origins.get(host) || new Set();
+    if (!local && !accepted.size)
+      return json(response, 403, { error: "Host is not configured for this deployment." });
+    if (request.headers.origin &&
+        !(local && request.headers.origin === `http://${host}`) &&
+        !accepted.has(request.headers.origin))
       return json(response, 403, {
         error: "Cross-origin requests are not allowed.",
       });
     const path = new URL(request.url, `http://${host}`).pathname;
     try {
+      if (request.method === "GET" && path === "/api/health")
+        return json(response, 200, { status: "ok" });
       if (request.method === "GET" && path === "/api/operations")
         return json(response, 200, { operations: catalog });
       if (request.method === "GET" && path === "/api/sample") {

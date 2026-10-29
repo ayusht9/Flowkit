@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { request as httpRequest } from "node:http";
 import { createApp, findPandoc } from "../src/server.mjs";
 import { defaultWorkflow, toPipeline } from "../src/catalog.mjs";
 
@@ -80,6 +81,34 @@ test("API rejects cross-origin calls, unknown operations, malformed JSON, and in
     assert.equal(response.status, 400);
     assert.match((await response.json()).error, /Unknown operation/);
   });
+});
+
+test("deployment hosts require exact origins and reject spoofed forwarded headers", async () => {
+  const app = await createApp({ allowedOrigins: ["https://flowkit.example"] });
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  async function get(headers) {
+    return new Promise((resolve, reject) => {
+      const request = httpRequest({
+        hostname: "127.0.0.1", port: app.server.address().port,
+        path: "/api/health", headers,
+      }, (response) => { response.resume(); resolve(response.statusCode); });
+      request.on("error", reject);
+      request.end();
+    });
+  }
+  try {
+    assert.equal(await get({ Host: "flowkit.example", Origin: "https://flowkit.example" }), 200);
+    assert.equal(await get({ Host: "flowkit.example", Origin: "https://evil.example" }), 403);
+    assert.equal(await get({ Host: "flowkit.example", Origin: "http://flowkit.example" }), 403);
+    assert.equal(await get({ Host: "evil.example", "X-Forwarded-Host": "flowkit.example" }), 403);
+    assert.equal(await get({ Host: "localhost" }), 200);
+    assert.equal(await get({ Host: "flowkit.example.evil" }), 403);
+  } finally { await app.close(); }
+});
+
+test("deployment origins reject paths, credentials, and non-HTTP protocols", async () => {
+  for (const origin of ["https://flowkit.example/", "https://a:b@flowkit.example", "file:///tmp/a"])
+    await assert.rejects(createApp({ allowedOrigins: [origin] }));
 });
 
 const pandoc = await findPandoc();
