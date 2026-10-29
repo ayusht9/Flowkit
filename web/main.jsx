@@ -23,7 +23,6 @@ import {
   defaultWorkflow,
   imageWorkflow,
   toPipeline,
-  canConnect,
   parseWorkflow,
 } from "../src/catalog.mjs";
 import { nodeKinds, fileTypes, fileCategory, nodeKind, nodeItem, processOptions, defaultOptions, adaptNodes, connectNodes } from "../src/node-builder.mjs";
@@ -65,11 +64,12 @@ function NodeGroupBadge({ group }) {
 
 // Subtitle helper
 function NodeSubtitle({ item, data }) {
+  if (item.group === "Pipe") return "Pass through unchanged";
   if (isUpload(item.type)) return data.filename || "Drop or upload a file";
   if (item.type === "document.toMarkdown") return "via Pandoc · Markdown";
   if (item.type === "context.clean") return "Normalize spacing";
   if (item.type === "artifact.preview") return "Preview & download .md";
-  if (item.type === "image.preview") return "Preview & download PNG";
+  if (item.type === "image.preview") return "Preview & download image";
   if (item.type.startsWith("image.") && item.type !== "image.upload") return "ImageMagick · PNG";
   return item.description || "";
 }
@@ -88,6 +88,10 @@ function OperationNode({ data, selected }) {
     >
       {/* Gradient accent bar at top */}
       <div className="card-accent-bar" />
+      {kind === "process" && <div className="card-file-type nodrag nopan">
+        <FileTypeSelector category={data.fileType} locked={data.inferred}
+          disabled={data.running} onChange={data.onFileTypeChange} />
+      </div>}
 
       {/* Hover action buttons */}
       <div className="node-actions nodrag nopan">
@@ -186,8 +190,6 @@ function OperationNode({ data, selected }) {
       {/* Process node selectors */}
       {kind === "process" && (
         <div className="card-selectors nodrag nopan">
-          <FileTypeSelector category={data.fileType} locked={data.inferred}
-            disabled={data.running} onChange={data.onFileTypeChange} />
           <OperationSelector category={data.fileType} operation={data.operation}
             inputType={data.inputType} disabled={data.running} onChange={data.onOperationChange} />
         </div>
@@ -367,75 +369,44 @@ function App() {
     invalidate();
   }
 
-  function addNode(type, position) {
+  function addNode(request, position) {
     if (running) return;
-    if (nodes.length >= 20) {
-      setMessage("A workflow can contain up to 20 nodes.");
-      return;
-    }
+    if (nodes.length >= 20) { setMessage("A workflow can contain up to 20 nodes."); return; }
+    const spec = typeof request === "string" ? { kind: request } : request;
+    if (!spec || typeof spec !== "object") return;
+    const kind = nodeKinds.some((item) => item.kind === spec.kind) ? spec.kind : nodeKind({ data: { operation: spec.kind } });
+    if (!kind) return;
+    if (kind === "upload" && nodes.some((node) => nodeKind(node) === "upload")) { setMessage("This workflow already has an Upload node."); return; }
     const id = crypto.randomUUID();
     const anchor = nodes.find((node) => node.id === anchorId);
-    const item = catalog.find((item) => item.type === type);
-    const from = catalog.find((item) => item.type === anchor?.data.operation);
-    if (
-      anchor &&
-      (from.outputType !== item.inputType ||
-        edges.some((edge) => edge.source === anchorId))
-    ) {
-      setMessage("Choose a compatible next step with an available connection.");
-      return;
-    }
-    const location =
-      position ||
-      (anchor
-        ? { x: anchor.position.x + 260, y: anchor.position.y }
-        : flow.screenToFlowPosition({
-            x: window.innerWidth / 2,
-            y: window.innerHeight / 2,
-          }));
-    setNodes((current) => [
-      ...current,
-      {
-        id,
-        type: "operation",
-        position: location,
-        data: {
-          operation: type,
-          options: type === "context.clean" ? { collapseBlankLines: true } : type === "image.resize" ? { width: 800, height: 800 } : {},
-        },
-      },
-    ]);
-    if (anchor)
-      setEdges((current) => [
-        ...current,
-        { id: crypto.randomUUID(), source: anchorId, target: id },
-      ]);
-    setSelectedId(id);
-    setShowLibrary(false);
-    setInspectorOpen(false);
-    setAnchorId(null);
-    setInspectorTab("settings");
-    invalidate();
-    if (anchor)
-      setTimeout(
-        () => flow.fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 }),
-        50,
-      );
+    const category = (anchor && nodeItem(anchor).category) || spec.fileType || (file ? fileCategory(file.name) : "Text");
+    const operation = spec.operation || (catalog.some((item) => item.type === spec.kind) ? spec.kind : {
+      upload: category === "Image" ? "image.upload" : "file.upload", process: processOptions(category)[0]?.type || "",
+      pipe: category === "Image" ? "image.pipe" : "document.pipe", download: category === "Image" ? "image.preview" : "artifact.preview",
+    }[kind]);
+    const location = position || (anchor ? { x: anchor.position.x + 300, y: anchor.position.y }
+      : flow.screenToFlowPosition({ x: innerWidth / 2, y: innerHeight / 2 }));
+    const candidates = [...nodes, { id, type: "operation", position: location,
+      data: { kind, fileType: category, operation, options: defaultOptions(operation) } }];
+    const connection = anchor ? connectNodes({ source: anchor.id, target: id }, candidates, edges, file?.name) : null;
+    if (anchor && !connection) { setMessage("Choose a compatible next step with an available connection."); return; }
+    setNodes(connection?.nodes || adaptNodes(candidates, edges, file?.name));
+    if (connection) setEdges(connection.edges);
+    setSelectedId(id); setShowLibrary(false); setInspectorOpen(false); setAnchorId(null); setInspectorTab("settings"); invalidate();
+    if (anchor) setTimeout(() => flow.fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 }), 50);
   }
-
-  const isValidConnection = useCallback(
-    (connection) => canConnect(connection, nodes, edges),
-    [nodes, edges],
-  );
-  const connect = useCallback(
-    (connection) => {
-      if (!running && canConnect(connection, nodes, edges)) {
-        setEdges((current) => addEdge(connection, current));
-        invalidate();
-      }
-    },
-    [nodes, edges, running],
-  );
+  function changeProcess(id, changes) {
+    if (running) return;
+    setNodes((current) => adaptNodes(current.map((node) => node.id === id
+      ? { ...node, data: { ...node.data, ...changes, options: defaultOptions(changes.operation) } } : node), edges, file?.name));
+    invalidate();
+  }
+  const isValidConnection = useCallback((connection) => Boolean(connectNodes(connection, nodes, edges, file?.name)), [nodes, edges, file]);
+  const connect = useCallback((connection) => {
+    if (running) return;
+    const next = connectNodes(connection, nodes, edges, file?.name);
+    if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
+  }, [nodes, edges, running, file]);
 
   function reset(blank = false, image = false) {
     const template = blank
@@ -443,7 +414,7 @@ function App() {
       : image ? imageWorkflow() : defaultWorkflow();
     setFile(null);
     setWorkflowId(null);
-    setNodes(template.nodes);
+    setNodes(adaptNodes(template.nodes, template.edges));
     setEdges(template.edges);
     setName(template.name);
     setSelectedId(null);
@@ -501,7 +472,8 @@ function App() {
   function exportResult(payload = result?.output) {
     if (!payload) return;
     if (payload.type === "image") {
-      download(Uint8Array.from(atob(payload.value.data), (character) => character.charCodeAt(0)), payload.value.name, "image/png");
+      download(Uint8Array.from(atob(payload.value.data), (character) => character.charCodeAt(0)), payload.value.name,
+        payload.value.mimeType || (/\.jpe?g$/i.test(payload.value.name) ? "image/jpeg" : "image/png"));
     } else {
       download(payload.value.text, `${(payload.value.source || "result").replace(/\.[^.]+$/, "")}.md`, "text/markdown");
     }
@@ -513,7 +485,7 @@ function App() {
       if (candidate.size > 1024 * 1024)
         throw new Error("Workflow files must be smaller than 1 MiB.");
       const imported = parseWorkflow(JSON.parse(await candidate.text()));
-      setNodes(imported.nodes);
+      setNodes(adaptNodes(imported.nodes, imported.edges));
       setEdges(imported.edges);
       setName(imported.name);
       setFile(null);
@@ -637,6 +609,10 @@ function App() {
               : states[node.id]?.status,
           filename: file?.name,
           running,
+          inferred: edges.some((edge) => edge.target === node.id),
+          inputType: nodeItem(nodes.find((source) => source.id === edges.find((edge) => edge.target === node.id)?.source)).outputType,
+          onFileTypeChange: (fileType) => changeProcess(node.id, { fileType, operation: "" }),
+          onOperationChange: (operation) => changeProcess(node.id, { operation }),
           canAppend:
             !isPreview(node.data.operation) &&
             !edges.some((edge) => edge.source === node.id),
@@ -667,28 +643,13 @@ function App() {
     [edges, running, states],
   );
   const anchor = nodes.find((node) => node.id === anchorId);
-  const anchorItem = catalog.find(
-    (item) => item.type === anchor?.data.operation,
-  );
-  const filtered = catalog.filter(
-    (item) =>
-      (!anchorItem ||
-        (!isUpload(item.type) &&
-          item.inputType === anchorItem.outputType)) &&
-      `${item.category} ${item.title} ${item.description}`
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
-  );
-  const categories = ["Image", "Text", "Audio", "Video"]
-    .map((category) => ({
-      category,
-      items: filtered.filter((item) => item.category === category),
-      available: catalog.some((item) => item.category === category),
-    }))
-    .filter(({ category, items }) =>
-      (!anchorItem || items.length > 0) &&
-      (!search.trim() || items.length > 0 || category.toLowerCase().includes(search.trim().toLowerCase())),
-    );
+  const anchorItem = anchor ? nodeItem(anchor) : null;
+  const pickerCategory = anchorItem?.category || pickerFileType;
+  const pickerChoices = processOptions(pickerCategory, anchorItem?.outputType);
+  const selectedOperation = pickerChoices.some((item) => item.type === pickerOperation) ? pickerOperation : pickerChoices[0]?.type || "";
+  const filteredKinds = nodeKinds.filter((item) =>
+    `${item.title} ${item.description}`.toLowerCase().includes(search.trim().toLowerCase()) ||
+    (item.kind === "process" && pickerChoices.some((operation) => operation.title.toLowerCase().includes(search.trim().toLowerCase()))));
   const successCount = Object.values(states).filter(
     (state) => state.status === "succeeded",
   ).length;
@@ -704,16 +665,18 @@ function App() {
           }}
           onDrop={(event) => {
             event.preventDefault();
-            const type = event.dataTransfer.getData("application/flowkit");
-            if (catalog.some((item) => item.type === type))
+            const payload = event.dataTransfer.getData("application/flowkit");
+            if (payload) {
+              let spec;
+              try { spec = JSON.parse(payload); } catch { spec = { kind: payload }; }
               addNode(
-                type,
+                spec,
                 flow.screenToFlowPosition({
                   x: event.clientX,
                   y: event.clientY,
                 }),
               );
-            else if (event.dataTransfer.files[0])
+            } else if (event.dataTransfer.files[0])
               chooseFile(event.dataTransfer.files[0]);
           }}
         >
@@ -931,53 +894,43 @@ function App() {
             <kbd>/</kbd>
           </label>
           <div className="picker-list">
-            {categories.map(({ category, items, available }) => (
-              <details className="picker-category" aria-label={`${category} nodes`}
-                key={`${category}:${search}`} open={items.length > 0 || Boolean(search.trim())}>
-                <summary>
-                  <Icon name="chevron" size={14} />
-                  <span>{category}</span>
-                  <small>{available ? items.length : "Coming soon"}</small>
-                </summary>
-                <div className="category-nodes">
-                  {items.map((item) => (
-                    <button
-                      key={item.type}
-                      className="palette-node"
-                      draggable={!running}
-                      disabled={running}
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData("application/flowkit", item.type);
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setDragImage(
-                          event.currentTarget.querySelector(".palette-icon"),
-                          20,
-                          20,
-                        );
-                      }}
-                      onClick={() => addNode(item.type)}
-                      title={`Drag or click to add ${item.title}`}
-                    >
-                      <span className={`palette-icon ${item.color}`}>
-                        <Icon name={item.icon} size={24} />
-                      </span>
-                      <span>
-                        <strong>{item.title}</strong>
-                        <small>{item.description}</small>
-                      </span>
-                      <Icon name="plus" size={16} />
-                    </button>
-                  ))}
-                  {!items.length && <p className="category-empty">
-                    {available ? "No matching nodes." : `${category} tools are coming soon.`}
-                  </p>}
-                </div>
-              </details>
-            ))}
+            {filteredKinds.map((item) => {
+              const disabled = running || (item.kind === "upload" && (Boolean(anchor) || nodes.some((node) => nodeKind(node) === "upload"))) ||
+                (item.kind === "download" && anchorItem?.outputType === "document");
+              const spec = { kind: item.kind, fileType: pickerCategory, operation: item.kind === "process" ? selectedOperation : undefined };
+              return <button key={item.kind} className="palette-node" aria-label={item.title}
+                draggable={!disabled && (item.kind !== "process" || Boolean(selectedOperation))} disabled={disabled}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("application/flowkit", JSON.stringify(spec));
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onClick={() => item.kind === "process" ? setPickerProcess((value) => !value) : addNode(spec)}
+                aria-expanded={item.kind === "process" ? pickerProcess : undefined}
+                title={disabled ? (item.kind === "upload" ? "Only one Upload node is needed" : "Process the document before downloading") : `Drag or click to add ${item.title}`}>
+                <span className={`palette-icon ${item.color}`}><Icon name={item.icon} size={24} /></span>
+                <span><strong>{item.title}</strong><small>{item.description}</small></span>
+                <Icon name={item.kind === "process" ? "chevron" : "plus"} size={16} />
+              </button>;
+            })}
+            {!filteredKinds.length && <p className="no-matches">No nodes match your search.</p>}
+            {pickerProcess && <section className="process-picker" aria-label="Configure Process">
+              <FileTypeSelector category={pickerCategory} locked={Boolean(anchor)} disabled={running}
+                onChange={(category) => { setPickerFileType(category); setPickerOperation(processOptions(category)[0]?.type || ""); }} />
+              <OperationSelector category={pickerCategory} operation={selectedOperation} inputType={anchorItem?.outputType}
+                disabled={running} onChange={setPickerOperation} />
+              {!pickerChoices.length && <p className="category-empty">{pickerCategory} operations are coming soon.</p>}
+              <button className="button primary" disabled={running || !selectedOperation}
+                draggable={!running && Boolean(selectedOperation)}
+                title={selectedOperation ? `Drag or click to add ${nodeItem({ data: { operation: selectedOperation } }).title}` : undefined}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("application/flowkit", JSON.stringify({ kind: "process", fileType: pickerCategory, operation: selectedOperation }));
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onClick={() => addNode({ kind: "process", fileType: pickerCategory, operation: selectedOperation })}>
+                <Icon name="plus" size={15} /> Add Process
+              </button>
+            </section>}
           </div>
-          {!categories.length && (
-            <p className="no-matches">No compatible nodes match your search.</p>
-          )}
           <div className="picker-tip">
             <Icon name="info" size={16} />
             <span>
@@ -1135,28 +1088,10 @@ function App() {
                             const remaining = edges.filter(
                               (edge) => edge.source !== selectedId,
                             );
-                            if (
-                              !target ||
-                              canConnect(
-                                { source: selectedId, target },
-                                nodes,
-                                remaining,
-                              )
-                            ) {
-                              setEdges(
-                                target
-                                  ? [
-                                      ...remaining,
-                                      {
-                                        id: crypto.randomUUID(),
-                                        source: selectedId,
-                                        target,
-                                      },
-                                    ]
-                                  : remaining,
-                              );
-                              invalidate();
-                            }
+                            const next = target
+                              ? connectNodes({ source: selectedId, target }, nodes, remaining, file?.name)
+                              : { nodes: adaptNodes(nodes, remaining, file?.name), edges: remaining };
+                            if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
                           }}
                         >
                           <option value="">Not connected</option>
@@ -1167,12 +1102,13 @@ function App() {
                                   edges.find(
                                     (edge) => edge.source === selectedId,
                                   )?.target ||
-                                canConnect(
+                                connectNodes(
                                   { source: selectedId, target: node.id },
                                   nodes,
                                   edges.filter(
                                     (edge) => edge.source !== selectedId,
                                   ),
+                                  file?.name,
                                 ),
                             )
                             .map((node) => (
@@ -1212,12 +1148,11 @@ function App() {
               <>
                 {imageOutput ? (
                   <>
-                    <img className="image-preview" alt="Resized image" src={`data:image/png;base64,${imageOutput.data}`} />
-                    <p>{imageOutput.width} × {imageOutput.height} pixels</p>
-                    <button className="button primary download-result" onClick={() => download(
-                      Uint8Array.from(atob(imageOutput.data), (character) => character.charCodeAt(0)),
-                      imageOutput.name, "image/png",
-                    )}><Icon name="download" size={16} /> Download PNG</button>
+                    <img className="image-preview" alt="Resized image" src={`data:${imageOutput.mimeType || (/\.jpe?g$/i.test(imageOutput.name) ? "image/jpeg" : "image/png")};base64,${imageOutput.data}`} />
+                    {imageOutput.width && <p>{imageOutput.width} × {imageOutput.height} pixels</p>}
+                    <button className="button primary download-result" onClick={() => exportResult()}>
+                      <Icon name="download" size={16} /> Download image
+                    </button>
                   </>
                 ) : nodeOutput?.type === "image" ? (
                   <div className="output-document">
@@ -1318,7 +1253,7 @@ function App() {
               onChange={(event) => {
                 const entry = savedWorkflows.find((item) => item.id === event.target.value);
                 if (!entry) return;
-                setNodes(entry.workflow.nodes); setEdges(entry.workflow.edges); setName(entry.workflow.name);
+                setNodes(adaptNodes(entry.workflow.nodes, entry.workflow.edges)); setEdges(entry.workflow.edges); setName(entry.workflow.name);
                 setFile(null); setWorkflowId(entry.id); setSelectedId(null); setInspectorOpen(false);
                 setShowLibrary(false); invalidate(); setSaved(true); setMenuOpen(false);
                 setTimeout(() => flow.fitView({ padding: 0.25 }), 50);
@@ -1380,7 +1315,7 @@ function App() {
       <input
         ref={fileRef}
         type="file"
-        accept={imageMode ? ".png,.jpg,.jpeg" : ".docx,.html,.htm,.epub,.md"}
+        accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"
         hidden
         onChange={(event) => {
           chooseFile(event.target.files[0]);

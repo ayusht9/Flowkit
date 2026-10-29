@@ -10,6 +10,9 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable 
       throw new TypeError("Expected Markdown text and source");
   };
   return new OperationRegistry()
+    .register("document.pipe", { inputType: "document", outputType: "document", validateInput: convert.validateInput, run: async (input) => input })
+    .register("markdown.pipe", { inputType: "markdown", outputType: "markdown", validateInput: markdown, run: async (input) => input })
+    .register("image.pipe", { inputType: "image", outputType: "image", validateInput: validateImage, run: async (input) => input })
     .register("image.upload", {
       inputType: "image", outputType: "image", validateInput: validateImage,
       run: async (input) => input,

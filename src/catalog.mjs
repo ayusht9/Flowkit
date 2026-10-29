@@ -1,4 +1,9 @@
 export const catalog = [
+  ...["document", "markdown", "image"].map((type) => ({
+    type: `${type}.pipe`, category: type === "image" ? "Image" : "Text",
+    title: "Pipe", description: "Pass the output to the next step unchanged",
+    inputType: type, outputType: type, icon: "arrow", color: "teal", group: "Pipe",
+  })),
   { type: "image.upload", category: "Image", title: "Upload image", description: "Start with a PNG or JPEG", inputType: "image", outputType: "image", icon: "upload", color: "blue", group: "Input" },
   { type: "image.resize", category: "Image", title: "Resize image", description: "Fit within dimensions, preserving aspect ratio", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" },
   { type: "image.preview", category: "Image", title: "Preview & download image", description: "Inspect and download the resized PNG", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
@@ -102,11 +107,14 @@ export function defaultWorkflow() {
 
 export function toPipeline(nodes, edges) {
   return {
-    nodes: nodes.map((node) => ({
-      id: node.id,
-      type: node.data.operation,
-      options: node.data.options || {},
-    })),
+    nodes: nodes.map((node) => {
+      if (!node.data.operation) throw new Error("Choose an available operation for every Process node.");
+      return {
+        id: node.id,
+        type: node.data.operation,
+        options: node.data.options || {},
+      };
+    }),
     edges: edges.map(({ source, target }) => ({ source, target })),
   };
 }
@@ -161,7 +169,8 @@ export function parseWorkflow(value) {
       typeof node.id !== "string" ||
       !node.id ||
       ids.has(node.id) ||
-      !catalog.some((item) => item.type === node.data?.operation)
+      !(catalog.some((item) => item.type === node.data?.operation) ||
+        (node.data?.kind === "process" && node.data.operation === ""))
     ) {
       throw new Error(
         "The workflow contains an unknown operation or invalid node ID.",
@@ -183,6 +192,8 @@ export function parseWorkflow(value) {
       data: {
         operation: node.data.operation,
         options,
+        ...(["upload", "process", "pipe", "download"].includes(node.data.kind) ? { kind: node.data.kind } : {}),
+        ...(["Image", "Text", "Audio", "Video"].includes(node.data.fileType) ? { fileType: node.data.fileType } : {}),
         ...(node.data.reverse === true ? { reverse: true } : {}),
       },
     };

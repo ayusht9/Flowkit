@@ -8,7 +8,7 @@ test("connected navbar has one upload, four actions, and the requested popup", a
   await expect(page.getByRole("button", { name: "About", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveCount(1);
   await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeDisabled();
-  await page.locator('.react-flow__node[data-id="upload"] .node-tile').click();
+  await page.locator('.react-flow__node[data-id="upload"] .card-body').click();
   await expect(page.getByLabel("Node editor", { exact: true }).getByRole("button", { name: /upload|sample/i })).toHaveCount(0);
   await expect(page.getByText("No file uploaded", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close node editor" }).click();
@@ -28,7 +28,7 @@ test("connected navbar has one upload, four actions, and the requested popup", a
 
 test("Save restores workflow JSON, Save as new keeps the original, and Import starts a new identity", async ({ page }) => {
   await page.goto("/");
-  await page.locator('input[type=file][accept=".docx,.html,.htm,.epub,.md"]').setInputFiles({
+  await page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]').setInputFiles({
     name: "private.html", mimeType: "text/html", buffer: Buffer.from("PRIVATE_FILE_BYTES"),
   });
   await page.getByRole("button", { name: "Open workflow menu" }).click();
