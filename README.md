@@ -15,12 +15,12 @@ Open **http://127.0.0.1:3000**. The app runs on your machine; uploaded documents
 
 On Windows PowerShell, use `npm.cmd run dev` if execution policy blocks `npm.ps1`.
 
-1. Choose **Try with a sample document**, or upload a DOCX, HTML, EPUB, or Markdown file.
+1. Use the default document workflow, or choose **New** in the hamburger popup to start with a blank, text/document, or image template.
 2. Open **Add node** to search the on-demand picker, then drag a compact block onto the canvas. Blocks snap to the grid. The **+** beside an unconnected output opens compatible next steps and connects the new node automatically.
-3. Choose **Run workflow**. Inspect each step's progress and output, then download the generated Markdown.
-4. Open the left **hamburger menu** to create a workflow, load the template, import/export JSON, or read the guide. Workflow exports never include your uploaded file.
+3. Use the navbar's single **Upload** button to choose a source file, then **Process** to run the workflow. **Export** in the navbar downloads the processed Markdown or PNG; **About** explains how the app works. Files can also be dropped onto the canvas. The sample controls have been removed.
+4. The **hamburger popup** contains **New**, **Save**, **Save as new**, **Import**, and **Export**. Save stores the current workflow in this browser; Save as new creates a separately named copy. Saved workflows can be reopened from the popup and the last saved one is restored on reload. Import/Export transfer workflow JSON. Uploaded files and execution results are never included in saved or exported workflows. Browser storage is local to this browser and origin; use Export for portable backups.
 
-The canvas occupies the entire window, with no fixed sidebar or top navigation. The node picker groups tools into collapsible **Image**, **Text**, **Audio**, and **Video** sections. Audio and Video are marked coming soon. Search by category or operation name; adding after a node shows only compatible tools. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections, and `/` opens node search. Execution logs also open on demand.
+The canvas fills the window beneath a connected navbar, with hamburger and branding on the left and Upload, Process, Export, and About on the right. The node picker groups tools into collapsible **Image**, **Text**, **Audio**, and **Video** sections. Audio and Video are marked coming soon. Search by category or operation name; adding after a node shows only compatible tools. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections, and `/` opens node search. Execution logs also open on demand.
 
 The default template is **Upload document → Convert to Markdown → Clean Markdown → Preview & download**. The cleanup node normalizes line endings and optionally collapses extra blank lines, preserving code spacing. Workflows support a single connected chain with up to 20 nodes.
 
@@ -83,7 +83,7 @@ Run `node --test` with Pandoc on PATH or `PANDOC_PATH` set to include native int
 
 ## Resize an image
 
-Open the workflow menu and choose **Use image resize template**. Upload a PNG or JPEG, select **Resize image**, and set a maximum width and/or height (1–4096 pixels). Leave one dimension blank to scale by the other. Run the workflow, inspect the image preview, and choose **Download PNG**. Both dimensions describe a bounding box: a 120 × 60 image resized within 40 × 40 becomes 40 × 20. Small images may be enlarged. Output is always PNG, with orientation applied and metadata removed.
+Open the workflow menu, choose **New**, select **Image resize** under Start with, and choose **Create**. Upload a PNG or JPEG, select **Resize image**, and set a maximum width and/or height (1–4096 pixels). Leave one dimension blank to scale by the other. Choose **Process**, inspect the image preview, and use navbar **Export** or **Download PNG**. Both dimensions describe a bounding box: a 120 × 60 image resized within 40 × 40 becomes 40 × 20. Small images may be enlarged. Output is always PNG, with orientation applied and metadata removed.
 
 Install ImageMagick 7 and put `magick` on PATH on Windows. On Linux, the default executable is ImageMagick 6's `convert` (Debian/Ubuntu: `sudo apt-get install imagemagick`). For any other installation, set `IMAGEMAGICK_PATH` to the absolute path to `magick` (v7) or `convert` (v6) before starting the server or tests. Do not point it to Windows' unrelated system `convert.exe`.
 
