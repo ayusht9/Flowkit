@@ -1,9 +1,10 @@
 export const catalog = [
-  { type: "image.upload", title: "Upload image", description: "Start with a PNG or JPEG", inputType: "image", outputType: "image", icon: "upload", color: "blue", group: "Input" },
-  { type: "image.resize", title: "Resize image", description: "Fit within dimensions, preserving aspect ratio", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" },
-  { type: "image.preview", title: "Preview & download image", description: "Inspect and download the resized PNG", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
+  { type: "image.upload", category: "Image", title: "Upload image", description: "Start with a PNG or JPEG", inputType: "image", outputType: "image", icon: "upload", color: "blue", group: "Input" },
+  { type: "image.resize", category: "Image", title: "Resize image", description: "Fit within dimensions, preserving aspect ratio", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" },
+  { type: "image.preview", category: "Image", title: "Preview & download image", description: "Inspect and download the resized PNG", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
   {
     type: "file.upload",
+    category: "Text",
     title: "Upload document",
     description: "Start with a file from your computer",
     inputType: "document",
@@ -14,6 +15,7 @@ export const catalog = [
   },
   {
     type: "document.toMarkdown",
+    category: "Text",
     title: "Convert to Markdown",
     description: "Preserve headings, lists, and tables",
     inputType: "document",
@@ -24,6 +26,7 @@ export const catalog = [
   },
   {
     type: "context.clean",
+    category: "Text",
     title: "Clean Markdown",
     description: "Normalize spacing and blank lines",
     inputType: "markdown",
@@ -34,6 +37,7 @@ export const catalog = [
   },
   {
     type: "artifact.preview",
+    category: "Text",
     title: "Preview & download",
     description: "Inspect the result and save a .md file",
     inputType: "markdown",

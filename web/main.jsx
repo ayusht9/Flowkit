@@ -558,10 +558,20 @@ function App() {
       (!anchorItem ||
         (!isUpload(item.type) &&
           item.inputType === anchorItem.outputType)) &&
-      `${item.title} ${item.description}`
+      `${item.category} ${item.title} ${item.description}`
         .toLowerCase()
-        .includes(search.toLowerCase()),
+        .includes(search.trim().toLowerCase()),
   );
+  const categories = ["Image", "Text", "Audio", "Video"]
+    .map((category) => ({
+      category,
+      items: filtered.filter((item) => item.category === category),
+      available: catalog.some((item) => item.category === category),
+    }))
+    .filter(({ category, items }) =>
+      (!anchorItem || items.length > 0) &&
+      (!search.trim() || items.length > 0 || category.toLowerCase().includes(search.trim().toLowerCase())),
+    );
   const successCount = Object.values(states).filter(
     (state) => state.status === "succeeded",
   ).length;
@@ -866,36 +876,51 @@ function App() {
             <kbd>/</kbd>
           </label>
           <div className="picker-list">
-            {filtered.map((item) => (
-              <button
-                key={item.type}
-                className="palette-node"
-                draggable={!running}
-                disabled={running}
-                onDragStart={(event) => {
-                  event.dataTransfer.setData("application/flowkit", item.type);
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setDragImage(
-                    event.currentTarget.querySelector(".palette-icon"),
-                    20,
-                    20,
-                  );
-                }}
-                onClick={() => addNode(item.type)}
-                title={`Drag or click to add ${item.title}`}
-              >
-                <span className={`palette-icon ${item.color}`}>
-                  <Icon name={item.icon} size={24} />
-                </span>
-                <span>
-                  <strong>{item.title}</strong>
-                  <small>{item.description}</small>
-                </span>
-                <Icon name="plus" size={16} />
-              </button>
+            {categories.map(({ category, items, available }) => (
+              <details className="picker-category" aria-label={`${category} nodes`}
+                key={`${category}:${search}`} open={items.length > 0 || Boolean(search.trim())}>
+                <summary>
+                  <Icon name="chevron" size={14} />
+                  <span>{category}</span>
+                  <small>{available ? items.length : "Coming soon"}</small>
+                </summary>
+                <div className="category-nodes">
+                  {items.map((item) => (
+                    <button
+                      key={item.type}
+                      className="palette-node"
+                      draggable={!running}
+                      disabled={running}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("application/flowkit", item.type);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setDragImage(
+                          event.currentTarget.querySelector(".palette-icon"),
+                          20,
+                          20,
+                        );
+                      }}
+                      onClick={() => addNode(item.type)}
+                      title={`Drag or click to add ${item.title}`}
+                    >
+                      <span className={`palette-icon ${item.color}`}>
+                        <Icon name={item.icon} size={24} />
+                      </span>
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>{item.description}</small>
+                      </span>
+                      <Icon name="plus" size={16} />
+                    </button>
+                  ))}
+                  {!items.length && <p className="category-empty">
+                    {available ? "No matching nodes." : `${category} tools are coming soon.`}
+                  </p>}
+                </div>
+              </details>
             ))}
           </div>
-          {!filtered.length && (
+          {!categories.length && (
             <p className="no-matches">No compatible nodes match your search.</p>
           )}
           <div className="picker-tip">

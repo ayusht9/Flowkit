@@ -655,7 +655,39 @@ svg {
 }
 .picker-list {
   overflow: auto;
+  min-height: 0;
   padding: 0 9px 12px;
+}
+.picker-category + .picker-category {
+  border-top: 1px solid #eeeef2;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.picker-category summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 10px;
+  color: #3d3b46;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 6px;
+}
+.picker-category summary::-webkit-details-marker { display: none; }
+.picker-category summary:hover { background: #f7f7fa; }
+.picker-category[open] summary > svg { transform: rotate(90deg); }
+.picker-category summary > small {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+  color: #72707d;
+}
+.category-empty {
+  padding: 6px 10px 14px;
+  font-size: 11px;
+  color: #72707d;
 }
 .palette-node {
   width: 100%;
