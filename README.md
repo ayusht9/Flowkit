@@ -122,11 +122,13 @@ The visual editor uses the pipeline executor. The local MCP server calls `regist
 
 The app performs real Pandoc conversion, ImageMagick resizing, and FFmpeg media processing through the executor and local MCP tools. OCR, other image operations, PDF adapters, RAG, and authenticated remote MCP remain future work. OS/container worker isolation and persistent cloud artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
 
+The [audio and video pipeline design](docs/MEDIA_PIPELINES.md) records the original proposal and future extensions. The current implementation and limits are described above and in [MCP.md](MCP.md).
+
 Original planning material is retained locally under `archieve/`, which is ignored by Git.
 
 ## Git workflow
 
-Use a branch per feature, verify it, and commit it. Leave merging for a later explicit step. `feature/deployment-pipeline` builds on `feature/canvas-first-editor`, `feature/workflow-app`, `feature/pandoc-conversion`, `feature/pipeline-executor`, and the archive-cleanup branch. These branches remain unmerged into `main`.
+Start feature branches from `main`, verify and commit each feature, then open a pull request targeting `main`. Merge after review. The integrated app includes the executor, visual editor, document/image/media adapters, and local MCP server. Deployments are manual; ordinary pushes and pull requests run checks.
 
 
 Audio inputs: WAV, MP3, M4A. Video inputs: MP4, MOV, WebM, MKV. Install FFmpeg and FFprobe on PATH, or set `FFMPEG_PATH` and `FFPROBE_PATH`. Media limits: 20 MiB input, five minutes duration, video up to 1080p pixel area and 60 fps, 8 MiB output, and a 30-second subprocess timeout. Native execution uses fixed arguments, one processing thread, and disabled network protocols; these limits do not replace OS worker isolation.
