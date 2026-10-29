@@ -720,11 +720,6 @@ function App() {
             <span>Add node</span>
           </button>
         </div>
-        <div className="canvas-meta">
-          <span className="local-dot" />
-          Local workflow <span> / </span>
-          {nodes.length} nodes · {edges.length} connections
-        </div>
         <button
           className="execution-toggle button"
           onClick={() => setShowLog((value) => !value)}
@@ -807,25 +802,6 @@ function App() {
           </section>
         )}
         <footer className="run-bar">
-          <div className="run-status">
-            <span
-              className={`status-dot ${running ? "working" : result?.status === "succeeded" ? "success" : ""}`}
-            />
-            <div>
-              <strong>
-                {running
-                  ? `Running ${successCount} of ${nodes.length} steps`
-                  : result?.status === "succeeded"
-                    ? "Workflow completed"
-                    : "Ready when you are"}
-              </strong>
-              <small>
-                {result?.status === "succeeded"
-                  ? `${result.nodes.length} steps · ${Math.round(result.durationMs)} ms`
-                  : "Your files stay on this machine"}
-              </small>
-            </div>
-          </div>
           {running ? (
             <button
               className="button danger"
