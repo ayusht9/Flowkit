@@ -13,7 +13,7 @@ flowchart LR
   G --> H[Promote production]
 ```
 
-Pull requests and branch pushes run checks. Only pushes to `main` publish and deploy. Keep feature branches unmerged until ready. Configure the `checks` job as a required branch check. The image and deploy jobs use the GitHub `production` environment; restrict it to `main` and configure reviewers as appropriate for your account.
+Pull requests and branch pushes run checks. Publishing and deployment are manual: when ready to release, open **Actions → Test, publish, and deploy → Run workflow** and select `main`. A manual run on any other branch only runs checks. The root `vercel.json` disables automatic Git deployments so merges do not publish the app through a parallel path. Configure the `checks` job as a required branch check. The image and deploy jobs use the GitHub `production` environment; restrict it to `main` and configure reviewers as appropriate for your account.
 
 ## Account setup
 
