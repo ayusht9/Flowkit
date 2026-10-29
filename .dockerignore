@@ -1,3 +1,4 @@
+.flowkit-artifacts
 node_modules
 .git
 .github
