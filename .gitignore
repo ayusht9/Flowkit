@@ -1,0 +1,6 @@
+archieve/
+node_modules/
+.env
+.env.*
+!.env.example
+coverage/
