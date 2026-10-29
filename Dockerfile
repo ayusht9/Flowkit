@@ -1,6 +1,6 @@
 FROM node:24-bookworm-slim AS base
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pandoc ca-certificates \
+    && apt-get install -y --no-install-recommends pandoc imagemagick ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -8,11 +8,11 @@ FROM base AS build
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ENV PANDOC_PATH=/usr/bin/pandoc
+ENV PANDOC_PATH=/usr/bin/pandoc IMAGEMAGICK_PATH=/usr/bin/convert
 RUN npm test && npm run build
 
 FROM base AS runtime
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 PANDOC_PATH=/usr/bin/pandoc
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 PANDOC_PATH=/usr/bin/pandoc IMAGEMAGICK_PATH=/usr/bin/convert
 COPY --chown=node:node --from=build /app/dist ./dist
 COPY --chown=node:node src ./src
 COPY --chown=node:node server.mjs package.json ./

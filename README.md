@@ -1,10 +1,10 @@
 # FlowKit
 
-Visual workflows and MCP tools for document and media processing. Implemented: a drag-and-drop workflow studio, linear pipeline executor, and real Pandoc document conversion.
+Visual workflows and MCP tools for document and media processing. Implemented: a drag-and-drop workflow studio, linear pipeline executor, real Pandoc document conversion, and ImageMagick image resizing.
 
 ## Run
 
-Requires Node.js 22.12 or newer and Pandoc for document conversion.
+Requires Node.js 22.12 or newer, Pandoc for document conversion, and ImageMagick for image resizing. Node.js 24 is used in CI and Docker.
 
 ```sh
 npm install
@@ -81,6 +81,25 @@ The CLI reads a local file explicitly selected by its user; the web app supplies
 
 Run `node --test` with Pandoc on PATH or `PANDOC_PATH` set to include native integration tests; those tests report skips when Pandoc is unavailable. A configured but invalid `PANDOC_PATH` fails verification. Conversion preserves document structure where possible, not exact visual layout.
 
+## Resize an image
+
+Open the workflow menu and choose **Use image resize template**. Upload a PNG or JPEG, select **Resize image**, and set a maximum width and/or height (1–4096 pixels). Leave one dimension blank to scale by the other. Run the workflow, inspect the image preview, and choose **Download PNG**. Both dimensions describe a bounding box: a 120 × 60 image resized within 40 × 40 becomes 40 × 20. Small images may be enlarged. Output is always PNG, with orientation applied and metadata removed.
+
+Install ImageMagick 7 and put `magick` on PATH on Windows. On Linux, the default executable is ImageMagick 6's `convert` (Debian/Ubuntu: `sudo apt-get install imagemagick`). For any other installation, set `IMAGEMAGICK_PATH` to the absolute path to `magick` (v7) or `convert` (v6) before starting the server or tests. Do not point it to Windows' unrelated system `convert.exe`.
+
+```powershell
+$env:IMAGEMAGICK_PATH = 'C:\path\to\ImageMagick\magick.exe'
+npm.cmd run dev
+```
+
+The adapter accepts uploaded bytes, checks PNG/JPEG signatures against the extension, and forces the matching native decoder. Input is capped at 20 MiB, 8192 pixels per side, and 16 million total pixels. It uses a private temporary directory, fixed arguments without a shell, one frame, one processing thread, 128 MiB memory and 256 MiB map limits, disabled disk cache, a 30-second deadline per subprocess, and an 8 MiB output cap. Resource limits may reject images below the pixel cap. Temporary files are deleted on success, failure, timeout, and cancellation. These limits do not replace OS/container isolation. Cloud uploads still have the smaller limit described in `DEPLOYMENT.md`.
+
+The shared registry exposes `image.upload`, `image.resize`, and `image.preview`, each accepting/returning an `image` payload. The resize operation returns PNG bytes with source name, output name, MIME type, width, and height. The web API returns the final PNG as base64 once, with metadata for intermediate nodes. Workflow JSON exports include dimensions, never uploaded bytes.
+
+To verify a local `test_files/Images/` collection, run `node scripts/verify-local-files.mjs ../test_files`. It resizes every PNG/JPEG through the API, independently decodes the output to check dimensions/aspect ratio, and checks that other image formats are rejected. To use `test_files/Images/PNG/sample.png` in the browser download test, set `FLOWKIT_TEST_FILES` to the absolute `test_files` directory before `npm run test:e2e`. These local assets are not required by CI.
+
+Run `npm test` with ImageMagick available to include native PNG/JPEG, dimension, cancellation, timeout, cleanup, and API tests. Missing ImageMagick reports explicit skips; an invalid configured path fails verification. The browser suite includes upload → resize → preview → PNG download and invalid settings. Docker and CI install ImageMagick alongside Pandoc.
+
 ## Executor contract
 
 - Define operations in `OperationRegistry` with `inputType`, `outputType`, and `run(input, options, { signal })`.
@@ -97,7 +116,7 @@ The visual editor uses the pipeline executor. Future MCP agents can call `regist
 
 ## Current boundary
 
-The app performs real Pandoc conversion through the executor. FFmpeg, ImageMagick, PDF adapters, RAG, and MCP transport are visibly marked as future work. OS/container worker isolation and persistent artifact storage are separate implementation steps. Pandoc's reader/writer sandbox and process limits do not provide container-level isolation.
+The app performs real Pandoc conversion and ImageMagick resizing through the executor. OCR, other image operations, FFmpeg, PDF adapters, RAG, and MCP transport remain future work. OS/container worker isolation and persistent artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
 
 Original planning material is retained locally under `archieve/`, which is ignored by Git.
 

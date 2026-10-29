@@ -1,7 +1,8 @@
 import { OperationRegistry, assertRecord } from "./operations.mjs";
 import { createDocumentToMarkdown } from "./document.mjs";
+import { createImageResize, validateImage } from "./image.mjs";
 
-export function createWorkflowRegistry({ executable = "pandoc" } = {}) {
+export function createWorkflowRegistry({ executable = "pandoc", imageExecutable } = {}) {
   const convert = createDocumentToMarkdown({ executable });
   const markdown = (value) => {
     assertRecord(value, "Markdown");
@@ -9,6 +10,15 @@ export function createWorkflowRegistry({ executable = "pandoc" } = {}) {
       throw new TypeError("Expected Markdown text and source");
   };
   return new OperationRegistry()
+    .register("image.upload", {
+      inputType: "image", outputType: "image", validateInput: validateImage,
+      run: async (input) => input,
+    })
+    .register("image.resize", createImageResize({ executable: imageExecutable }))
+    .register("image.preview", {
+      inputType: "image", outputType: "image", validateInput: validateImage,
+      run: async (input) => input,
+    })
     .register("file.upload", {
       inputType: "document",
       outputType: "document",
