@@ -1,0 +1,252 @@
+import { test, expect } from "@playwright/test";
+import { defaultWorkflow } from "../src/catalog.mjs";
+import { readFile } from "node:fs/promises";
+
+const sourceDocument = await readFile(new URL("../examples/fixtures/sample.html", import.meta.url));
+async function uploadDocument(page) {
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Upload", exact: true }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ name: "sample.html", mimeType: "text/html", buffer: sourceDocument });
+}
+
+test("sample document runs through the visual workflow and downloads real Markdown", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await expect(page.locator(".canvas-hint")).toBeVisible();
+  await expect(
+    page.locator(".navbar-workflow"),
+  ).toContainText("Document to context");
+  await expect(page.locator(".operation-node")).toHaveCount(4);
+  await uploadDocument(page);
+  await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveAttribute("title", "sample.html");
+  await expect(page.locator(".canvas-hint")).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
+  await expect(
+    page.getByLabel("Markdown output", { exact: true }),
+  ).toContainText("# FlowKit project brief");
+  await expect(page.locator(".node-success")).toHaveCount(4);
+  await expect(page.locator(".canvas-hint")).toHaveCount(0);
+  const downloadPromise = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Export", exact: true })
+    .click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("sample.md");
+  const stream = await download.createReadStream();
+  let contents = "";
+  for await (const chunk of stream) contents += chunk;
+  expect(contents).toContain("# FlowKit project brief");
+  await page.screenshot({
+    path: "test-results/workflow-complete.png",
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("supports node dragging, adding, deleting, and safe workflow import/export", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const node = page.locator('.react-flow__node[data-id="convert"]');
+  const before = await node.boundingBox();
+  const heading = await node.locator(".card-heading").boundingBox();
+  await page.mouse.move(heading.x + 10, heading.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(heading.x + 60, heading.y + 40, { steps: 10 });
+  await page.mouse.up();
+  const after = await node.boundingBox();
+  expect(after.x).toBeGreaterThan(before.x + 20);
+  await page.getByRole("button", { name: "Add node", exact: true }).click();
+  await page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Process", exact: true }).click();
+  await page.getByLabel("Configure Process").getByLabel("Operation").selectOption("context.clean");
+  await page.getByRole("button", { name: "Add Process", exact: true }).click();
+  await expect(page.locator(".operation-node")).toHaveCount(5);
+  await page
+    .locator(
+      '.react-flow__node.selected .node-actions button[title="Delete node"]',
+    )
+    .click();
+  await expect(page.locator(".operation-node")).toHaveCount(4);
+  const promise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
+  await page.getByRole("dialog", { name: "Workflow menu" }).getByRole("button", { name: "Export", exact: true }).click();
+  const exported = await promise;
+  const stream = await exported.createReadStream();
+  let json = "";
+  for await (const chunk of stream) json += chunk;
+  expect(JSON.parse(json).nodes).toHaveLength(4);
+  expect(json).not.toContain("base64");
+  const imported = { ...defaultWorkflow(), name: "Imported workflow" };
+  await page.locator('input[type=file][accept=".json"]').setInputFiles({
+    name: "workflow.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(imported)),
+  });
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
+  await expect(page.getByRole("textbox", { name: "Workflow name" })).toHaveValue("Imported workflow");
+});
+
+test("shows missing-input and disconnected-workflow errors", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Upload a document");
+  await uploadDocument(page);
+  await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveAttribute("title", "sample.html");
+  await page.locator('.react-flow__node[data-id="convert"] .card-body').click();
+  await page.getByRole("button", { name: "Delete selected node" }).click();
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    /connected|existing nodes/,
+  );
+});
+
+test("mobile layout remains usable without horizontal page overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const canvas = await page.locator(".flow-canvas").boundingBox();
+  expect(canvas.width).toBe(390);
+  expect(canvas.height).toBe(844);
+  await expect(
+    page.locator(".rail, .library, .app-header, .workflow-toolbar"),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Node editor", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/workflow-mobile.png",
+    fullPage: true,
+  });
+});
+
+test("hamburger menu and compact canvas leave all workspace available until panels are requested", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const canvas = await page.locator(".flow-canvas").boundingBox();
+  expect(canvas).toMatchObject({ x: 0, y: 0, width: 1440, height: 1000 });
+  await expect(page.getByLabel("Node library", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Node editor", { exact: true })).toHaveCount(0);
+  const tile = await page.locator(".card-body").first().boundingBox();
+  expect(tile.width).toBeLessThan(380);
+  await page.screenshot({
+    path: "test-results/canvas-editor.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Workflow menu" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "New", exact: true }).click();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.locator(".operation-node")).toHaveCount(0);
+  await page.getByRole("button", { name: "Add first step" }).click();
+  await page.getByTitle("Drag or click to add Upload").click();
+  await page.getByRole("button", { name: "Add after Upload document" }).click();
+  await page.getByRole("button", { name: "Add Process", exact: true }).click();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Add after Convert to Markdown" })
+    .click();
+  await page.getByRole("button", { name: "Add Process", exact: true }).click();
+  await page.getByRole("button", { name: "Add after Clean Markdown" }).click();
+  await page.getByTitle("Drag or click to add Download").click();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+  await uploadDocument(page);
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
+  await expect(
+    page.getByLabel("Markdown output", { exact: true }),
+  ).toContainText("# FlowKit project brief");
+});
+
+test("drags a node from the picker to its chosen canvas position", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Add node", exact: true }).click();
+  await page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Process", exact: true }).click();
+  await page.getByLabel("Configure Process").getByLabel("Operation").selectOption("context.clean");
+  await page
+    .getByTitle("Drag or click to add Clean Markdown")
+    .dragTo(page.locator(".flow-canvas"), {
+      targetPosition: { x: 600, y: 250 },
+    });
+  await expect(page.locator(".operation-node")).toHaveCount(5);
+  await expect(page.getByLabel("Node library", { exact: true })).toHaveCount(0);
+  const added = await page.locator(".react-flow__node.selected").boundingBox();
+  expect(Math.abs(added.x - 600)).toBeLessThan(30);
+  expect(Math.abs(added.y - 250)).toBeLessThan(30);
+});
+
+test("can build connections on the canvas and configure them from the inspector", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const workflow = defaultWorkflow();
+  workflow.edges = [];
+  await page.locator('input[type=file][accept=".json"]').setInputFiles({
+    name: "workflow.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(workflow)),
+  });
+  await expect(page.locator(".react-flow__edge")).toHaveCount(0);
+  for (const [source, target] of [
+    ["upload", "convert"],
+    ["convert", "clean"],
+    ["clean", "preview"],
+  ]) {
+    await page
+      .locator(`.react-flow__handle.source[data-nodeid="${source}"]`)
+      .click();
+    await page
+      .locator(`.react-flow__handle.target[data-nodeid="${target}"]`)
+      .click();
+  }
+  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+  await page.locator('.react-flow__node[data-id="convert"]').click();
+  await expect(page.getByLabel("Next node")).toHaveValue("clean");
+  await page.getByLabel("Next node").selectOption("");
+  await expect(page.locator(".react-flow__edge")).toHaveCount(2);
+  await page.getByLabel("Next node").selectOption("clean");
+  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+});
+
+test("uploads a real file and supports keyboard search interactions", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".flow-canvas").click({ position: { x: 15, y: 150 } });
+  await page.keyboard.press("/");
+  await expect(
+    page.getByRole("textbox", { name: "Find a node" }),
+  ).toBeFocused();
+  await page.getByRole("textbox", { name: "Find a node" }).fill("Clean");
+  await expect(page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Process", exact: true })).toBeVisible();
+  await page
+    .locator('input[type=file][accept*=".png"]')
+    .setInputFiles({
+      name: "uploaded.html",
+      mimeType: "text/html",
+      buffer: Buffer.from("<h1>Actual upload</h1><p>Document content.</p>"),
+    });
+  await expect(
+    page.getByRole("button", { name: "Upload", exact: true }),
+  ).toHaveAttribute("title", "uploaded.html");
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
+  await expect(
+    page.getByLabel("Markdown output", { exact: true }),
+  ).toContainText("# Actual upload");
+});

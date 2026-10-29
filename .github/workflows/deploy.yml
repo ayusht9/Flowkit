@@ -1,0 +1,129 @@
+name: Test, publish, and deploy
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flowkit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y pandoc imagemagick ffmpeg
+      - run: npm ci
+      - run: npm test
+        env:
+          PANDOC_PATH: /usr/bin/pandoc
+          IMAGEMAGICK_PATH: /usr/bin/convert
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  image:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      image_ref: ${{ steps.publish.outputs.image_ref }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build image locally before publishing
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          platforms: linux/amd64
+          tags: docker.io/${{ vars.DOCKERHUB_REPOSITORY }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke-test the built image
+        env:
+          IMAGE: docker.io/${{ vars.DOCKERHUB_REPOSITORY }}:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker run --detach --name flowkit-smoke --publish 127.0.0.1:3000:3000 "$IMAGE"
+          node scripts/smoke.mjs http://127.0.0.1:3000
+      - name: Container diagnostics and cleanup
+        if: always()
+        run: |
+          docker logs flowkit-smoke || true
+          docker rm -f flowkit-smoke || true
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish the tested image and record its digest
+        id: publish
+        env:
+          IMAGE: docker.io/${{ vars.DOCKERHUB_REPOSITORY }}:sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE"
+          ref="$(docker inspect "$IMAGE" --format '{{index .RepoDigests 0}}')"
+          printf 'image_ref=docker.io/%s\n' "${ref#docker.io/}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - run: npm install --global vercel@65.7.0
+      - name: Prepare the digest-pinned container deployment
+        run: node scripts/stage-deployment.mjs
+        env:
+          IMAGE_REF: ${{ needs.image.outputs.image_ref }}
+      - name: Stage production without moving the production domain
+        id: stage
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PUBLIC_ORIGINS: ${{ vars.PUBLIC_ORIGINS }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID" && test -n "$PUBLIC_ORIGINS"
+          url="$(vercel deploy .deployment --yes --prod --skip-domain --env PORT=3000 --env "PUBLIC_ORIGINS=$PUBLIC_ORIGINS")"
+          DEPLOYMENT_URL="$url" node --input-type=module -e '
+            const value = process.env.DEPLOYMENT_URL;
+            const url = new URL(value);
+            if (url.protocol !== "https:" || url.origin !== value || !url.hostname.endsWith(".vercel.app")) process.exit(1);
+          '
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+      - name: Test the staged production deployment
+        run: node scripts/smoke.mjs "$DEPLOYMENT_URL"
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Promote only after the smoke test passes
+        run: vercel promote "$DEPLOYMENT_URL" --yes
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

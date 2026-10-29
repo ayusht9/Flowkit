@@ -1,6 +1,13 @@
+.flowkit-artifacts/
 archieve/
 node_modules/
 .env
 .env.*
 !.env.example
 coverage/
+.tools/
+dist/
+test-results/
+playwright-report/
+.vercel/
+.deployment/

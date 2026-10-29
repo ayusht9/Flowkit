@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "flowkit": {
+      "command": "node",
+      "args": [
+        "C:/path/to/flowkit/mcp-server.mjs",
+        "--workspace",
+        "C:/path/to/workspace"
+      ]
+    }
+  }
+}
