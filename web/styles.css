@@ -192,28 +192,6 @@ svg {
   background: #fdfbff;
   border-color: #b8adca;
 }
-.canvas-meta {
-  position: absolute;
-  top: 83px;
-  left: 26px;
-  z-index: 1;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #777b85;
-  font-size: 10px;
-}
-.canvas-meta > span:not(.local-dot) {
-  color: #c2c4cb;
-  margin: 0 2px;
-}
-.local-dot {
-  height: 5px;
-  width: 5px;
-  border-radius: 50%;
-  background: #a0b4a2;
-}
 .canvas-hint {
   position: absolute;
   bottom: 84px;
@@ -454,35 +432,6 @@ svg {
 .run-button {
   min-width: 145px;
   height: 42px;
-}
-.run-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #90939e;
-  font-size: 10px;
-}
-.run-status strong {
-  display: block;
-  font-weight: 500;
-}
-.run-status small {
-  display: block;
-  font-size: 9px;
-  margin-top: 3px;
-  color: #a1a3ae;
-}
-.status-dot {
-  height: 6px;
-  width: 6px;
-  border-radius: 50%;
-  background: #b1b3bb;
-}
-.status-dot.success {
-  background: #8dae92;
-}
-.status-dot.working {
-  background: #e0947f;
 }
 .execution-toggle {
   position: absolute;
@@ -1235,9 +1184,6 @@ svg {
   .sample-shortcut {
     display: none;
   }
-  .run-status {
-    display: none;
-  }
 }
 @media (max-width: 650px) {
   .floating-title {
@@ -1277,12 +1223,6 @@ svg {
   }
   .add-node-button span {
     display: none;
-  }
-  .canvas-meta {
-    top: 72px;
-    left: 19px;
-    font-size: 9px;
-    gap: 6px;
   }
   .node-picker,
   .inspector {

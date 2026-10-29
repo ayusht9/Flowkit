@@ -17,9 +17,6 @@ test("sample document runs through the visual workflow and downloads real Markdo
   await expect(page.getByRole("button", { name: /sample.html/ })).toBeVisible();
   await page.getByRole("button", { name: "Run workflow", exact: true }).click();
   await expect(
-    page.getByText("Workflow completed", { exact: true }),
-  ).toBeVisible();
-  await expect(
     page.getByLabel("Markdown output", { exact: true }),
   ).toContainText("# FlowKit project brief");
   await expect(page.locator(".node-success")).toHaveCount(4);

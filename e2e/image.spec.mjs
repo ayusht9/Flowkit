@@ -21,7 +21,6 @@ test('upload, configure, resize, preview, and download a real PNG', async ({ pag
   await page.getByLabel('Maximum width (px)').fill('40');
   await page.getByLabel('Maximum height (px)').fill('40');
   await page.getByRole('button', { name: 'Run workflow', exact: true }).click();
-  await expect(page.getByText('Workflow completed', { exact: true })).toBeVisible();
   await expect(page.getByText(`${expectedDimensions.join(' × ')} pixels`, { exact: true })).toBeVisible();
   const preview = page.getByAltText('Resized image', { exact: true });
   await expect(preview).toBeVisible();
