@@ -18,11 +18,11 @@ test('upload, configure, resize, preview, and download a real PNG', async ({ pag
   await page.getByLabel('Workflow template').selectOption('image');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.operation-node')).toHaveCount(3);
-  await page.locator('input[type=file][accept=".png,.jpg,.jpeg"]').setInputFiles({ name: fixtureName, mimeType: 'image/png', buffer: fixture });
-  await page.locator('.react-flow__node[data-id="resize"] .node-tile').click();
+  await page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]').setInputFiles({ name: fixtureName, mimeType: 'image/png', buffer: fixture });
+  await page.locator('.react-flow__node[data-id="resize"] .card-body').click();
   await page.getByLabel('Maximum width (px)').fill('40');
   await page.getByLabel('Maximum height (px)').fill('40');
-  await page.getByRole('button', { name: 'Process', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Workflow actions' }).getByRole('button', { name: 'Process', exact: true }).click();
   await expect(page.getByText(`${expectedDimensions.join(' × ')} pixels`, { exact: true })).toBeVisible();
   const preview = page.getByAltText('Resized image', { exact: true });
   await expect(preview).toBeVisible();
@@ -45,10 +45,10 @@ test('invalid resize settings produce a visible error before execution', async (
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByLabel('Workflow template').selectOption('image');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.locator('input[type=file][accept=".png,.jpg,.jpeg"]').setInputFiles({ name: 'gradient.png', mimeType: 'image/png', buffer: sampleImage });
-  await page.locator('.react-flow__node[data-id="resize"] .node-tile').click();
+  await page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]').setInputFiles({ name: 'gradient.png', mimeType: 'image/png', buffer: sampleImage });
+  await page.locator('.react-flow__node[data-id="resize"] .card-body').click();
   await page.getByLabel('Maximum width (px)').fill('0');
-  await page.getByRole('button', { name: 'Process', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Workflow actions' }).getByRole('button', { name: 'Process', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('between 1 and 4096');
   await expect(page.locator('.node-success')).toHaveCount(0);
 });

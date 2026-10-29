@@ -422,6 +422,9 @@ svg { flex-shrink: 0; }
   color: #7a7490;
   padding-top: 8px;
 }
+.card-file-type { padding: 12px 14px 0; }
+.process-picker { padding: 15px 10px; margin-top: 8px; border-top: 1px solid var(--line); display: grid; gap: 14px; }
+.process-picker .button { width: 100%; }
 .process-selector span {
   display: flex;
   align-items: center;
