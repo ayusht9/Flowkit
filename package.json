@@ -6,6 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "test": "node --test",
-    "demo": "node examples/pipeline.mjs"
+    "demo": "node examples/pipeline.mjs",
+    "demo:document": "node examples/document.mjs"
   }
 }
