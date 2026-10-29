@@ -30,7 +30,21 @@ import {
 import { Icon } from "./icons.jsx";
 import "./styles.css";
 
-const initial = defaultWorkflow();
+function readWorkspace() {
+  try {
+    const stored = JSON.parse(localStorage.getItem("flowkit.workspace"));
+    if (!Array.isArray(stored?.workflows)) return { workflows: [], activeId: null };
+    const workflows = stored.workflows.flatMap((entry) => {
+      try {
+        return typeof entry.id === "string" ? [{ id: entry.id, workflow: parseWorkflow(entry.workflow) }] : [];
+      } catch { return []; }
+    });
+    return { workflows, activeId: stored.activeId };
+  } catch { return { workflows: [], activeId: null }; }
+}
+const workspace = readWorkspace();
+const activeWorkflow = workspace.workflows.find((entry) => entry.id === workspace.activeId);
+const initial = activeWorkflow?.workflow || defaultWorkflow();
 const formatBytes = (bytes) =>
   bytes < 1024
     ? `${bytes} B`
@@ -151,7 +165,12 @@ function App() {
   const [message, setMessage] = useState("");
   const [inspectorTab, setInspectorTab] = useState("settings");
   const [showLog, setShowLog] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(Boolean(activeWorkflow));
+  const [savedWorkflows, setSavedWorkflows] = useState(workspace.workflows);
+  const [workflowId, setWorkflowId] = useState(activeWorkflow?.id || null);
+  const [workflowDialog, setWorkflowDialog] = useState(null);
+  const [dialogName, setDialogName] = useState("");
+  const [template, setTemplate] = useState("blank");
   const [showHelp, setShowHelp] = useState(false);
   const [showCanvasHint, setShowCanvasHint] = useState(true);
   const fileRef = useRef(null);
@@ -159,6 +178,7 @@ function App() {
   const abortRef = useRef(null);
   const helpRef = useRef(null);
   const menuRef = useRef(null);
+  const workflowDialogRef = useRef(null);
   const searchRef = useRef(null);
   const flow = useReactFlow();
   const selected = nodes.find((node) => node.id === selectedId);
@@ -212,17 +232,20 @@ function App() {
     if (showHelp) helpRef.current?.showModal();
   }, [showHelp]);
   useEffect(() => {
+    if (workflowDialog) workflowDialogRef.current?.showModal();
+  }, [workflowDialog]);
+  useEffect(() => {
     const timer = setTimeout(
       () => flow.fitView({ padding: 0.25, duration: 200 }),
       100,
     );
     return () => clearTimeout(timer);
   }, [showLog]);
-  function invalidate() {
+  function invalidate(markDirty = true) {
     setResult(null);
     setStates({});
     setEvents([]);
-    setSaved(false);
+    if (markDirty) setSaved(false);
     setMessage("");
   }
 
@@ -246,19 +269,7 @@ function App() {
         reader.readAsDataURL(candidate);
       });
       setFile({ name: candidate.name, data, size: candidate.size });
-      invalidate();
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  async function loadSample() {
-    try {
-      const response = await fetch("/api/sample");
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setFile(data);
-      invalidate();
+      invalidate(false);
     } catch (error) {
       setMessage(error.message);
     }
@@ -359,6 +370,7 @@ function App() {
       ? { name: "Untitled workflow", nodes: [], edges: [] }
       : image ? imageWorkflow() : defaultWorkflow();
     setFile(null);
+    setWorkflowId(null);
     setNodes(template.nodes);
     setEdges(template.edges);
     setName(template.name);
@@ -379,18 +391,48 @@ function App() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function saveWorkflow() {
-    const serializable = {
-      name,
+  function currentWorkflow(workflowName = name) {
+    return parseWorkflow({
+      name: workflowName,
       nodes: nodes.map(({ id, position, data }) => ({ id, position, data })),
       edges: edges.map(({ source, target }) => ({ source, target })),
-    };
+    });
+  }
+
+  function exportWorkflow() {
     download(
-      JSON.stringify(serializable, null, 2),
+      JSON.stringify(currentWorkflow(), null, 2),
       `${name.replace(/[^a-z0-9-]/gi, "-").slice(0, 60) || "workflow"}.flowkit.json`,
       "application/json",
     );
-    setSaved(true);
+  }
+
+  function saveWorkflow(asNew = false, workflowName = name) {
+    try {
+      const workflow = currentWorkflow(workflowName.trim() || "Untitled workflow");
+      const id = asNew || !workflowId ? crypto.randomUUID() : workflowId;
+      const next = [...savedWorkflows.filter((entry) => entry.id !== id), { id, workflow }];
+      localStorage.setItem("flowkit.workspace", JSON.stringify({ activeId: id, workflows: next }));
+      setSavedWorkflows(next);
+      setWorkflowId(id);
+      setName(workflow.name);
+      setSaved(true);
+      setMenuOpen(false);
+      setWorkflowDialog(null);
+    } catch {
+      setMessage("Could not save in this browser. Check browser storage or use menu Export to download a backup.");
+      setMenuOpen(false);
+      setWorkflowDialog(null);
+    }
+  }
+
+  function exportResult(payload = result?.output) {
+    if (!payload) return;
+    if (payload.type === "image") {
+      download(Uint8Array.from(atob(payload.value.data), (character) => character.charCodeAt(0)), payload.value.name, "image/png");
+    } else {
+      download(payload.value.text, `${(payload.value.source || "result").replace(/\.[^.]+$/, "")}.md`, "text/markdown");
+    }
   }
 
   async function importWorkflow(candidate) {
@@ -402,6 +444,8 @@ function App() {
       setNodes(imported.nodes);
       setEdges(imported.edges);
       setName(imported.name);
+      setFile(null);
+      setWorkflowId(null);
       setSelectedId(null);
       setShowLibrary(false);
       setInspectorOpen(false);
@@ -414,11 +458,11 @@ function App() {
 
   async function run() {
     if (!file) {
-      setMessage(imageMode ? "Upload a PNG or JPEG before running." : "Upload a document or use the sample before running.");
+      setMessage(imageMode ? "Upload a PNG or JPEG before processing." : "Upload a document before processing.");
       return;
     }
     if (running) return;
-    invalidate();
+    invalidate(false);
     setRunning(true);
     setShowLog(false);
     const controller = new AbortController();
@@ -667,58 +711,39 @@ function App() {
             </div>
           )}
         </div>
-        <div className="floating-title">
-          <button
-            className="hamburger icon-button"
-            aria-label="Open workflow menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(true)}
-          >
-            <Icon name="menu" size={21} />
-          </button>
-          <img src="/flowkit.svg" alt="FlowKit" width="25" height="25" />
-          <input
-            aria-label="Workflow name"
-            value={name}
-            maxLength={100}
-            onChange={(event) => {
-              setName(event.target.value);
-              setSaved(false);
-            }}
-            disabled={running}
-          />
-          <span className="draft-badge">{saved ? "Exported" : "Draft"}</span>
-        </div>
-        <div className="floating-tools">
-          <button
-            className="source-chip"
-            onClick={() => fileRef.current.click()}
-            disabled={running}
-            title="Choose source document"
-          >
-            <Icon name={file ? "document" : "upload"} size={16} />
-            <span>{file?.name || (imageMode ? "Choose image" : "Choose document")}</span>
-          </button>
-          <button
-            className="sample-shortcut"
-            aria-label="Try with a sample document"
-            onClick={loadSample}
-            disabled={running || imageMode}
-          >
-            Use sample
-          </button>
-          <button
-            className="button add-node-button"
-            aria-label="Add node"
-            aria-expanded={showLibrary}
-            onClick={() => {
-              if (showLibrary) setShowLibrary(false);
-              else openLibrary();
-            }}
-            disabled={running}
-          >
-            <Icon name="plus" size={19} />
-            <span>Add node</span>
+        <header className="app-navbar">
+          <div className="navbar-brand">
+            <button className="hamburger icon-button" aria-label="Open workflow menu"
+              aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+              <Icon name="menu" size={21} />
+            </button>
+            <img src="/flowkit.svg" alt="" width="27" height="27" />
+            <strong>FlowKit</strong>
+          </div>
+          <div className="navbar-workflow">
+            <span>{name}</span><small>{saved ? "Saved" : "Unsaved"}</small>
+          </div>
+          <nav className="navbar-actions" aria-label="Workflow actions">
+            <button onClick={() => fileRef.current.click()} disabled={running} title={file?.name || "Upload a source file"}>
+              <Icon name="upload" size={16} /> Upload
+            </button>
+            <button className={running ? "processing" : "process-action"}
+              onClick={running ? () => abortRef.current?.abort() : run}>
+              <Icon name={running ? "stop" : "play"} size={16} /> {running ? "Cancel" : "Process"}
+            </button>
+            <button onClick={() => exportResult()} disabled={running || result?.status !== "succeeded"}
+              title="Download the processed file">
+              <Icon name="download" size={16} /> Export
+            </button>
+            <button onClick={() => setShowHelp(true)}>
+              <Icon name="info" size={16} /> About
+            </button>
+          </nav>
+        </header>
+        <div className="canvas-tools">
+          <button className="button add-node-button" aria-label="Add node" aria-expanded={showLibrary}
+            onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
+            <Icon name="plus" size={19} /><span>Add node</span>
           </button>
         </div>
         <button
@@ -802,20 +827,6 @@ function App() {
             </div>
           </section>
         )}
-        <footer className="run-bar">
-          {running ? (
-            <button
-              className="button danger"
-              onClick={() => abortRef.current?.abort()}
-            >
-              <Icon name="stop" size={15} /> Cancel run
-            </button>
-          ) : (
-            <button className="button primary run-button" onClick={run}>
-              <Icon name="play" size={15} /> Run workflow
-            </button>
-          )}
-        </footer>
 
         {showCanvasHint && <span className="canvas-hint">
           Drag to move · Scroll to zoom · Select a connection and press Delete
@@ -964,37 +975,15 @@ function App() {
                 </div>
                 <div className="inspector-section">
                   <label className="field-label">Source {imageMode ? "image" : "document"}</label>
-                  <button
-                    className={`upload-box ${file ? "has-file" : ""}`}
-                    onClick={() => fileRef.current.click()}
-                    disabled={running}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      chooseFile(event.dataTransfer.files[0]);
-                    }}
-                  >
-                    <span className="upload-symbol">
-                      <Icon name={file ? "document" : "upload"} size={22} />
-                    </span>
-                    <strong>{file?.name || (imageMode ? "Drop your image here" : "Drop your document here")}</strong>
-                    <small>
-                      {file
-                        ? `${formatBytes(file.size)} · Click to replace`
-                        : "or click to browse files"}
-                    </small>
-                  </button>
+                  <div className="source-summary">
+                    <Icon name={imageMode ? "image" : "document"} size={20} />
+                    <div><strong>{file?.name || "No file uploaded"}</strong>
+                      <small>{file ? formatBytes(file.size) : "Use Upload in the navbar, or drop a file on the canvas."}</small>
+                    </div>
+                  </div>
                   <p className="file-types">
                     {imageMode ? "PNG, JPEG · Up to 20 MiB and 16 million pixels" : "DOCX, HTML, EPUB, Markdown · Up to 20 MiB"}
                   </p>
-                  <button
-                    className="sample-button"
-                    onClick={loadSample}
-                    disabled={running || imageMode}
-                  >
-                    <Icon name="document" size={14} /> Try with a sample
-                    document <Icon name="arrow" size={14} />
-                  </button>
                 </div>
                 {selectedItem?.type === "image.resize" && (
                   <div className="inspector-section resize-settings">
@@ -1244,80 +1233,80 @@ function App() {
         </aside>
       )}
       {menuOpen && (
-        <dialog
-          ref={menuRef}
-          className="workflow-menu"
-          aria-label="Workflow menu"
+        <dialog ref={menuRef} className="workflow-menu" aria-label="Workflow menu"
           onCancel={() => setMenuOpen(false)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setMenuOpen(false);
-          }}
-        >
+          onClick={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
           <div className="menu-heading">
-            <img src="/flowkit.svg" alt="" width="28" height="28" />
-            <strong>FlowKit</strong>
-            <button
-              className="icon-button"
-              aria-label="Close workflow menu"
-              onClick={() => setMenuOpen(false)}
-            >
+            <strong>Workflow</strong>
+            <button className="icon-button" aria-label="Close workflow menu" onClick={() => setMenuOpen(false)}>
               <Icon name="close" size={18} />
             </button>
           </div>
-          <button
-            disabled={running}
-            onClick={() => {
-              setMenuOpen(false);
-              reset(true);
-            }}
-          >
-            <Icon name="plus" />
-            New workflow
-          </button>
-          <button
-            disabled={running}
-            onClick={() => {
-              setMenuOpen(false);
-              reset();
-            }}
-          >
-            <Icon name="workflow" />
-            Use document template
-          </button>
-          <button disabled={running} onClick={() => { setMenuOpen(false); reset(false, true); }}>
-            <Icon name="workflow" /> Use image resize template
-          </button>
+          <label className="menu-field">Workflow name
+            <input aria-label="Workflow name" value={name} maxLength={100} disabled={running}
+              onChange={(event) => { setName(event.target.value); setSaved(false); }} />
+          </label>
+          {savedWorkflows.length > 0 && <label className="menu-field">Saved in this browser
+            <select aria-label="Saved workflows" value={workflowId || ""} disabled={running}
+              onChange={(event) => {
+                const entry = savedWorkflows.find((item) => item.id === event.target.value);
+                if (!entry) return;
+                setNodes(entry.workflow.nodes); setEdges(entry.workflow.edges); setName(entry.workflow.name);
+                setFile(null); setWorkflowId(entry.id); setSelectedId(null); setInspectorOpen(false);
+                setShowLibrary(false); invalidate(); setSaved(true); setMenuOpen(false);
+                setTimeout(() => flow.fitView({ padding: 0.25 }), 50);
+              }}>
+              <option value="" disabled>Choose a saved workflow</option>
+              {savedWorkflows.map((entry) => <option key={entry.id} value={entry.id}>{entry.workflow.name}</option>)}
+            </select>
+          </label>}
           <div className="menu-divider" />
-          <button
-            disabled={running}
-            onClick={() => {
-              setMenuOpen(false);
-              importRef.current.click();
-            }}
-          >
-            <Icon name="upload" />
-            Import workflow
-          </button>
-          <button
-            onClick={() => {
-              setMenuOpen(false);
-              saveWorkflow();
-            }}
-          >
-            <Icon name="download" />
-            Export workflow
-          </button>
+          <button disabled={running} onClick={() => {
+            setMenuOpen(false); setDialogName("Untitled workflow"); setTemplate("blank"); setWorkflowDialog("new");
+          }}><Icon name="plus" /> New</button>
+          <button disabled={running} onClick={() => saveWorkflow()}><Icon name="save" /> Save</button>
+          <button disabled={running} onClick={() => {
+            setMenuOpen(false); setDialogName(`${name || "Untitled workflow"} copy`); setWorkflowDialog("copy");
+          }}><Icon name="copy" /> Save as new</button>
           <div className="menu-divider" />
-          <button
-            onClick={() => {
-              setMenuOpen(false);
-              setShowHelp(true);
-            }}
-          >
-            <Icon name="help" />
-            Quick guide
+          <button disabled={running} onClick={() => { setMenuOpen(false); importRef.current.click(); }}>
+            <Icon name="upload" /> Import
           </button>
-          <p>Document and image workflows · Runs locally</p>
+          <button disabled={running} onClick={() => { setMenuOpen(false); exportWorkflow(); }}>
+            <Icon name="download" /> Export
+          </button>
+          <p>Save stays in this browser. Export a JSON backup to share.</p>
+        </dialog>
+      )}
+      {workflowDialog && (
+        <dialog ref={workflowDialogRef} className="help-dialog workflow-dialog"
+          aria-labelledby="workflow-dialog-title" onCancel={() => setWorkflowDialog(null)}
+          onClick={(event) => { if (event.target === event.currentTarget) setWorkflowDialog(null); }}>
+          <form onSubmit={(event) => {
+            event.preventDefault();
+            if (workflowDialog === "copy") saveWorkflow(true, dialogName);
+            else {
+              reset(template === "blank", template === "image");
+              setName(dialogName.trim() || "Untitled workflow"); setWorkflowDialog(null);
+            }
+          }}>
+            <h2 id="workflow-dialog-title">{workflowDialog === "copy" ? "Save as new" : "New workflow"}</h2>
+            <label className="menu-field">Name
+              <input aria-label="New workflow name" value={dialogName} maxLength={100}
+                onChange={(event) => setDialogName(event.target.value)} autoFocus required />
+            </label>
+            {workflowDialog === "new" && <label className="menu-field">Start with
+              <select aria-label="Workflow template" value={template} onChange={(event) => setTemplate(event.target.value)}>
+                <option value="blank">Blank canvas</option>
+                <option value="text">Text / document</option>
+                <option value="image">Image resize</option>
+              </select>
+            </label>}
+            <div className="dialog-actions">
+              <button type="button" className="button" onClick={() => setWorkflowDialog(null)}>Cancel</button>
+              <button type="submit" className="button primary">{workflowDialog === "copy" ? "Save copy" : "Create"}</button>
+            </div>
+          </form>
         </dialog>
       )}
 
@@ -1353,7 +1342,7 @@ function App() {
         >
           <button
             className="icon-button close-dialog"
-            aria-label="Close guide"
+            aria-label="Close about"
             onClick={() => setShowHelp(false)}
           >
             <Icon name="close" />
@@ -1361,19 +1350,19 @@ function App() {
           <span className="node-icon purple">
             <Icon name="workflow" size={24} />
           </span>
-          <h2 id="help-title">A few steps. A useful result.</h2>
+          <h2 id="help-title">About FlowKit</h2>
+          <p>Build visual document and image workflows with prebuilt tools. Pandoc and ImageMagick process your files without AI-generated scripts.</p>
           <ol>
-            <li>Choose a document or image template from the menu, then upload a file. A document sample is also included.</li>
+            <li>Choose New in the menu to start a blank, text, or image workflow. Use Upload to choose your file.</li>
             <li>
               Drag nodes from the library. Connect an output dot to a compatible
               input dot.
             </li>
             <li>
-              Run the workflow and inspect each step in the execution log.
+              Choose Process and inspect each step in the execution log.
             </li>
             <li>
-              Download your Markdown or resized PNG. Export the workflow to reuse its layout
-              and settings.
+              Use navbar Export for your processed file, or menu Export for workflow JSON. Save keeps the workflow in this browser.
             </li>
           </ol>
           <p>

@@ -1,5 +1,14 @@
 import { test, expect } from "@playwright/test";
 import { defaultWorkflow } from "../src/catalog.mjs";
+import { readFile } from "node:fs/promises";
+
+const sourceDocument = await readFile(new URL("../examples/fixtures/sample.html", import.meta.url));
+async function uploadDocument(page) {
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Upload", exact: true }).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ name: "sample.html", mimeType: "text/html", buffer: sourceDocument });
+}
 
 test("sample document runs through the visual workflow and downloads real Markdown", async ({
   page,
@@ -9,15 +18,13 @@ test("sample document runs through the visual workflow and downloads real Markdo
   await page.goto("/");
   await expect(page.locator(".canvas-hint")).toBeVisible();
   await expect(
-    page.getByRole("textbox", { name: "Workflow name" }),
-  ).toHaveValue("Document to context");
+    page.locator(".navbar-workflow"),
+  ).toContainText("Document to context");
   await expect(page.locator(".operation-node")).toHaveCount(4);
-  await page
-    .getByRole("button", { name: "Try with a sample document" })
-    .click();
-  await expect(page.getByRole("button", { name: /sample.html/ })).toBeVisible();
+  await uploadDocument(page);
+  await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveAttribute("title", "sample.html");
   await expect(page.locator(".canvas-hint")).toHaveCount(0);
-  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Process", exact: true }).click();
   await expect(
     page.getByLabel("Markdown output", { exact: true }),
   ).toContainText("# FlowKit project brief");
@@ -25,7 +32,7 @@ test("sample document runs through the visual workflow and downloads real Markdo
   await expect(page.locator(".canvas-hint")).toHaveCount(0);
   const downloadPromise = page.waitForEvent("download");
   await page
-    .getByRole("button", { name: "Download Markdown", exact: true })
+    .getByRole("button", { name: "Export", exact: true })
     .click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("sample.md");
@@ -63,7 +70,7 @@ test("supports node dragging, adding, deleting, and safe workflow import/export"
   await expect(page.locator(".operation-node")).toHaveCount(4);
   const promise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Open workflow menu" }).click();
-  await page.getByRole("button", { name: "Export workflow" }).click();
+  await page.getByRole("dialog", { name: "Workflow menu" }).getByRole("button", { name: "Export", exact: true }).click();
   const exported = await promise;
   const stream = await exported.createReadStream();
   let json = "";
@@ -76,24 +83,21 @@ test("supports node dragging, adding, deleting, and safe workflow import/export"
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(imported)),
   });
-  await expect(
-    page.getByRole("textbox", { name: "Workflow name" }),
-  ).toHaveValue("Imported workflow");
+  await page.getByRole("button", { name: "Open workflow menu" }).click();
+  await expect(page.getByRole("textbox", { name: "Workflow name" })).toHaveValue("Imported workflow");
 });
 
 test("shows missing-input and disconnected-workflow errors", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Process", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Upload a document");
-  await page
-    .getByRole("button", { name: "Try with a sample document" })
-    .click();
-  await expect(page.getByRole("button", { name: /sample.html/ })).toBeVisible();
+  await uploadDocument(page);
+  await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveAttribute("title", "sample.html");
   await page.locator('.react-flow__node[data-id="convert"] .node-tile').click();
   await page.getByRole("button", { name: "Delete selected node" }).click();
-  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Process", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     /connected|existing nodes/,
   );
@@ -112,7 +116,7 @@ test("mobile layout remains usable without horizontal page overflow", async ({
   ).toHaveCount(0);
   await expect(page.getByLabel("Node editor", { exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Run workflow", exact: true }),
+    page.getByRole("button", { name: "Process", exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -143,7 +147,8 @@ test("hamburger menu and compact canvas leave all workspace available until pane
   await expect(
     page.getByRole("dialog", { name: "Workflow menu" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "New workflow", exact: true }).click();
+  await page.getByRole("button", { name: "New", exact: true }).click();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.locator(".operation-node")).toHaveCount(0);
   await page.getByRole("button", { name: "Add first step" }).click();
   await page.getByTitle("Drag or click to add Upload document").click();
@@ -158,10 +163,8 @@ test("hamburger menu and compact canvas leave all workspace available until pane
   await page.getByRole("button", { name: "Add after Clean Markdown" }).click();
   await page.getByTitle("Drag or click to add Preview & download").click();
   await expect(page.locator(".react-flow__edge")).toHaveCount(3);
-  await page
-    .getByRole("button", { name: "Try with a sample document" })
-    .click();
-  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+  await uploadDocument(page);
+  await page.getByRole("button", { name: "Process", exact: true }).click();
   await expect(
     page.getByLabel("Markdown output", { exact: true }),
   ).toContainText("# FlowKit project brief");
@@ -221,12 +224,11 @@ test("uploads a real file and supports keyboard guide and search interactions", 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Open workflow menu" }).click();
-  await page.getByRole("button", { name: "Quick guide" }).click();
+  await page.getByRole("button", { name: "About", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.locator(".flow-canvas").click({ position: { x: 15, y: 15 } });
+  await page.locator(".flow-canvas").click({ position: { x: 15, y: 150 } });
   await page.keyboard.press("/");
   await expect(
     page.getByRole("textbox", { name: "Find a node" }),
@@ -241,9 +243,9 @@ test("uploads a real file and supports keyboard guide and search interactions", 
       buffer: Buffer.from("<h1>Actual upload</h1><p>Document content.</p>"),
     });
   await expect(
-    page.getByRole("button", { name: /uploaded.html/ }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Run workflow", exact: true }).click();
+    page.getByRole("button", { name: "Upload", exact: true }),
+  ).toHaveAttribute("title", "uploaded.html");
+  await page.getByRole("button", { name: "Process", exact: true }).click();
   await expect(
     page.getByLabel("Markdown output", { exact: true }),
   ).toContainText("# Actual upload");
