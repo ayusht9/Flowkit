@@ -20,7 +20,7 @@ On Windows PowerShell, use `npm.cmd run dev` if execution policy blocks `npm.ps1
 3. Choose **Run workflow**. Inspect each step's progress and output, then download the generated Markdown.
 4. Open the left **hamburger menu** to create a workflow, load the template, import/export JSON, or read the guide. Workflow exports never include your uploaded file.
 
-The canvas occupies the entire window, with no fixed sidebar or top navigation. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections, and `/` opens node search. Execution logs also open on demand.
+The canvas occupies the entire window, with no fixed sidebar or top navigation. The node picker groups tools into collapsible **Image**, **Text**, **Audio**, and **Video** sections. Audio and Video are marked coming soon. Search by category or operation name; adding after a node shows only compatible tools. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections, and `/` opens node search. Execution logs also open on demand.
 
 The default template is **Upload document → Convert to Markdown → Clean Markdown → Preview & download**. The cleanup node normalizes line endings and optionally collapses extra blank lines, preserving code spacing. Workflows support a single connected chain with up to 20 nodes.
 
