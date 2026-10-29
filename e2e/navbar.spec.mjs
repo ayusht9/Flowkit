@@ -3,7 +3,9 @@ import { test, expect } from "@playwright/test";
 test("connected navbar has one upload, four actions, and the requested popup", async ({ page }) => {
   await page.goto("/");
   const actions = page.getByRole("navigation", { name: "Workflow actions" });
-  await expect(actions.getByRole("button")).toHaveText(["Upload", "Process", "Export", "About"]);
+  await expect(actions.getByRole("button")).toHaveText(["Add Node", "Upload", "Process", "Export"]);
+  await expect(actions.getByRole("button", { name: "Add node", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "About", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveCount(1);
   await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeDisabled();
   await page.locator('.react-flow__node[data-id="upload"] .node-tile').click();
@@ -15,12 +17,9 @@ test("connected navbar has one upload, four actions, and the requested popup", a
   await expect(menu.locator(":scope > button")).toHaveText(["New", "Save", "Save as new", "Import", "Export"]);
   await page.screenshot({ path: "test-results/navbar-menu.png", fullPage: true });
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "About", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "About FlowKit" })).toBeVisible();
-  await page.keyboard.press("Escape");
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const name of ["Upload", "Process", "Export", "About"])
+    for (const name of ["Add node", "Upload", "Process", "Export"])
       await expect(actions.getByRole("button", { name, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }

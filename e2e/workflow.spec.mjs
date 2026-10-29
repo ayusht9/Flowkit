@@ -220,14 +220,10 @@ test("can build connections on the canvas and configure them from the inspector"
   await expect(page.locator(".react-flow__edge")).toHaveCount(3);
 });
 
-test("uploads a real file and supports keyboard guide and search interactions", async ({
+test("uploads a real file and supports keyboard search interactions", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "About", exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.locator(".flow-canvas").click({ position: { x: 15, y: 150 } });
   await page.keyboard.press("/");
   await expect(

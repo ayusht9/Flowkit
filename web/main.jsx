@@ -171,12 +171,10 @@ function App() {
   const [workflowDialog, setWorkflowDialog] = useState(null);
   const [dialogName, setDialogName] = useState("");
   const [template, setTemplate] = useState("blank");
-  const [showHelp, setShowHelp] = useState(false);
   const [showCanvasHint, setShowCanvasHint] = useState(true);
   const fileRef = useRef(null);
   const importRef = useRef(null);
   const abortRef = useRef(null);
-  const helpRef = useRef(null);
   const menuRef = useRef(null);
   const workflowDialogRef = useRef(null);
   const searchRef = useRef(null);
@@ -200,7 +198,7 @@ function App() {
         !["INPUT", "TEXTAREA", "SELECT"].includes(
           document.activeElement?.tagName,
         ) &&
-        !showHelp
+        !menuOpen && !workflowDialog
       ) {
         event.preventDefault();
         setAnchorId(null);
@@ -221,16 +219,13 @@ function App() {
       window.removeEventListener("keydown", focusSearch);
       window.removeEventListener("keydown", closePanels);
     };
-  }, [showHelp]);
+  }, [menuOpen, workflowDialog]);
   useEffect(() => {
     if (showLibrary) searchRef.current?.focus();
   }, [showLibrary]);
   useEffect(() => {
     if (menuOpen) menuRef.current?.showModal();
   }, [menuOpen]);
-  useEffect(() => {
-    if (showHelp) helpRef.current?.showModal();
-  }, [showHelp]);
   useEffect(() => {
     if (workflowDialog) workflowDialogRef.current?.showModal();
   }, [workflowDialog]);
@@ -724,6 +719,10 @@ function App() {
             <span>{name}</span><small>{saved ? "Saved" : "Unsaved"}</small>
           </div>
           <nav className="navbar-actions" aria-label="Workflow actions">
+            <button aria-label="Add node" aria-expanded={showLibrary}
+              onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
+              <Icon name="plus" size={16} /> Add Node
+            </button>
             <button onClick={() => fileRef.current.click()} disabled={running} title={file?.name || "Upload a source file"}>
               <Icon name="upload" size={16} /> Upload
             </button>
@@ -735,17 +734,8 @@ function App() {
               title="Download the processed file">
               <Icon name="download" size={16} /> Export
             </button>
-            <button onClick={() => setShowHelp(true)}>
-              <Icon name="info" size={16} /> About
-            </button>
           </nav>
         </header>
-        <div className="canvas-tools">
-          <button className="button add-node-button" aria-label="Add node" aria-expanded={showLibrary}
-            onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
-            <Icon name="plus" size={19} /><span>Add node</span>
-          </button>
-        </div>
         <button
           className="execution-toggle button"
           onClick={() => setShowLog((value) => !value)}
@@ -1330,51 +1320,6 @@ function App() {
           event.target.value = "";
         }}
       />
-      {showHelp && (
-        <dialog
-          ref={helpRef}
-          className="help-dialog"
-          aria-labelledby="help-title"
-          onCancel={() => setShowHelp(false)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setShowHelp(false);
-          }}
-        >
-          <button
-            className="icon-button close-dialog"
-            aria-label="Close about"
-            onClick={() => setShowHelp(false)}
-          >
-            <Icon name="close" />
-          </button>
-          <span className="node-icon purple">
-            <Icon name="workflow" size={24} />
-          </span>
-          <h2 id="help-title">About FlowKit</h2>
-          <p>Build visual document and image workflows with prebuilt tools. Pandoc and ImageMagick process your files without AI-generated scripts.</p>
-          <ol>
-            <li>Choose New in the menu to start a blank, text, or image workflow. Use Upload to choose your file.</li>
-            <li>
-              Drag nodes from the library. Connect an output dot to a compatible
-              input dot.
-            </li>
-            <li>
-              Choose Process and inspect each step in the execution log.
-            </li>
-            <li>
-              Use navbar Export for your processed file, or menu Export for workflow JSON. Save keeps the workflow in this browser.
-            </li>
-          </ol>
-          <p>
-            Workflows run in a single chain. Select a node or connection and
-            press Delete to remove it. Your source file is never included in a
-            workflow export.
-          </p>
-          <button className="button primary" onClick={() => setShowHelp(false)}>
-            Got it, let's build
-          </button>
-        </dialog>
-      )}
     </div>
   );
 }
