@@ -8,7 +8,10 @@ export const nodeKinds = [
 ];
 export const fileTypes = ["Image", "Text", "Audio", "Video"];
 export function fileCategory(name = "") {
-  return /\.(png|jpe?g)$/i.test(name) ? "Image" : "Text";
+  return /\.(png|jpe?g)$/i.test(name) ? "Image" : /\.(mp3|wav|m4a)$/i.test(name) ? "Audio" : /\.(mp4|mov|webm|mkv)$/i.test(name) ? "Video" : "Text";
+}
+export function outputCategory(item) {
+  return ({ image: "Image", audio: "Audio", video: "Video", document: "Text", markdown: "Text" })[item?.outputType] || item?.category;
 }
 export function nodeKind(node) {
   const group = catalog.find((item) => item.type === node?.data?.operation)?.group;
@@ -25,6 +28,9 @@ export function processOptions(category, inputType) {
     (!inputType || item.inputType === inputType));
 }
 export function defaultOptions(operation) {
+  if (operation === "audio.convert" || operation === "video.extractAudio") return { format: "mp3" };
+  if (operation === "audio.trim") return { startSeconds: 0, durationSeconds: 10, format: "mp3" };
+  if (operation === "video.trim") return { startSeconds: 0, durationSeconds: 10 };
   return operation === "image.resize" ? { width: 800, height: 800 } :
     operation === "context.clean" ? { collapseBlankLines: true } : {};
 }
@@ -42,18 +48,18 @@ export function adaptNodes(nodes, edges, filename) {
     const parent = parentId ? resolve(parentId) : null;
     const input = parent ? nodeItem(parent) : null;
     const kind = nodeKind(node);
-    let category = input?.category || node.data.fileType || nodeItem(node).category || "Text";
+    let category = outputCategory(input) || node.data.fileType || nodeItem(node).category || "Text";
     let operation = node.data.operation;
     if (kind === "upload") {
       category = filename ? fileCategory(filename) : category;
-      operation = category === "Image" ? "image.upload" : "file.upload";
+      operation = category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`;
     } else if (kind === "process") {
       const options = processOptions(category, input?.outputType);
       if (!options.some((item) => item.type === operation)) operation = options[0]?.type || "";
     } else if (kind === "pipe") {
-      operation = `${input?.outputType || nodeItem(node).inputType || (category === "Image" ? "image" : "document")}.pipe`;
+      operation = `${input?.outputType || nodeItem(node).inputType || (category === "Text" ? "document" : category.toLowerCase())}.pipe`;
     } else if (kind === "download") {
-      operation = category === "Image" ? "image.preview" : "artifact.preview";
+      operation = category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`;
     }
     const next = { ...node, data: { ...node.data, kind, fileType: category, operation,
       options: operation === node.data.operation ? node.data.options || {} : defaultOptions(operation) } };

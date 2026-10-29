@@ -28,7 +28,7 @@ test("connected navbar has one upload, four actions, and the requested popup", a
 
 test("Save restores workflow JSON, Save as new keeps the original, and Import starts a new identity", async ({ page }) => {
   await page.goto("/");
-  await page.locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]').setInputFiles({
+  await page.locator('input[type=file][accept*=".png"]').setInputFiles({
     name: "private.html", mimeType: "text/html", buffer: Buffer.from("PRIVATE_FILE_BYTES"),
   });
   await page.getByRole("button", { name: "Open workflow menu" }).click();

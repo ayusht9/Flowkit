@@ -236,7 +236,7 @@ test("uploads a real file and supports keyboard search interactions", async ({
   await page.getByRole("textbox", { name: "Find a node" }).fill("Clean");
   await expect(page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Process", exact: true })).toBeVisible();
   await page
-    .locator('input[type=file][accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md"]')
+    .locator('input[type=file][accept*=".png"]')
     .setInputFiles({
       name: "uploaded.html",
       mimeType: "text/html",

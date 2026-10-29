@@ -818,6 +818,8 @@ svg { flex-shrink: 0; }
 ═══════════════════════════════════════ */
 .muted { color: #aaa1b1; }
 .image-preview { display: block; width: 100%; max-height: 400px; object-fit: contain; border-radius: 10px; background: #f3f3f7; }
+.media-output audio, .media-output video { display: block; width: 100%; max-height: 380px; margin-bottom: 16px; border-radius: 8px; }
+.media-output p { overflow-wrap: anywhere; font-size: 12px; margin: 10px 0; }
 .resize-settings label { display: grid; gap: 6px; margin: 14px 0; font-size: 13px; }
 .resize-settings input { width: 100%; padding: 9px; border: 1px solid #d0cad8; border-radius: 8px; font: inherit; }
 

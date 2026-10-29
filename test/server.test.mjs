@@ -19,7 +19,7 @@ async function withServer(callback) {
 test("API exposes only the implemented node catalog and a real sample document", async () => {
   await withServer(async (url) => {
     const operations = await (await fetch(`${url}/api/operations`)).json();
-    assert.equal(operations.operations.length, 10);
+    assert.equal(operations.operations.length, 20);
     const sample = await (await fetch(`${url}/api/sample`)).json();
     assert.match(
       Buffer.from(sample.data, "base64").toString(),

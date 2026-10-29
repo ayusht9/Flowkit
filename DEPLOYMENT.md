@@ -49,7 +49,7 @@ In another terminal:
 node scripts/smoke.mjs http://127.0.0.1:4318
 ```
 
-The image runs as an unprivileged user, includes Pandoc and ImageMagick, serves the built frontend and API, and uses temporary files only for active operations. `IMAGEMAGICK_PATH=/usr/bin/convert` selects Debian's ImageMagick 6 executable in both build and runtime stages. Node dependencies used only by the frontend are compiled into `dist`; the runtime server uses Node's built-ins. FFmpeg and PDF binaries will join the image when their adapters are implemented. The smoke test verifies both document conversion and PNG resizing before promotion.
+The image runs as an unprivileged user, includes Pandoc, ImageMagick, and FFmpeg, serves the built frontend and API, and uses temporary files only for active operations. `IMAGEMAGICK_PATH=/usr/bin/convert` selects Debian's ImageMagick 6 executable in both build and runtime stages. Node dependencies used only by the frontend are compiled into `dist`; the runtime server uses Node's built-ins. PDF binaries will join the image when their adapters are implemented. The smoke test verifies document conversion, PNG resizing, and FFmpeg audio conversion before promotion.
 
 ## Why the Vercel deployment is a second tiny build
 
