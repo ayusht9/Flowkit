@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="FlowKit turns document and media operations into visual workflows and compact MCP tools for AI agents.">
+  <meta name="theme-color" content="#f4f3f8"><title>FlowKit — Visual media workflows</title>
+  <link rel="icon" href="flowkit.svg"><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="FlowKit home"><img src="flowkit.svg" alt="" width="34" height="34"><span>FlowKit</span></a>
+    <nav aria-label="Primary navigation"><a href="#mcp">MCP setup</a><a href="https://github.com/ayusht9/Flowkit">GitHub</a><a class="nav-cta" href="https://flowkit-ruddy.vercel.app">Open FlowKit</a></nav>
+  </header>
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="status"><span></span>Visual workflows + local MCP</p>
+        <h1>Process files once.<br>Let agents reuse the tools.</h1>
+        <p class="intro">Build document, image, audio, and video pipelines on a visual canvas. FlowKit runs trusted operations with Pandoc, ImageMagick, and FFmpeg, then exposes the same operations to AI agents through MCP.</p>
+        <div class="hero-actions"><a class="button primary" href="https://flowkit-ruddy.vercel.app">Launch the workflow studio</a><a class="button secondary" href="#mcp">Install the MCP server</a></div>
+      </div>
+      <div class="workflow-stage" aria-label="Example FlowKit workflow">
+        <div class="stage-label">video workflow</div>
+        <div class="node upload-node"><span class="node-icon blue">↑</span><span><strong>Upload</strong><small>clip.mp4</small></span><i></i></div>
+        <div class="connector first"><b></b></div>
+        <div class="node process-node"><span class="node-icon purple">✦</span><span><strong>Process</strong><small>Extract audio</small></span><i></i></div>
+        <div class="connector second"><b></b></div>
+        <div class="node download-node"><span class="node-icon orange">↓</span><span><strong>Download</strong><small>clip.mp3</small></span><i></i></div>
+        <p class="stage-note">The same typed operation is available to an agent through MCP.</p>
+      </div>
+    </section>
+    <section class="capabilities" aria-label="FlowKit capabilities">
+      <article><span>Document</span><strong>DOCX · HTML · EPUB → Markdown</strong></article><article><span>Image</span><strong>Resize PNG and JPEG</strong></article><article><span>Audio</span><strong>Convert and trim MP3/WAV</strong></article><article><span>Video</span><strong>Trim clips and extract audio</strong></article>
+    </section>
+    <section class="mcp-section" id="mcp">
+      <div class="mcp-copy"><p class="status"><span></span>MCP server</p><h2>Give your coding agent nine focused file tools.</h2><p>FlowKit returns file paths, metadata, and bounded text previews instead of sending large binary files through the model context. The MCP server runs locally and uses the same validated operations as the visual editor.</p><a class="text-link" href="https://github.com/ayusht9/Flowkit/blob/main/MCP.md">Read the setup guide <span>↗</span></a></div>
+      <div class="terminal" aria-label="MCP download command">
+        <div class="terminal-head"><span>Install FlowKit MCP</span><button id="copy-command" type="button">Copy</button></div>
+        <pre><code id="install-command"><span class="prompt">$</span> git clone --depth 1 https://github.com/ayusht9/Flowkit.git flowkit-mcp
+<span class="prompt">$</span> cd flowkit-mcp &amp;&amp; npm install
+<span class="prompt">$</span> npm run mcp -- --workspace /path/to/files</code></pre>
+        <div class="terminal-foot"><span>Node.js 22.12+</span><a href="https://github.com/ayusht9/Flowkit/archive/refs/heads/main.zip">Download ZIP</a></div>
+      </div>
+    </section>
+  </main>
+  <footer><a class="brand" href="#top"><img src="flowkit.svg" alt="" width="28" height="28"><span>FlowKit</span></a><p>Prebuilt operations for smaller prompts and repeatable results.</p><a href="https://github.com/ayusht9/Flowkit">Source on GitHub</a></footer>
+  <script src="script.js"></script>
+</body></html>
