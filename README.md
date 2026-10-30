@@ -1,12 +1,35 @@
 # FlowKit
 
-Local, visual workflows for documents, images, audio, and video — plus an MCP server that lets LLMs call the same tools.
+Local MCP tools for documents, images, audio, and video - with a visual workflow studio for composing and inspecting the same operations.
 
 ![FlowKit workflow studio](docs/screenshots/workflow-studio.png)
 
-![FlowKit compact workflow view](docs/screenshots/workflow-studio-compact.png)
+## MCP first
 
-## What you can do
+FlowKit exposes local document, image, audio, and video operations over MCP stdio. An MCP client can call each tool independently, chain returned file paths, and receive compact metadata with bounded text previews.
+
+### Install and check
+
+```sh
+git clone https://github.com/ayusht9/Flowkit.git
+cd FlowKit
+npm install
+npm run mcp:doctor
+```
+
+Make sure the native tools you need are available: [Pandoc](https://pandoc.org/installing.html), [ImageMagick 7](https://imagemagick.org/script/downloads.php), and [FFmpeg](https://ffmpeg.org/download.html). Node.js 22.12+ is required. Configure non-default executable locations with `PANDOC_PATH`, `IMAGEMAGICK_PATH`, `FFMPEG_PATH`, and `FFPROBE_PATH`.
+
+### Connect an MCP client
+
+Use [mcp.example.json](mcp.example.json) as a starting point, or run the server directly:
+
+```sh
+npm run mcp
+```
+
+See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, safety limits, and token benchmark.
+
+## Visual workflow studio
 
 - Build a linear drag-and-drop workflow in the browser.
 - Convert DOCX, ODT, HTML, EPUB, and Markdown with Pandoc.
@@ -15,50 +38,22 @@ Local, visual workflows for documents, images, audio, and video — plus an MCP 
 - Run the same operations from an MCP-compatible client.
 - Save workflows locally, or export/import workflow JSON.
 
-## Quick start
-
-### 1. Install prerequisites
-
-- [Node.js 22.12+](https://nodejs.org/)
-- [Pandoc](https://pandoc.org/installing.html) — document workflows
-- [ImageMagick 7](https://imagemagick.org/script/downloads.php) — image workflows
-- [FFmpeg](https://ffmpeg.org/download.html) — audio/video workflows
-
-Make sure `pandoc`, `magick` (or `convert` on Linux), `ffmpeg`, and `ffprobe` are available on your `PATH`. You can also configure explicit executable paths with `PANDOC_PATH`, `IMAGEMAGICK_PATH`, `FFMPEG_PATH`, and `FFPROBE_PATH`.
-
-### 2. Install and run
+### Run the browser app
 
 ```sh
-git clone https://github.com/ayusht9/Flowkit.git
-cd Flowkit
 npm install
 npm run dev
 ```
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). On Windows PowerShell, use `npm.cmd run dev` if your execution policy blocks `npm.ps1`.
 
-### 3. Run a workflow
-
-1. Choose a starter workflow, or use **New** to start with a blank, text/document, image, audio, or video template.
-2. Upload a file, then connect **Process**, **Pipe**, and **Download** nodes on the canvas.
-3. Click **Run**. Inspect the result in the output panel, then export or download it.
+Run the default document workflow, or use **New** to choose a blank, text/document, image, audio, or video template. Upload a file, connect **Process**, **Pipe**, and **Download** nodes, then click **Run**.
 
 The default workflow is:
 
 ```text
-Upload document → Convert to Markdown → Clean Markdown → Preview & download
+Upload document -> Convert to Markdown -> Clean Markdown -> Preview & download
 ```
-
-## MCP server
-
-FlowKit also exposes local document, image, audio, and video operations over MCP stdio.
-
-```sh
-npm run mcp:doctor
-npm run mcp
-```
-
-Use [mcp.example.json](mcp.example.json) as a starting point for your MCP host. See [MCP.md](MCP.md) for the tool catalog, configuration, limits, and token benchmark.
 
 ## Production build
 
