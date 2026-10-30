@@ -42,9 +42,28 @@ function readWorkspace() {
     return { workflows, activeId: stored.activeId };
   } catch { return { workflows: [], activeId: null }; }
 }
+function isLegacyDefaultWorkflow(wf) {
+  if (!wf || !Array.isArray(wf.nodes)) return false;
+  const opNames = wf.nodes.map((n) => n.data?.operation || n.type);
+  return (
+    opNames.length === 4 &&
+    opNames[0] === "file.upload" &&
+    opNames[1] === "document.toMarkdown" &&
+    opNames[2] === "context.clean" &&
+    opNames[3] === "artifact.preview"
+  );
+}
 const workspace = readWorkspace();
-const activeWorkflow = workspace.workflows.find((entry) => entry.id === workspace.activeId);
-const initialWorkflow = activeWorkflow?.workflow || defaultWorkflow();
+let activeWorkflow = workspace.workflows.find((entry) => entry.id === workspace.activeId);
+if (activeWorkflow && isLegacyDefaultWorkflow(activeWorkflow.workflow)) {
+  activeWorkflow.workflow = defaultWorkflow();
+  try {
+    localStorage.setItem("flowkit.workspace", JSON.stringify(workspace));
+  } catch {}
+}
+const initialWorkflow = (activeWorkflow?.workflow && !isLegacyDefaultWorkflow(activeWorkflow.workflow))
+  ? activeWorkflow.workflow
+  : defaultWorkflow();
 const initial = { ...initialWorkflow, nodes: adaptNodes(initialWorkflow.nodes, initialWorkflow.edges) };
 const formatBytes = (bytes) =>
   bytes < 1024
