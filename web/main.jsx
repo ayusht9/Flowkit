@@ -98,8 +98,9 @@ function OperationNode({ data, selected }) {
       {/* Hover action buttons */}
       <div className="node-actions nodrag nopan">
         <button
+          className="node-action-btn node-action-configure"
           aria-label={`Configure ${item.title}`}
-          title="Configure node"
+          title="Node details"
           onClick={(event) => {
             event.stopPropagation();
             data.onConfigure();
@@ -108,6 +109,7 @@ function OperationNode({ data, selected }) {
           <Icon name="settings" size={13} />
         </button>
         <button
+          className="node-action-btn node-action-delete"
           aria-label={`Delete ${item.title}`}
           title="Delete node"
           disabled={data.running}
@@ -250,6 +252,75 @@ function App() {
   const [events, setEvents] = useState([]);
   const [states, setStates] = useState({});
   const [running, setRunning] = useState(false);
+  const [history, setHistory] = useState(() => [{ nodes: initial.nodes, edges: initial.edges }]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const pushHistory = useCallback((nextNodes, nextEdges) => {
+    setHistory((prev) => {
+      const sliced = prev.slice(0, historyIndex + 1);
+      const last = sliced[sliced.length - 1];
+      if (last && JSON.stringify(last.nodes) === JSON.stringify(nextNodes) && JSON.stringify(last.edges) === JSON.stringify(nextEdges)) {
+        return sliced;
+      }
+      return [...sliced, { nodes: nextNodes, edges: nextEdges }].slice(-50);
+    });
+    setHistoryIndex((prev) => Math.min(prev + 1, 49));
+  }, [historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      const snapshot = history[prevIndex];
+      setHistoryIndex(prevIndex);
+      setNodes(snapshot.nodes);
+      setEdges(snapshot.edges);
+      setSelectedId(null);
+      invalidate();
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      const snapshot = history[nextIndex];
+      setHistoryIndex(nextIndex);
+      setNodes(snapshot.nodes);
+      setEdges(snapshot.edges);
+      setSelectedId(null);
+      invalidate();
+    }
+  }, [history, historyIndex]);
+
+  function clearAll() {
+    if (running) return;
+    setNodes([]);
+    setEdges([]);
+    setFiles({});
+    setSelectedId(null);
+    pushHistory([], []);
+    invalidate();
+    setMessage("Cleared all nodes. Press Undo (Ctrl+Z) to restore.");
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        if (event.shiftKey) {
+          event.preventDefault();
+          redo();
+        } else {
+          event.preventDefault();
+          undo();
+        }
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
   const [theme, setTheme] = useState(() => {
     try {
       return localStorage.getItem("flowkit.theme") || (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -392,15 +463,16 @@ function App() {
 
   function removeNode(id) {
     if (running) return;
-    setNodes((current) => current.filter((node) => node.id !== id));
-    setEdges((current) =>
-      current.filter((edge) => edge.source !== id && edge.target !== id),
-    );
+    const nextNodes = nodes.filter((node) => node.id !== id);
+    const nextEdges = edges.filter((edge) => edge.source !== id && edge.target !== id);
+    setNodes(nextNodes);
+    setEdges(nextEdges);
     setFiles((current) => { const next = { ...current }; delete next[id]; return next; });
     if (selectedId === id) {
       setSelectedId(null);
       setInspectorOpen(false);
     }
+    pushHistory(nextNodes, nextEdges);
     invalidate();
   }
 
@@ -428,6 +500,7 @@ function App() {
     if (connection) setEdges(connection.edges);
     setSelectedId(id); setShowLibrary(false); setInspectorOpen(false); setAnchorId(null); setInspectorTab("settings"); invalidate();
     if (kind === "upload") { pendingUploadId.current = id; setTimeout(() => fileRef.current?.click(), 0); }
+    pushHistory(connection?.nodes || adaptNodes(candidates, edges), connection ? connection.edges : edges);
     if (anchor) setTimeout(() => flow.fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 }), 50);
   }
   function changeProcess(id, changes) {
@@ -537,6 +610,7 @@ function App() {
       setSelectedId(null);
       setShowLibrary(false);
       setInspectorOpen(false);
+      pushHistory(adaptNodes(imported.nodes, imported.edges), imported.edges);
       invalidate();
       setTimeout(() => flow.fitView({ padding: 0.25 }), 50);
     } catch (error) {
@@ -804,11 +878,48 @@ function App() {
               <img src="/flowkit.svg" alt="FlowKit logo" width="26" height="26" />
             </div>
             <strong>FlowKit</strong>
-            <button className="navbar-brand-import" onClick={() => importRef.current.click()} disabled={running} title="Import workflow JSON">
-              <Icon name="folder" size={15} />
-              <span>Import</span>
-            </button>
+
+            {/* Left toolbar group beside FlowKit: Import, Undo, Redo, Clear All */}
+            <div className="navbar-tools">
+              <button
+                className="nav-icon-btn"
+                onClick={() => importRef.current.click()}
+                disabled={running}
+                title="Import"
+                aria-label="Import"
+              >
+                <Icon name="upload" size={16} />
+              </button>
+              <button
+                className="nav-icon-btn"
+                onClick={undo}
+                disabled={running || historyIndex <= 0}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+              >
+                <Icon name="undo" size={16} />
+              </button>
+              <button
+                className="nav-icon-btn"
+                onClick={redo}
+                disabled={running || historyIndex >= history.length - 1}
+                title="Redo (Ctrl+Y)"
+                aria-label="Redo"
+              >
+                <Icon name="redo" size={16} />
+              </button>
+              <button
+                className="nav-icon-btn danger"
+                onClick={clearAll}
+                disabled={running || nodes.length === 0}
+                title="Clear all nodes"
+                aria-label="Clear all"
+              >
+                <Icon name="trash" size={16} />
+              </button>
+            </div>
           </div>
+
           <nav className="navbar-actions" aria-label="Workflow actions">
             <button
               type="button"
@@ -823,20 +934,36 @@ function App() {
               <span className="slider-icon moon"><Icon name="moon" size={12} /></span>
               <span className="slider-thumb" />
             </button>
+
             <div className="navbar-divider" aria-hidden="true" />
-            <button className="nav-action-btn" aria-label="Add node" aria-expanded={showLibrary}
-              onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
-              <Icon name="plus" size={15} />
-              <span>Add Node</span>
+
+            <button
+              className="nav-icon-btn"
+              aria-label="Add node"
+              aria-expanded={showLibrary}
+              onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()}
+              disabled={running}
+              title="Add node"
+            >
+              <Icon name="plus" size={16} />
             </button>
-            <button className="nav-action-btn" onClick={handleExport} disabled={running}
-              title={result?.status === "succeeded" ? "Download the processed output" : "Export workflow JSON"}>
-              <Icon name="download" size={15} />
-              <span>Export</span>
+
+            <button
+              className="nav-icon-btn"
+              onClick={handleExport}
+              disabled={running}
+              title="Export"
+              aria-label="Export"
+            >
+              <Icon name="download" size={16} />
             </button>
-            <button className={`run-action ${running ? "processing" : ""}`}
+
+            <button
+              className={`run-action ${running ? "processing" : ""}`}
               onClick={running ? () => abortRef.current?.abort() : run}
-              title={running ? "Cancel execution" : "Run workflow"}>
+              title={running ? "Cancel execution" : "Run workflow"}
+              aria-label={running ? "Cancel execution" : "Run"}
+            >
               <Icon name={running ? "stop" : "play"} size={14} />
               <span>{running ? "Cancel" : "Run"}</span>
             </button>

@@ -448,38 +448,99 @@ svg { flex-shrink: 0; }
 .status-failed { background: #fdeaea; color: #b03030; }
 .status-cancelled { background: #f3f3f7; color: #7a7d88; }
 
-/* ── Node action buttons (top hover) ── */
+/* ── Node action buttons (hover and around node area) ── */
 .node-actions {
   position: absolute;
-  top: -36px;
+  top: -32px;
   right: 6px;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.15s;
-  z-index: 10;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  transform: translateY(2px);
+  z-index: 20;
 }
+.node-actions::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: -12px;
+  right: -12px;
+  bottom: -18px; /* seamless bridge to card top */
+}
+
 .node-actions button {
   display: grid;
   place-items: center;
-  width: 27px;
-  height: 26px;
-  color: #7a7888;
+  width: 28px;
+  height: 27px;
+  color: #6d6b7b;
   border-radius: 7px;
   background: white;
-  border: 1px solid #e0dce8;
+  border: 1px solid #ddd8e6;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
-.node-actions button:hover { background: #f4f0f9; color: #5c4f72; border-color: #cec5de; }
+.node-actions button:hover:not(:disabled) {
+  background: #f4f0f9;
+  color: #4a3d66;
+  border-color: #beb4d2;
+}
+.node-actions button.node-action-delete:hover:not(:disabled) {
+  background: #fef0ee;
+  border-color: #f6c7bf;
+  color: #c83827;
+}
+
+/* Hover buffer so approaching or moving around the node area keeps buttons visible */
+.card-node::after {
+  content: "";
+  position: absolute;
+  top: -34px;
+  bottom: -8px;
+  left: -8px;
+  right: -8px;
+  pointer-events: auto;
+  z-index: 0;
+}
+
+.card-body,
+.card-file-type {
+  position: relative;
+  z-index: 1;
+}
 
 .card-node:hover .node-actions,
+.react-flow__node:hover .node-actions,
 .card-node:focus-within .node-actions,
-.card-node.is-selected .node-actions {
+.card-node.is-selected .node-actions,
+.react-flow__node.selected .node-actions,
+.node-actions:hover {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .node-actions button {
+  background: #252836;
+  border-color: #3b3f54;
+  color: #c4c8d8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .node-actions button:hover:not(:disabled) {
+  background: #2e3244;
+  border-color: #4f5470;
+  color: #ffffff;
+}
+[data-theme="dark"] .node-actions button.node-action-delete:hover:not(:disabled) {
+  background: #3c1e22;
+  border-color: #632a31;
+  color: #ff6b6b;
 }
 
 /* ── Selection state: highlight ONLY when selected ── */
@@ -1008,7 +1069,7 @@ svg { flex-shrink: 0; }
   .navbar-brand img { width: 24px; height: 24px; }
   .navbar-brand .icon-button { width: 28px; }
   .navbar-actions button { padding: 0 8px; font-size: 11px; height: 32px; }
-  .navbar-actions button > svg { display: none; }
+  .run-action > svg { display: inline-block; }
   .node-picker, .inspector { left: 12px; right: 12px; bottom: 60px; width: auto; }
   .node-picker { top: 66px; }
   .inspector { top: 66px; }
@@ -1236,4 +1297,68 @@ svg { flex-shrink: 0; }
   background: #1e1f27;
   border-color: #313340;
   color: #d0d2dc;
+}
+
+/* ── Navbar Tools (Import, Undo, Redo, Clear All) ── */
+.navbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+}
+
+.nav-icon-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  color: #4a4d5b !important;
+  background: #f1f2f8 !important;
+  border: 1px solid #e1e3ed !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease !important;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nav-icon-btn svg {
+  display: block !important;
+}
+.nav-icon-btn:hover:not(:disabled) {
+  background: #e6e8f2 !important;
+  border-color: #d1d4e3 !important;
+  color: #121319 !important;
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+.nav-icon-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.nav-icon-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed;
+}
+
+.nav-icon-btn.danger:hover:not(:disabled) {
+  background: #fef0ee !important;
+  border-color: #f6c7bf !important;
+  color: #c83827 !important;
+}
+
+[data-theme="dark"] .nav-icon-btn {
+  background: #21232d !important;
+  border-color: #313444 !important;
+  color: #b5b8c7 !important;
+}
+[data-theme="dark"] .nav-icon-btn:hover:not(:disabled) {
+  background: #2b2e3c !important;
+  border-color: #42465c !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .nav-icon-btn.danger:hover:not(:disabled) {
+  background: #341e21 !important;
+  border-color: #5d282e !important;
+  color: #f76657 !important;
 }
