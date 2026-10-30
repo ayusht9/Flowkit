@@ -37,7 +37,18 @@ export const catalog = [
     icon: "document",
     color: "purple",
     group: "Transform",
+    section: "Text",
   },
+  ...[
+    ["document.toHtml", "Convert to HTML", "Create a standalone web document", "Office"],
+    ["document.toDocx", "Convert to Word", "Create a Microsoft Word .docx file", "Office"],
+    ["document.toOdt", "Convert to OpenDocument", "Create an editable .odt file", "Office"],
+    ["document.toEpub", "Convert to EPUB", "Create an EPUB 3 ebook", "Office"],
+    ["document.toPdf", "Create PDF", "Create a PDF using Pandoc's installed PDF engine", "PDF"],
+  ].map(([type, title, description, section]) => ({
+    type, category: "Text", title, description, section,
+    inputType: "document", outputType: "document", icon: "document", color: "purple", group: "Transform",
+  })),
   {
     type: "context.clean",
     category: "Text",
@@ -48,6 +59,17 @@ export const catalog = [
     icon: "sparkles",
     color: "teal",
     group: "Transform",
+  },
+  {
+    type: "document.preview",
+    category: "Text",
+    title: "Download document",
+    description: "Download the converted office or PDF file",
+    inputType: "document",
+    outputType: "document",
+    icon: "download",
+    color: "orange",
+    group: "Output",
   },
   {
     type: "artifact.preview",

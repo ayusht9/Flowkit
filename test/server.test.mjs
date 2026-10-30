@@ -19,7 +19,8 @@ async function withServer(callback) {
 test("API exposes only the implemented node catalog and a real sample document", async () => {
   await withServer(async (url) => {
     const operations = await (await fetch(`${url}/api/operations`)).json();
-    assert.equal(operations.operations.length, 20);
+    assert.equal(operations.operations.length, 26);
+    assert.deepEqual(operations.operations.filter((item) => item.section === "PDF").map((item) => item.type), ["document.toPdf"]);
     const sample = await (await fetch(`${url}/api/sample`)).json();
     assert.match(
       Buffer.from(sample.data, "base64").toString(),
@@ -147,3 +148,26 @@ test(
     });
   },
 );
+
+test("API returns office artifacts as base64 only in the final output", { skip: !installed }, async () => {
+  await withServer(async (url) => {
+    const sample = await (await fetch(`${url}/api/sample`)).json();
+    const response = await fetch(`${url}/api/run`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: sample, pipeline: {
+        nodes: [
+          { id: "upload", type: "file.upload", options: {} },
+          { id: "convert", type: "document.toHtml", options: {} },
+          { id: "download", type: "document.preview", options: {} },
+        ],
+        edges: [{ source: "upload", target: "convert" }, { source: "convert", target: "download" }],
+      } }),
+    });
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    const result = events.at(-1).result;
+    assert.equal(result.status, "succeeded");
+    assert.equal(result.output.value.name, "sample.html");
+    assert.match(Buffer.from(result.output.value.data, "base64").toString(), /<!DOCTYPE html>/i);
+    assert.equal(result.nodes[1].output.value.data, undefined);
+  });
+});

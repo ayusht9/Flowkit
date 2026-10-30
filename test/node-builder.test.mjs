@@ -22,11 +22,23 @@ test("a connected upload adapts a previously unconfigured Process and its downst
 test("operation options follow upstream payload types and survive metadata export/import", () => {
   const workflow = defaultWorkflow();
   const nodes = adaptNodes(workflow.nodes, workflow.edges);
-  assert.deepEqual(processOptions("Text", "document").map((item) => item.type), ["document.toMarkdown"]);
+  assert.deepEqual(processOptions("Text", "document").map((item) => item.type), [
+    "document.toMarkdown", "document.toHtml", "document.toDocx", "document.toOdt", "document.toEpub", "document.toPdf",
+  ]);
+  assert.deepEqual(processOptions("Text", "document").map((item) => item.section), ["Text", "Office", "Office", "Office", "Office", "PDF"]);
   assert.deepEqual(processOptions("Text", "markdown").map((item) => item.type), ["context.clean"]);
   const restored = parseWorkflow({ ...workflow, nodes });
   assert.deepEqual(restored.nodes.map((item) => item.data), nodes.map((item) => item.data));
   assert.deepEqual(toPipeline(restored.nodes, restored.edges), toPipeline(workflow.nodes, workflow.edges));
+});
+
+test("office and PDF conversions adapt the final node to a document download", () => {
+  const workflow = defaultWorkflow();
+  const nodes = workflow.nodes
+    .filter((item) => item.id !== "clean")
+    .map((item) => item.id === "convert" ? { ...item, data: { operation: "document.toPdf", options: {} } } : item);
+  const edges = [{ source: "upload", target: "convert" }, { source: "convert", target: "preview" }];
+  assert.deepEqual(adaptNodes(nodes, edges).map((item) => item.data.operation), ["file.upload", "document.toPdf", "document.preview"]);
 });
 
 test("Audio and Video select executable operations", () => {

@@ -68,7 +68,7 @@ function json(response, status, body) {
 }
 
 function compact(result) {
-  const serialize = (output) => ["image", "audio", "video"].includes(output?.type) ? {
+  const serialize = (output) => ["document", "image", "audio", "video"].includes(output?.type) ? {
     type: output.type, value: { ...output.value, data: Buffer.from(output.value.data).toString("base64") },
   } : output;
   return {

@@ -6,14 +6,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { OperationRegistry } from '../src/operations.mjs';
-import { createDocumentToMarkdown } from '../src/document.mjs';
+import { createDocumentConversion, createDocumentToMarkdown } from '../src/document.mjs';
 import { runPipeline } from '../src/pipeline.mjs';
 
 const execute = promisify(execFile);
 const executable = process.env.PANDOC_PATH || 'pandoc';
+const pandocSettings = { executable };
 const probe = spawnSync(executable, ['--version'], { windowsHide: true });
 const installed = probe.status === 0;
 const native = { skip: installed ? false : 'Install Pandoc or set PANDOC_PATH to run native integration tests' };
+const pdfNative = { skip: installed && spawnSync('pdfroff', ['--version'], { windowsHide: true }).status === 0
+  ? false : 'Install Pandoc, Groff, and Ghostscript to run PDF integration tests' };
 const registry = new OperationRegistry().register('document.toMarkdown', createDocumentToMarkdown({ executable }));
 const payload = (name, text) => ({ type: 'document', value: { name, data: Buffer.from(text) } });
 
@@ -35,6 +38,32 @@ test('rejects unsupported formats, unsafe filenames, invalid bytes, and arbitrar
     executable: 'untrusted',
   }), /does not accept options/);
   assert.throws(() => createDocumentToMarkdown({ timeoutMs: 0 }), /Timeout/);
+  assert.throws(() => createDocumentConversion('pages'), /Unsupported/);
+});
+
+test('office and PDF converters reject invalid input before starting Pandoc', async () => {
+  for (const target of ['html', 'docx', 'odt', 'epub', 'pdf']) {
+    const conversion = new OperationRegistry().register(target, createDocumentConversion(target, pandocSettings));
+    await assert.rejects(conversion.execute(target, payload('report.pdf', '%PDF')), /Supported documents/);
+    await assert.rejects(conversion.execute(target, payload('report.odt', 'not a ZIP')), /ZIP file signature/);
+  }
+});
+
+for (const target of ['html', 'docx', 'odt', 'epub']) {
+  test(`creates a real ${target.toUpperCase()} office artifact`, native, async () => {
+    const conversion = new OperationRegistry().register(target, createDocumentConversion(target, pandocSettings));
+    const result = await conversion.execute(target, payload('report.md', '# Quarterly report\n\nRevenue increased.'));
+    assert.equal(result.type, 'document');
+    assert.match(result.value.name, new RegExp(`\\.${target === 'html' ? 'html' : target}$`));
+    assert.ok(result.value.data.byteLength > 0);
+  });
+}
+
+test('creates a real PDF artifact with pdfroff', pdfNative, async () => {
+  const conversion = new OperationRegistry().register('pdf', createDocumentConversion('pdf', pandocSettings));
+  const result = await conversion.execute('pdf', payload('report.md', '# Quarterly report\n\nRevenue increased.'));
+  assert.equal(result.value.name, 'report.pdf');
+  assert.equal(Buffer.from(result.value.data.subarray(0, 5)).toString(), '%PDF-');
 });
 
 test('missing Pandoc produces an actionable error and cleans temporary files', async () => {

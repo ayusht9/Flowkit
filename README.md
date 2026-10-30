@@ -26,7 +26,7 @@ On Windows PowerShell, use `npm.cmd run dev` if execution policy blocks `npm.ps1
 
 The canvas fills the window beneath a connected navbar, with hamburger and branding on the left and Add Node, Upload, Process, and Export on the right. The node picker has four stages: **Upload**, **Process**, **Pipe**, and **Download**. Process cards have a file-type dropdown at the top and an operation dropdown at the bottom. Connecting an input automatically selects and locks the file type and filters operations to compatible payloads. Changing the uploaded file between a document and an image updates the connected chain. Pipe passes data unchanged through the linear executor. Audio supports MP3/WAV conversion and trimming; Video supports trimming to H.264 MP4 and audio extraction to MP3/WAV. The output panel includes playback and download. Video-to-audio extraction automatically adapts downstream nodes to Audio. Click a node to open its settings/output panel; close it or click the canvas to recover the space. The **Next node** selector provides a keyboard alternative for connections and also updates inferred types. `/` opens node search. Execution logs also open on demand.
 
-The default template is **Upload document → Convert to Markdown → Clean Markdown → Preview & download**. The cleanup node normalizes line endings and optionally collapses extra blank lines, preserving code spacing. Workflows support a single connected chain with up to 20 nodes.
+The default template is **Upload document → Convert to Markdown → Clean Markdown → Preview & download**. Text processing also converts DOCX, ODT, HTML, EPUB, and Markdown sources to standalone HTML, Word, OpenDocument, EPUB, or PDF. The operation selector groups these under Text, Office, and PDF. PDF creation uses Pandoc with pdfroff (Groff + Ghostscript); Pandoc does not accept PDF as an input format. The cleanup node normalizes line endings and optionally collapses extra blank lines, preserving code spacing. Workflows support a single connected chain with up to 20 nodes.
 
 The server detects the portable Pandoc installation under `.tools/` automatically. To use a different installation, set `PANDOC_PATH` before starting it; otherwise it falls back to `pandoc` on PATH. A missing installation is reported when conversion runs.
 
@@ -62,7 +62,7 @@ node examples/document.mjs
 node examples/document.mjs "C:\path\to\report.docx"
 ```
 
-Without a filename, the demo converts the included HTML sample and prints readable Markdown. Supported extensions are `.docx`, `.html`, `.htm`, `.epub`, and `.md`.
+Without a filename, the demo converts the included HTML sample and prints readable Markdown. Supported document inputs are `.docx`, `.odt`, `.html`, `.htm`, `.epub`, and `.md`.
 
 The operation accepts bytes rather than a host filesystem path:
 
@@ -120,7 +120,7 @@ The visual editor uses the pipeline executor. The local MCP server calls `regist
 
 ## Current boundary
 
-The app performs real Pandoc conversion, ImageMagick resizing, and FFmpeg media processing through the executor and local MCP tools. OCR, other image operations, PDF adapters, RAG, and authenticated remote MCP remain future work. OS/container worker isolation and persistent cloud artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
+The app performs real Pandoc conversion (including PDF creation), ImageMagick resizing, and FFmpeg media processing through the executor. PDF editing and PDF-to-text need a future qpdf/Ghostscript or OCR adapter; RAG and authenticated remote MCP also remain future work. OS/container worker isolation and persistent cloud artifact storage are separate implementation steps. Native process limits do not provide container-level isolation.
 
 The [audio and video pipeline design](docs/MEDIA_PIPELINES.md) records the original proposal and future extensions. The current implementation and limits are described above and in [MCP.md](MCP.md).
 

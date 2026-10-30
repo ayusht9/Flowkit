@@ -55,7 +55,7 @@ const formatBytes = (bytes) =>
 const nodeTypes = { operation: OperationNode };
 const isUpload = (type) => catalog.find((item) => item.type === type)?.group === "Input";
 const isPreview = (type) => catalog.find((item) => item.type === type)?.group === "Output";
-const binaryMime = (value) => value.mimeType || ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", mkv: "video/x-matroska" })[value.name?.split(".").at(-1).toLowerCase()] || "application/octet-stream";
+const binaryMime = (value) => value.mimeType || ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", mkv: "video/x-matroska", html: "text/html", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", odt: "application/vnd.oasis.opendocument.text", epub: "application/epub+zip", pdf: "application/pdf" })[value.name?.split(".").at(-1).toLowerCase()] || "application/octet-stream";
 
 // Group badge helper
 function NodeGroupBadge({ group }) {
@@ -69,6 +69,7 @@ function NodeSubtitle({ item, data }) {
   if (item.group === "Pipe") return "Pass through unchanged";
   if (isUpload(item.type)) return data.filename || "Drop or upload a file";
   if (item.type === "document.toMarkdown") return "via Pandoc · Markdown";
+  if (item.type.startsWith("document.to")) return `via Pandoc · ${item.title.replace(/^Convert to |^Create /, "")}`;
   if (item.type === "context.clean") return "Normalize spacing";
   if (item.type === "artifact.preview") return "Preview & download .md";
   if (item.type === "image.preview") return "Preview & download image";
@@ -210,12 +211,16 @@ function FileTypeSelector({ category, locked, disabled, onChange }) {
 
 function OperationSelector({ category, operation, inputType, disabled, onChange }) {
   const options = processOptions(category, inputType);
+  const sections = [...new Set(options.map((item) => item.section || "Operations"))];
   return <label className="process-selector nodrag nopan" onClick={(event) => event.stopPropagation()}>
     <span>Operation</span>
     <select aria-label="Operation" value={operation} disabled={disabled || !options.length}
       onKeyDown={(event) => event.stopPropagation()} onChange={(event) => onChange(event.target.value)}>
       {!options.length && <option value="">No operations available yet</option>}
-      {options.map((item) => <option key={item.type} value={item.type}>{item.title}</option>)}
+      {sections.map((section) => <optgroup key={section} label={section}>
+        {options.filter((item) => (item.section || "Operations") === section)
+          .map((item) => <option key={item.type} value={item.type}>{item.title}</option>)}
+      </optgroup>)}
     </select>
   </label>;
 }
@@ -261,6 +266,7 @@ function App() {
   const inputCategory = file ? fileCategory(file.name) : nodes.find((node) => isUpload(node.data.operation))?.data.fileType || "Text";
   const mediaOutput = isPreview(selected?.data.operation) && ["audio", "video"].includes(result?.output?.type) ? output : null;
   const imageOutput = selectedItem?.type === "image.preview" && result?.output?.type === "image" ? output : null;
+  const documentOutput = selectedItem?.type === "document.preview" && result?.output?.type === "document" ? output : null;
   const nodeOutput = result?.nodes?.find(
     (node) => node.id === selectedId,
   )?.output;
@@ -321,7 +327,7 @@ function App() {
 
   async function chooseFile(candidate) {
     if (!candidate || running) return;
-    if (!/\.(png|jpe?g|docx|html?|epub|md|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
+    if (!/\.(png|jpe?g|docx|odt|html?|epub|md|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
       setMessage("Choose a supported document, image, audio (WAV/MP3/M4A), or video (MP4/MOV/WebM/MKV) file.");
       return;
     }
@@ -472,7 +478,7 @@ function App() {
 
   function exportResult(payload = result?.output) {
     if (!payload) return;
-    if (["image", "audio", "video"].includes(payload.type)) {
+    if (["document", "image", "audio", "video"].includes(payload.type)) {
       download(Uint8Array.from(atob(payload.value.data), (character) => character.charCodeAt(0)), payload.value.name,
         binaryMime(payload.value));
     } else {
@@ -1003,7 +1009,7 @@ function App() {
                     </div>
                   </div>
                   <p className="file-types">
-                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: "DOCX, HTML, EPUB, Markdown" })[inputCategory]} · Up to 20 MiB
+                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: "DOCX, ODT, HTML, EPUB, Markdown" })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
                 {selectedItem?.type === "image.resize" && (
@@ -1144,10 +1150,10 @@ function App() {
                         </select>
                       </label>
                     )}
-                    {selectedItem.type === "document.toMarkdown" && (
+                    {selectedItem.type.startsWith("document.to") && (
                       <div className="setting-row">
                         <span>Output format</span>
-                        <strong>GitHub Markdown</strong>
+                        <strong>{selectedItem.title.replace(/^Convert to |^Create /, "")}</strong>
                       </div>
                     )}
                     <div className="setting-row">
@@ -1183,6 +1189,15 @@ function App() {
                       <Icon name="download" size={16} /> Download image
                     </button>
                   </>
+                ) : documentOutput ? (
+                  <div className="output-document">
+                    <Icon name="document" size={25} />
+                    <strong>{documentOutput.name}</strong>
+                    <p>{formatBytes(Uint8Array.from(atob(documentOutput.data), (character) => character.charCodeAt(0)).byteLength)} converted locally</p>
+                    <button className="button primary download-result" onClick={() => exportResult()}>
+                      <Icon name="download" size={16} /> Download document
+                    </button>
+                  </div>
                 ) : ["image", "audio", "video"].includes(nodeOutput?.type) ? (
                   <div className="output-document">
                     <strong>{nodeOutput.value.name}</strong>
@@ -1346,7 +1361,7 @@ function App() {
       <input
         ref={fileRef}
         type="file"
-        accept=".png,.jpg,.jpeg,.docx,.html,.htm,.epub,.md,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
+        accept=".png,.jpg,.jpeg,.docx,.odt,.html,.htm,.epub,.md,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
         hidden
         onChange={(event) => {
           chooseFile(event.target.files[0]);

@@ -1,5 +1,5 @@
 import { OperationRegistry, assertRecord } from "./operations.mjs";
-import { createDocumentToMarkdown } from "./document.mjs";
+import { createDocumentConversion, createDocumentToMarkdown } from "./document.mjs";
 import { createImageResize, validateImage } from "./image.mjs";
 import { createMediaOperation, validateMedia } from "./media.mjs";
 
@@ -37,6 +37,12 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
       run: async (input) => input,
     })
     .register("document.toMarkdown", convert)
+    .register("document.toHtml", createDocumentConversion("html", { executable }))
+    .register("document.toDocx", createDocumentConversion("docx", { executable }))
+    .register("document.toOdt", createDocumentConversion("odt", { executable }))
+    .register("document.toEpub", createDocumentConversion("epub", { executable }))
+    .register("document.toPdf", createDocumentConversion("pdf", { executable }))
+    .register("document.preview", { inputType: "document", outputType: "document", run: async (input) => input })
     .register("context.clean", {
       inputType: "markdown",
       outputType: "markdown",

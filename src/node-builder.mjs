@@ -59,7 +59,7 @@ export function adaptNodes(nodes, edges, filename) {
     } else if (kind === "pipe") {
       operation = `${input?.outputType || nodeItem(node).inputType || (category === "Text" ? "document" : category.toLowerCase())}.pipe`;
     } else if (kind === "download") {
-      operation = category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`;
+      operation = category === "Text" ? (input?.outputType === "document" ? "document.preview" : "artifact.preview") : `${category.toLowerCase()}.preview`;
     }
     const next = { ...node, data: { ...node.data, kind, fileType: category, operation,
       options: operation === node.data.operation ? node.data.options || {} : defaultOptions(operation) } };
