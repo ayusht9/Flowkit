@@ -9,7 +9,7 @@
 <body>
   <header class="site-header">
     <a class="brand" href="#top" aria-label="FlowKit home"><img src="flowkit.svg?v=20261029" alt="" width="34" height="34"><span>FlowKit</span></a>
-    <nav aria-label="Primary navigation"><a href="#mcp">MCP setup</a><a href="https://github.com/ayusht9/Flowkit">GitHub</a><a class="nav-cta" href="https://flowkit-ruddy.vercel.app">Open FlowKit</a></nav>
+    <nav aria-label="Primary navigation"><a href="#mcp">MCP setup</a><a href="#benchmark">Benchmark</a><a href="https://github.com/ayusht9/Flowkit">GitHub</a><a class="nav-cta" href="https://flowkit-ruddy.vercel.app">Open FlowKit</a></nav>
   </header>
   <main id="top">
     <section class="hero">
@@ -54,6 +54,27 @@
           <pre id="client-command" role="tabpanel" tabindex="0"><code></code></pre>
           <div class="terminal-foot"><span id="client-note">Verify with codex mcp list</span><a id="client-docs" href="https://learn.chatgpt.com/docs/extend/mcp">Official docs</a></div>
         </div>
+      </div>
+    </section>
+    <section class="benchmark-section" id="benchmark" aria-labelledby="benchmark-heading">
+      <div class="benchmark-intro">
+        <p class="status"><span></span>Token benchmark</p>
+        <h2 id="benchmark-heading">Measure the savings. Include the overhead.</h2>
+        <p>The harness starts the real FlowKit MCP server in memory, reads its live tool schemas, and compares fixed MCP calls with equivalent generated-script instructions. It measures UTF-8 bytes and reports a transparent bytes / 4 token estimate.</p>
+        <a class="text-link" href="https://github.com/ayusht9/Flowkit/blob/main/benchmarks/mcp-token-benchmark.mjs">Inspect the benchmark source <span>↗</span></a>
+      </div>
+      <div class="benchmark-results">
+        <div class="metric-grid" aria-label="Current benchmark results">
+          <article><strong>74.6%</strong><span>smaller marginal task payloads</span></article>
+          <article><strong>2,441</strong><span>estimated schema tokens loaded once</span></article>
+          <article><strong>12 rounds</strong><span>estimated break-even point</span></article>
+        </div>
+        <div class="terminal benchmark-terminal">
+          <div class="terminal-head"><span>Run it locally</span><button id="copy-benchmark" type="button">Copy</button></div>
+          <pre><code id="benchmark-command"><span class="prompt">$</span> npm run benchmark:mcp</code></pre>
+          <div class="terminal-foot"><span>JSON output · reproducible locally</span><span>Not provider billing data</span></div>
+        </div>
+        <p class="benchmark-caveat">At ten rounds, the full 15-tool schema still costs 12.5% more estimated context than the conservative baseline. FlowKit becomes smaller after the schema cost is reused across enough operations.</p>
       </div>
     </section>
   </main>

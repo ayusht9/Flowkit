@@ -42,3 +42,12 @@ clientCopy.addEventListener("click", async () => {
   } catch { clientCopy.textContent = "Select command"; }
 });
 showClient(activeClient);
+
+const benchmarkCopy = document.querySelector("#copy-benchmark");
+benchmarkCopy.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText("npm run benchmark:mcp");
+    benchmarkCopy.textContent = "Copied"; benchmarkCopy.classList.add("copied");
+    window.setTimeout(() => { benchmarkCopy.textContent = "Copy"; benchmarkCopy.classList.remove("copied"); }, 1800);
+  } catch { benchmarkCopy.textContent = "Select command"; }
+});
