@@ -22,7 +22,7 @@ export async function diagnoseMcp(workspace) {
   };
   return {
     installed: true,
-    package: "flowkit",
+    package: "flowkit-mcp",
     version: "0.1.0",
     node: process.version,
     workspace: root,

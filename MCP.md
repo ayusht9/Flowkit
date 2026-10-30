@@ -6,10 +6,10 @@ FlowKit exposes 15 local tools over MCP stdio. The connected LLM chooses each st
 
 Install dependencies with `npm install`. Install Pandoc, ImageMagick and FFmpeg/FFprobe for the operations you want to use. No LLM API key is required by this server; your MCP host provides the model.
 
-To install the CLI directly from GitHub and verify both the package and native processors:
+To install the CLI from npm and verify both the package and native processors:
 
 ```sh
-npm install --global https://github.com/ayusht9/Flowkit.git
+npm install --global flowkit-mcp
 flowkit-mcp --doctor --workspace /absolute/path/to/workspace
 ```
 

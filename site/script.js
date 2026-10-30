@@ -113,12 +113,12 @@ document.querySelectorAll(".modal-tab-btn").forEach((btn) => {
 const installMethods = {
   global: {
     label: "Global npm install",
-    command: `# Install the FlowKit MCP CLI globally from GitHub\nnpm install --global https://github.com/ayusht9/Flowkit.git\n\n# Run with your workspace directory\nflowkit-mcp --workspace /path/to/files`,
+    command: `# Install the FlowKit MCP CLI globally from npm\nnpm install --global flowkit-mcp\n\n# Run with your workspace directory\nflowkit-mcp --workspace /path/to/files`,
     note: "Installs flowkit-mcp binary into your global PATH",
   },
   npx: {
     label: "npx on-demand execution",
-    command: `# Run FlowKit MCP directly on demand without global install\nnpx -y https://github.com/ayusht9/Flowkit.git flowkit-mcp --workspace /path/to/files`,
+    command: `# Run FlowKit MCP directly on demand without global install\nnpx -y flowkit-mcp --workspace /path/to/files`,
     note: "Runs with Node.js 22.12+ and NPX cache",
   },
   source: {
