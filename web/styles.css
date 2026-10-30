@@ -89,6 +89,16 @@ svg { flex-shrink: 0; }
   flex-shrink: 0;
   gap: 7px;
 }
+.ai-command { display: flex; align-items: center; gap: 6px; width: min(360px, 34vw); padding: 4px 5px 4px 9px; border: 1px solid #d9d0e4; border-radius: 999px; background: rgba(255,255,255,.86); box-shadow: 0 4px 16px rgba(74,55,99,.06); }
+.ai-command-mark { display: grid; place-items: center; color: #8c64aa; flex: 0 0 auto; }
+.ai-command input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #43394d; font: inherit; font-size: 11px; }
+.ai-command input::placeholder { color: #9c91a6; }
+.ai-command button { border: 0; border-radius: 999px; padding: 7px 12px; background: #8060a0; color: white; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.ai-command button:disabled { opacity: .45; cursor: not-allowed; }
+[data-theme="dark"] .ai-command { border-color: #4e4258; background: rgba(40,34,47,.92); }
+[data-theme="dark"] .ai-command input { color: #eee6f4; }
+@media (max-width: 900px) { .ai-command { width: min(290px, 30vw); } }
+@media (max-width: 700px) { .ai-command { width: 100%; order: 3; } .navbar-actions { flex-wrap: wrap; } }
 .navbar-actions button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 0 13px; height: 34px; font-size: 12px; font-weight: 500;
