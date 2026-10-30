@@ -129,7 +129,10 @@ function OperationNode({ data, selected }) {
               aria-label={`${item.title} input`}
             />
           )}
-          <div className={`card-icon-ring state-${statusState}`}>
+          <div className={`card-icon-ring state-${statusState}`}
+            style={isUpload(item.type) ? { cursor: "pointer" } : undefined}
+            onClick={isUpload(item.type) ? (event) => { event.stopPropagation(); data.onUpload?.(); } : undefined}
+            title={isUpload(item.type) ? "Click to choose a file" : undefined}>
             <div className="card-icon-inner">
               <Icon name={item.icon} size={24} />
             </div>
@@ -154,7 +157,10 @@ function OperationNode({ data, selected }) {
         <div className="card-text">
           <NodeGroupBadge group={group} />
           <h3 className="card-heading">{item.title}</h3>
-          <p className="card-subtitle">
+          <p className="card-subtitle"
+            style={isUpload(item.type) ? { cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" } : undefined}
+            onClick={isUpload(item.type) ? (event) => { event.stopPropagation(); data.onUpload?.(); } : undefined}
+            title={isUpload(item.type) ? "Click to choose a file" : undefined}>
             <NodeSubtitle item={item} data={data} />
           </p>
           {data.status && (
@@ -377,7 +383,15 @@ function App() {
     if (!spec || typeof spec !== "object") return;
     const kind = nodeKinds.some((item) => item.kind === spec.kind) ? spec.kind : nodeKind({ data: { operation: spec.kind } });
     if (!kind) return;
-    if (kind === "upload" && nodes.some((node) => nodeKind(node) === "upload")) { setMessage("This workflow already has an Upload node."); return; }
+    if (kind === "upload") {
+      const existing = nodes.find((node) => nodeKind(node) === "upload");
+      if (existing) {
+        setSelectedId(existing.id);
+        setShowLibrary(false);
+        fileRef.current?.click();
+        return;
+      }
+    }
     const id = crypto.randomUUID();
     const anchor = nodes.find((node) => node.id === anchorId);
     const category = (anchor && outputCategory(nodeItem(anchor))) || spec.fileType || (file ? fileCategory(file.name) : "Text");
@@ -467,6 +481,15 @@ function App() {
       setMessage("Could not save in this browser. Check browser storage permissions.");
       setMenuOpen(false);
       setWorkflowDialog(null);
+    }
+  }
+
+  function handleExport() {
+    if (result?.status === "succeeded") {
+      exportResult();
+    } else {
+      exportWorkflow();
+      setMessage("Exported workflow JSON.");
     }
   }
 
@@ -618,6 +641,7 @@ function App() {
             !isPreview(node.data.operation) &&
             !edges.some((edge) => edge.source === node.id),
           onAddAfter: () => openLibrary(node.id),
+          onUpload: () => fileRef.current?.click(),
           onRemove: () => removeNode(node.id),
           onConfigure: () => {
             setSelectedId(node.id);
@@ -764,18 +788,15 @@ function App() {
               onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
               <Icon name="plus" size={16} /> Add Node
             </button>
-            <button onClick={() => fileRef.current.click()} disabled={running} title={file?.name || "Upload a source file"}>
-              <Icon name="upload" size={16} /> Upload
-            </button>
             <button className={running ? "processing" : "process-action"}
               onClick={running ? () => abortRef.current?.abort() : run}>
               <Icon name={running ? "stop" : "play"} size={16} /> {running ? "Cancel" : "Process"}
             </button>
             <button onClick={() => importRef.current.click()} disabled={running} title="Import workflow JSON">
-              <Icon name="upload" size={16} /> Import
+              <Icon name="folder" size={16} /> Import
             </button>
-            <button onClick={() => exportResult()} disabled={running || result?.status !== "succeeded"}
-              title="Download the processed file">
+            <button onClick={handleExport} disabled={running}
+              title={result?.status === "succeeded" ? "Download the processed output" : "Export workflow JSON"}>
               <Icon name="download" size={16} /> Export
             </button>
           </nav>
@@ -899,7 +920,7 @@ function App() {
           </label>
           <div className="picker-list">
             {filteredKinds.map((item) => {
-              const disabled = running || (item.kind === "upload" && (Boolean(anchor) || nodes.some((node) => nodeKind(node) === "upload"))) ||
+              const disabled = running ||
                 (item.kind === "download" && anchorItem?.outputType === "document");
               const spec = { kind: item.kind, fileType: pickerCategory, operation: item.kind === "process" ? selectedOperation : undefined };
               return <button key={item.kind} className="palette-node" aria-label={item.title}
@@ -908,9 +929,25 @@ function App() {
                   event.dataTransfer.setData("application/flowkit", JSON.stringify(spec));
                   event.dataTransfer.effectAllowed = "move";
                 }}
-                onClick={() => item.kind === "process" ? setPickerProcess((value) => !value) : addNode(spec)}
+                onClick={() => {
+                  if (item.kind === "process") {
+                    setPickerProcess((value) => !value);
+                  } else if (item.kind === "upload") {
+                    const existingUpload = nodes.find((node) => nodeKind(node) === "upload");
+                    if (existingUpload) {
+                      setSelectedId(existingUpload.id);
+                      setShowLibrary(false);
+                      fileRef.current?.click();
+                    } else {
+                      addNode(spec);
+                      fileRef.current?.click();
+                    }
+                  } else {
+                    addNode(spec);
+                  }
+                }}
                 aria-expanded={item.kind === "process" ? pickerProcess : undefined}
-                title={disabled ? (item.kind === "upload" ? "Only one Upload node is needed" : "Process the document before downloading") : `Drag or click to add ${item.title}`}>
+                title={disabled ? "Process the document before downloading" : item.kind === "upload" ? "Click to choose and upload a source file" : `Drag or click to add ${item.title}`}>
                 <span className={`palette-icon ${item.color}`}><Icon name={item.icon} size={24} /></span>
                 <span><strong>{item.title}</strong><small>{item.description}</small></span>
                 <Icon name={item.kind === "process" ? "chevron" : "plus"} size={16} />
@@ -999,10 +1036,10 @@ function App() {
                 </div>
                 <div className="inspector-section">
                   <label className="field-label">Source {inputCategory === "Text" ? "document" : inputCategory.toLowerCase()}</label>
-                  <div className="source-summary">
+                  <div className="source-summary" onClick={() => fileRef.current?.click()} style={{ cursor: "pointer" }} title="Click to choose a file">
                     <Icon name={({ Image: "image", Audio: "audio", Video: "video", Text: "document" })[inputCategory]} size={20} />
                     <div><strong>{file?.name || "No file uploaded"}</strong>
-                      <small>{file ? formatBytes(file.size) : "Use Upload in the navbar, or drop a file on the canvas."}</small>
+                      <small>{file ? formatBytes(file.size) : "Click here to choose a file, or drop a file on the canvas."}</small>
                     </div>
                   </div>
                   <p className="file-types">

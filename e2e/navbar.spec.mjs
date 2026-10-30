@@ -1,25 +1,24 @@
 import { test, expect } from "@playwright/test";
 
-test("connected navbar has one upload, four actions, and the requested popup", async ({ page }) => {
+test("connected navbar has actions and the requested popup", async ({ page }) => {
   await page.goto("/");
   const actions = page.getByRole("navigation", { name: "Workflow actions" });
-  await expect(actions.getByRole("button")).toHaveText(["Add Node", "Upload", "Process", "Export"]);
+  await expect(actions.getByRole("button")).toHaveText(["Add Node", "Process", "Import", "Export"]);
   await expect(actions.getByRole("button", { name: "Add node", exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "About", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveCount(1);
-  await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeDisabled();
+  await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeEnabled();
   await page.locator('.react-flow__node[data-id="upload"] .card-body').click();
   await expect(page.getByLabel("Node editor", { exact: true }).getByRole("button", { name: /upload|sample/i })).toHaveCount(0);
   await expect(page.getByText("No file uploaded", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close node editor" }).click();
   await page.getByRole("button", { name: "Open workflow menu" }).click();
   const menu = page.getByRole("dialog", { name: "Workflow menu" });
-  await expect(menu.locator(":scope > button")).toHaveText(["New", "Save", "Save as new", "Import", "Export"]);
+  await expect(menu.locator(":scope > button")).toHaveText(["New", "Save", "Save as new"]);
   await page.screenshot({ path: "test-results/navbar-menu.png", fullPage: true });
   await page.keyboard.press("Escape");
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const name of ["Add node", "Upload", "Process", "Export"])
+    for (const name of ["Add node", "Process", "Import", "Export"])
       await expect(actions.getByRole("button", { name, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -40,7 +39,6 @@ test("Save restores workflow JSON, Save as new keeps the original, and Import st
   expect(JSON.stringify(original)).not.toContain("PRIVATE_FILE_BYTES");
   await page.reload();
   await expect(page.locator(".navbar-workflow")).toContainText("Original");
-  await expect(page.getByRole("button", { name: "Upload", exact: true })).toHaveAttribute("title", "Upload a source file");
   await page.getByRole("button", { name: "Open workflow menu" }).click();
   await page.getByRole("button", { name: "Save as new", exact: true }).click();
   await page.getByLabel("New workflow name", { exact: true }).fill("Copy");
