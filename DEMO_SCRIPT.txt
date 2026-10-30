@@ -1,30 +1,31 @@
 ================================================================================
 FLOWKIT MCP SERVER — 2.5-MINUTE DEMO PRESENTATION SCRIPT
+TEAM: ALT ELITE
 ================================================================================
 
 TIMING OVERVIEW:
-- Part 1 (0:00 - 0:35): The Problem with AI Agents & Media
+- Part 1 (0:00 - 0:35): The Problem with AI Agents & Media (Alt Elite Intro)
 - Part 2 (0:35 - 1:20): MCP Server Architecture, Security & 15 Tools
 - Part 3 (1:20 - 2:05): Live Verification Telemetry, Latency & Token Savings
 - Part 4 (2:05 - 2:35): The Companion Visual Workflow Studio
-- Part 5 (2:35 - 2:50): Conclusion & Getting Started
+- Part 5 (2:35 - 2:50): Conclusion & Getting Started (Team Sign-off)
 
 ================================================================================
 PART 1: THE PROBLEM WITH AI AGENTS & MEDIA (0:00 - 0:35)
 ================================================================================
 [ACTION: Start on Landing Page http://127.0.0.1:3000/site/index.html at top hero section]
 
-"Hi everyone! Today I’m introducing FlowKit — an open-source, local Model Context 
-Protocol (MCP) server built specifically to give AI coding agents reliable, 
-sandboxed document and media processing superpowers.
+"Hi everyone! On behalf of team Alt Elite, today I’m introducing FlowKit — an open-source, 
+local Model Context Protocol (MCP) server built specifically to give AI coding agents 
+reliable, sandboxed document and media processing superpowers.
 
 If you’ve ever asked an AI agent like Claude Code, Codex, or AGY to convert a 
 document, resize an image, or trim a video, you know how fragile it is. The agent 
 burns hundreds of tokens hallucinating complex Python or FFmpeg shell scripts, 
 which often fail, lack error handling, or create serious path-traversal security risks.
 
-FlowKit solves this by providing 15 typed, local MCP tools running over standard 
-stdio: Process files once, and let your agents reuse the tools deterministically."
+Our team at Alt Elite solved this by providing 15 typed, local MCP tools running over 
+standard stdio: Process files once, and let your agents reuse the tools deterministically."
 
 
 ================================================================================
@@ -87,7 +88,7 @@ PART 4: THE COMPANION VISUAL WORKFLOW STUDIO (2:05 - 2:35)
 [ACTION: Close the modal (press Esc or click ✕) and switch tab to the Studio Canvas 
  http://127.0.0.1:3000/]
 
-"To make testing and human inspection seamless, we also built the FlowKit Workflow 
+"To make testing and human inspection seamless, our team also built the FlowKit Workflow 
 Studio.
 
 Here, developers can visually prototype the exact same pipelines that agents run. 
@@ -112,8 +113,8 @@ PART 5: CONCLUSION & GET STARTED (2:35 - 2:50)
 "FlowKit turns messy media and document tasks into typed, repeatable, and sandboxed 
 MCP tools for the next generation of AI agents.
 
-You can install the MCP server today with 'npm install -g flowkit-mcp' or try the 
-workflow studio at flowkit-ruddy.vercel.app.
+Built with passion by team Alt Elite. You can install the MCP server today with 
+'npm install -g flowkit-mcp' or try the workflow studio at flowkit-ruddy.vercel.app.
 
 Thank you!"
 
