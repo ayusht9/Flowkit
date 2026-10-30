@@ -130,29 +130,19 @@ export function defaultWorkflow() {
       {
         id: "convert",
         type: "operation",
-        position: { x: 340, y: 240 },
+        position: { x: 380, y: 240 },
         data: { operation: "document.toMarkdown", options: {} },
-      },
-      {
-        id: "clean",
-        type: "operation",
-        position: { x: 600, y: 240 },
-        data: {
-          operation: "context.clean",
-          options: { collapseBlankLines: true },
-        },
       },
       {
         id: "preview",
         type: "operation",
-        position: { x: 860, y: 240 },
+        position: { x: 680, y: 240 },
         data: { operation: "artifact.preview", options: {} },
       },
     ],
     edges: [
       { id: "upload-convert", source: "upload", target: "convert" },
-      { id: "convert-clean", source: "convert", target: "clean" },
-      { id: "clean-preview", source: "clean", target: "preview" },
+      { id: "convert-preview", source: "convert", target: "preview" },
     ],
   };
 }

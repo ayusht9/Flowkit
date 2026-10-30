@@ -72,7 +72,7 @@ test("unavailable browser storage reports a save failure without losing the work
   await page.getByRole("button", { name: "Open workflow menu" }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Could not save in this browser");
-  await expect(page.locator(".operation-node")).toHaveCount(4);
+  await expect(page.locator(".operation-node")).toHaveCount(3);
 });
 
 test("node action buttons (details and delete) appear on hover around the node area", async ({ page }) => {

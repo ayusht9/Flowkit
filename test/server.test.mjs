@@ -138,7 +138,7 @@ test(
         .map((line) => JSON.parse(line));
       assert.equal(
         events.filter((event) => event.type === "node.succeeded").length,
-        4,
+        workflow.nodes.length,
       );
       const result = events.at(-1).result;
       assert.equal(result.status, "succeeded");

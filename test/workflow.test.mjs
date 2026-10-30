@@ -16,7 +16,7 @@ test("the default visual workflow matches the executable operation contracts", (
     validatePipeline(pipeline, createWorkflowRegistry()).map(
       (node) => node.type,
     ),
-    ["file.upload", "document.toMarkdown", "context.clean", "artifact.preview"],
+    ["file.upload", "document.toMarkdown", "artifact.preview"],
   );
   const imported = parseWorkflow(workflow);
   assert.deepEqual(toPipeline(imported.nodes, imported.edges), pipeline);

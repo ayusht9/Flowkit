@@ -53,7 +53,7 @@ test("Audio and Video select executable operations", () => {
 
 test("adaptive connections still reject cycles, branches, upload targets, and terminal outputs", () => {
   const workflow = defaultWorkflow();
-  for (const connection of [{ source: "preview", target: "convert" }, { source: "clean", target: "upload" }, { source: "convert", target: "convert" }, { source: "upload", target: "preview" }])
+  for (const connection of [{ source: "preview", target: "convert" }, { source: "convert", target: "upload" }, { source: "convert", target: "convert" }, { source: "upload", target: "preview" }])
     assert.equal(connectNodes(connection, workflow.nodes, workflow.edges), null);
 });
 
