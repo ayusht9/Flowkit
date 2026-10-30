@@ -800,30 +800,45 @@ function App() {
               aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
               <Icon name="menu" size={21} />
             </button>
-            <img src="/flowkit.svg" alt="" width="27" height="27" />
+            <div className="brand-logo-wrap">
+              <img src="/flowkit.svg" alt="FlowKit logo" width="26" height="26" />
+            </div>
             <strong>FlowKit</strong>
             <button className="navbar-brand-import" onClick={() => importRef.current.click()} disabled={running} title="Import workflow JSON">
-              <Icon name="folder" size={16} /> Import
+              <Icon name="folder" size={15} />
+              <span>Import</span>
             </button>
           </div>
           <nav className="navbar-actions" aria-label="Workflow actions">
-            <button className="theme-toggle" onClick={toggleTheme}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={theme === "dark"}
+              className={`theme-slider ${theme === "dark" ? "is-dark" : "is-light"}`}
+              onClick={toggleTheme}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
               aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
-              <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
-              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+            >
+              <span className="slider-icon sun"><Icon name="sun" size={13} /></span>
+              <span className="slider-icon moon"><Icon name="moon" size={12} /></span>
+              <span className="slider-thumb" />
             </button>
-            <button aria-label="Add node" aria-expanded={showLibrary}
+            <div className="navbar-divider" aria-hidden="true" />
+            <button className="nav-action-btn" aria-label="Add node" aria-expanded={showLibrary}
               onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
-              <Icon name="plus" size={16} /> Add Node
+              <Icon name="plus" size={15} />
+              <span>Add Node</span>
             </button>
-            <button onClick={handleExport} disabled={running}
+            <button className="nav-action-btn" onClick={handleExport} disabled={running}
               title={result?.status === "succeeded" ? "Download the processed output" : "Export workflow JSON"}>
-              <Icon name="download" size={16} /> Export
+              <Icon name="download" size={15} />
+              <span>Export</span>
             </button>
-            <button className={running ? "processing" : "process-action"}
-              onClick={running ? () => abortRef.current?.abort() : run}>
-              <Icon name={running ? "stop" : "play"} size={16} /> {running ? "Cancel" : "Process"}
+            <button className={`run-action ${running ? "processing" : ""}`}
+              onClick={running ? () => abortRef.current?.abort() : run}
+              title={running ? "Cancel execution" : "Run workflow"}>
+              <Icon name={running ? "stop" : "play"} size={14} />
+              <span>{running ? "Cancel" : "Run"}</span>
             </button>
           </nav>
         </header>
