@@ -109,6 +109,20 @@ function OperationNode({ data, selected }) {
     <div
       className={`operation-node card-node ${item.color} ${selected ? "is-selected" : ""} state-${statusState}`}
     >
+      {!isUpload(item.type) && (
+        <Handle
+          type="target"
+          position={data.reverse ? Position.Right : Position.Left}
+          aria-label={`${item.title} input`}
+        />
+      )}
+      {!isPreview(item.type) && (
+        <Handle
+          type="source"
+          position={data.reverse ? Position.Left : Position.Right}
+          aria-label={`${item.title} output`}
+        />
+      )}
       {kind === "process" && <div className="card-file-type nodrag nopan">
         <FileTypeSelector category={data.fileType} locked={data.inferred}
           disabled={data.running} onChange={data.onFileTypeChange} />
@@ -145,13 +159,6 @@ function OperationNode({ data, selected }) {
       <div className="card-body">
         {/* Icon with handles and status ring */}
         <div className="card-icon-col">
-          {!isUpload(item.type) && (
-            <Handle
-              type="target"
-              position={data.reverse ? Position.Right : Position.Left}
-              aria-label={`${item.title} input`}
-            />
-          )}
           <div className={`card-icon-ring state-${statusState}`}
             style={isUpload(item.type) ? { cursor: "pointer" } : undefined}
             onClick={isUpload(item.type) ? (event) => { event.stopPropagation(); data.onUpload?.(); } : undefined}
@@ -167,13 +174,6 @@ function OperationNode({ data, selected }) {
             {data.status === "running" && <span className="spinner" />}
             {data.status === "failed" && <span className="node-failure">!</span>}
           </div>
-          {!isPreview(item.type) && (
-            <Handle
-              type="source"
-              position={data.reverse ? Position.Left : Position.Right}
-              aria-label={`${item.title} output`}
-            />
-          )}
         </div>
 
         {/* Text content */}
@@ -528,11 +528,30 @@ function App() {
       ? { ...node, data: { ...node.data, ...changes, options: defaultOptions(changes.operation) } } : node), edges));
     invalidate();
   }
-  const isValidConnection = useCallback((connection) => Boolean(connectNodes(connection, nodes, edges)), [nodes, edges]);
+  const reconnectingEdge = useRef(null);
+  const isValidConnection = useCallback((connection) => Boolean(connectNodes(
+    connection,
+    nodes,
+    edges.filter((edge) => edge.id !== reconnectingEdge.current),
+  )), [nodes, edges]);
   const connect = useCallback((connection) => {
     if (running) return;
     const next = connectNodes(connection, nodes, edges);
     if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
+  }, [nodes, edges, running]);
+  const reconnect = useCallback((edge, connection) => {
+    if (running) return;
+    const remaining = edges.filter((item) => item.id !== edge.id);
+    const next = connectNodes(connection, nodes, remaining);
+    if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
+  }, [nodes, edges, running]);
+  const finishReconnect = useCallback((_event, edge, _handleType, connectionState) => {
+    reconnectingEdge.current = null;
+    if (running || connectionState.isValid) return;
+    const nextEdges = edges.filter((item) => item.id !== edge.id);
+    setNodes(adaptNodes(nodes, nextEdges));
+    setEdges(nextEdges);
+    invalidate();
   }, [nodes, edges, running, file]);
 
   function reset(blank = false, image = false, media = null) {
@@ -840,6 +859,9 @@ function App() {
               }
             }}
             onConnect={connect}
+            onReconnect={reconnect}
+            onReconnectStart={(_event, edge) => { reconnectingEdge.current = edge.id; }}
+            onReconnectEnd={finishReconnect}
             onNodeDragStop={() => setSaved(false)}
             isValidConnection={isValidConnection}
             onNodeClick={(event, node) => {
@@ -856,6 +878,7 @@ function App() {
             }}
             nodesDraggable={!running}
             nodesConnectable={!running}
+            edgesReconnectable={!running}
             elementsSelectable={!running}
             fitView
             fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}

@@ -191,7 +191,7 @@ test("drags a node from the picker to its chosen canvas position", async ({
   expect(Math.abs(added.y - 250)).toBeLessThan(30);
 });
 
-test("can build connections on the canvas and configure them from the inspector", async ({
+test("can connect and disconnect nodes by dragging connectors", async ({
   page,
 }) => {
   await page.goto("/");
@@ -203,25 +203,17 @@ test("can build connections on the canvas and configure them from the inspector"
     buffer: Buffer.from(JSON.stringify(workflow)),
   });
   await expect(page.locator(".react-flow__edge")).toHaveCount(0);
-  for (const [source, target] of [
-    ["upload", "convert"],
-    ["convert", "clean"],
-    ["clean", "preview"],
-  ]) {
-    await page
-      .locator(`.react-flow__handle.source[data-nodeid="${source}"]`)
-      .click();
-    await page
-      .locator(`.react-flow__handle.target[data-nodeid="${target}"]`)
-      .click();
-  }
-  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
-  await page.locator('.react-flow__node[data-id="convert"]').click();
-  await expect(page.getByLabel("Next node")).toHaveValue("clean");
-  await page.getByLabel("Next node").selectOption("");
-  await expect(page.locator(".react-flow__edge")).toHaveCount(2);
-  await page.getByLabel("Next node").selectOption("clean");
-  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+  await page.locator('.react-flow__handle.source[data-nodeid="upload"]').dragTo(
+    page.locator('.react-flow__handle.target[data-nodeid="convert"]'),
+  );
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  const updater = await page.locator('[data-testid="rf__edge-upload-convert"] .react-flow__edgeupdater-target').boundingBox();
+  const canvas = await page.locator(".flow-canvas").boundingBox();
+  await page.mouse.move(updater.x + updater.width / 2, updater.y + updater.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(canvas.x + 1000, canvas.y + 800, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(0);
 });
 
 test("uploads a real file and supports keyboard search interactions", async ({
