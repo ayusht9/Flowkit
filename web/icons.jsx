@@ -14,7 +14,11 @@ const paths = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   upload: (
-    <path d="M12 16V3m-4 4 4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </>
   ),
   document: (
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 13h8M8 17h5" />
@@ -22,7 +26,13 @@ const paths = {
   sparkles: (
     <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5ZM20 2v4m-2-2h4" />
   ),
-  download: <path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4" />,
+  download: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </>
+  ),
   play: <path d="m8 4 12 8-12 8Z" />,
   stop: <rect x="5" y="5" width="14" height="14" rx="2" />,
   search: (
@@ -100,6 +110,18 @@ const paths = {
     </>
   ),
   moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  undo: (
+    <>
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+    </>
+  ),
+  redo: (
+    <>
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 18, ...props }) {

@@ -8,6 +8,9 @@ test("connected navbar has actions and the requested popup", async ({ page }) =>
   await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeVisible();
   await expect(actions.getByRole("button", { name: "Run", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Import", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Redo", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Clear all", exact: true })).toBeVisible();
   await expect(actions.getByRole("button", { name: "Add node", exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "About", exact: true })).toHaveCount(0);
   await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeEnabled();
@@ -70,4 +73,19 @@ test("unavailable browser storage reports a save failure without losing the work
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Could not save in this browser");
   await expect(page.locator(".operation-node")).toHaveCount(4);
+});
+
+test("node action buttons (details and delete) appear on hover around the node area", async ({ page }) => {
+  await page.goto("/");
+  const node = page.locator('.react-flow__node[data-id="upload"]');
+  const cardBody = node.locator(".card-body");
+  const actions = node.locator(".node-actions");
+  await expect(actions).toHaveCSS("opacity", "0");
+
+  // Wait for initial canvas layout to settle then hover
+  await page.waitForTimeout(400);
+  await cardBody.hover();
+  await expect(actions).toHaveCSS("opacity", "1");
+  await expect(actions.getByTitle("Node details")).toBeVisible();
+  await expect(actions.getByTitle("Delete node")).toBeVisible();
 });
