@@ -470,7 +470,7 @@ function App() {
       setMenuOpen(false);
       setWorkflowDialog(null);
     } catch {
-      setMessage("Could not save in this browser. Check browser storage or use menu Export to download a backup.");
+      setMessage("Could not save in this browser. Check browser storage permissions.");
       setMenuOpen(false);
       setWorkflowDialog(null);
     }
@@ -776,6 +776,9 @@ function App() {
             <button className={running ? "processing" : "process-action"}
               onClick={running ? () => abortRef.current?.abort() : run}>
               <Icon name={running ? "stop" : "play"} size={16} /> {running ? "Cancel" : "Process"}
+            </button>
+            <button onClick={() => importRef.current.click()} disabled={running} title="Import workflow JSON">
+              <Icon name="upload" size={16} /> Import
             </button>
             <button onClick={() => exportResult()} disabled={running || result?.status !== "succeeded"}
               title="Download the processed file">
@@ -1314,14 +1317,7 @@ function App() {
           <button disabled={running} onClick={() => {
             setMenuOpen(false); setDialogName(`${name || "Untitled workflow"} copy`); setWorkflowDialog("copy");
           }}><Icon name="copy" /> Save as new</button>
-          <div className="menu-divider" />
-          <button disabled={running} onClick={() => { setMenuOpen(false); importRef.current.click(); }}>
-            <Icon name="upload" /> Import
-          </button>
-          <button disabled={running} onClick={() => { setMenuOpen(false); exportWorkflow(); }}>
-            <Icon name="download" /> Export
-          </button>
-          <p>Save stays in this browser. Export a JSON backup to share.</p>
+          <p>Workflows are saved in this browser.</p>
         </dialog>
       )}
       {workflowDialog && (
