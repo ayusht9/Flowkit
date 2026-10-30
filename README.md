@@ -44,6 +44,17 @@ See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, sa
 
 ### Run the browser app
 
+The **Describe a pipeline...** field accepts text from Wispr Flow or any keyboard input. It sends the request to the configured AI provider, creates a compatible draft workflow, and waits for you to review it before running.
+
+Configure the provider in `.env.local` (never commit this file):
+
+```env
+OPENAI_API_KEY=your_rotated_key
+OPENAI_MODEL=gpt-4o-mini
+# Optional OpenAI-compatible gateway:
+# OPENAI_BASE_URL=https://provider.example.com/v1
+```
+
 ```sh
 npm install
 npm run dev

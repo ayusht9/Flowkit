@@ -67,6 +67,46 @@ function json(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function aiConfig() {
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
+  if (!apiKey) throw Object.assign(new Error("Set OPENAI_API_KEY or AI_API_KEY to create pipelines from text."), { status: 503 });
+  return {
+    apiKey,
+    baseUrl: (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
+    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+  };
+}
+
+async function createPipelineFromText(text) {
+  if (typeof text !== "string" || text.trim().length < 3 || text.length > 4000)
+    throw Object.assign(new TypeError("Describe the workflow in 3–4000 characters."), { status: 400 });
+  const config = aiConfig();
+  const operations = catalog.map(({ type, title, description, inputType, outputType, group, category }) =>
+    ({ type, title, description, inputType, outputType, group, category }));
+  const system = `You create FlowKit pipelines. Return JSON only with this shape: {"name":"string","nodes":[{"type":"catalog operation","options":{}}]}. Nodes must be a single linear chain beginning with an Input operation and ending with an Output operation. Use only the catalog operations below. Never invent operations, file paths, or input bytes. Choose safe default options.\nCatalog:\n${JSON.stringify(operations)}`;
+  const result = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.apiKey}` },
+    body: JSON.stringify({ model: config.model, temperature: 0.1, response_format: { type: "json_object" }, messages: [
+      { role: "system", content: system }, { role: "user", content: text.trim() },
+    ] }),
+  });
+  if (!result.ok) throw Object.assign(new Error(`AI provider returned ${result.status}. Check your model and API configuration.`), { status: 502 });
+  const payload = await result.json();
+  let parsed;
+  try { parsed = JSON.parse(payload.choices?.[0]?.message?.content || ""); } catch { throw Object.assign(new Error("The AI provider returned invalid pipeline JSON."), { status: 502 }); }
+  if (!parsed || typeof parsed.name !== "string" || !Array.isArray(parsed.nodes) || parsed.nodes.length < 2 || parsed.nodes.length > 20)
+    throw Object.assign(new Error("The AI provider returned an invalid pipeline."), { status: 502 });
+  const allowed = new Map(catalog.map((item) => [item.type, item]));
+  const nodes = parsed.nodes.map((node, index) => {
+    const item = allowed.get(node?.type);
+    if (!item) throw Object.assign(new Error(`The AI selected an unavailable operation: ${node?.type || "unknown"}.`), { status: 502 });
+    return { id: `ai-${index + 1}`, type: item.type, options: node.options && typeof node.options === "object" ? node.options : {} };
+  });
+  const edges = nodes.slice(1).map((node, index) => ({ source: nodes[index].id, target: node.id }));
+  return { name: parsed.name.slice(0, 100), nodes, edges };
+}
+
 function compact(result) {
   const serialize = (output) => ["document", "image", "audio", "video"].includes(output?.type) ? {
     type: output.type, value: { ...output.value, data: Buffer.from(output.value.data).toString("base64") },
@@ -128,6 +168,10 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
         return json(response, 200, { status: "ok" });
       if (request.method === "GET" && path === "/api/operations")
         return json(response, 200, { operations: catalog });
+      if (request.method === "POST" && path === "/api/ai/pipeline") {
+        const body = await readJson(request);
+        return json(response, 200, { workflow: await createPipelineFromText(body?.text) });
+      }
       if (request.method === "GET" && path === "/api/sample") {
         const data = await readFile(
           join(root, "examples/fixtures/sample.html"),
