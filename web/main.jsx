@@ -249,6 +249,20 @@ function App() {
   const [events, setEvents] = useState([]);
   const [states, setStates] = useState({});
   const [running, setRunning] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("flowkit.theme") || (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch {
+      return "light";
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("flowkit.theme", theme); } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((curr) => curr === "dark" ? "light" : "dark");
   const [message, setMessage] = useState("");
   const [inspectorTab, setInspectorTab] = useState("settings");
   const [showLog, setShowLog] = useState(false);
@@ -785,22 +799,28 @@ function App() {
             </button>
             <img src="/flowkit.svg" alt="" width="27" height="27" />
             <strong>FlowKit</strong>
+            <button className="navbar-brand-import" onClick={() => importRef.current.click()} disabled={running} title="Import workflow JSON">
+              <Icon name="folder" size={16} /> Import
+            </button>
           </div>
           <nav className="navbar-actions" aria-label="Workflow actions">
+            <button className="theme-toggle" onClick={toggleTheme}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+              <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
+              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+            </button>
             <button aria-label="Add node" aria-expanded={showLibrary}
               onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>
               <Icon name="plus" size={16} /> Add Node
             </button>
-            <button className={running ? "processing" : "process-action"}
-              onClick={running ? () => abortRef.current?.abort() : run}>
-              <Icon name={running ? "stop" : "play"} size={16} /> {running ? "Cancel" : "Process"}
-            </button>
-            <button onClick={() => importRef.current.click()} disabled={running} title="Import workflow JSON">
-              <Icon name="folder" size={16} /> Import
-            </button>
             <button onClick={handleExport} disabled={running}
               title={result?.status === "succeeded" ? "Download the processed output" : "Export workflow JSON"}>
               <Icon name="download" size={16} /> Export
+            </button>
+            <button className={running ? "processing" : "process-action"}
+              onClick={running ? () => abortRef.current?.abort() : run}>
+              <Icon name={running ? "stop" : "play"} size={16} /> {running ? "Cancel" : "Process"}
             </button>
           </nav>
         </header>

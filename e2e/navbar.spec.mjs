@@ -3,7 +3,8 @@ import { test, expect } from "@playwright/test";
 test("connected navbar has actions and the requested popup", async ({ page }) => {
   await page.goto("/");
   const actions = page.getByRole("navigation", { name: "Workflow actions" });
-  await expect(actions.getByRole("button")).toHaveText(["Add Node", "Process", "Import", "Export"]);
+  await expect(actions.getByRole("button")).toHaveText([/^(Dark|Light)$/, "Add Node", "Export", "Process"]);
+  await expect(page.getByRole("button", { name: "Import", exact: true })).toBeVisible();
   await expect(actions.getByRole("button", { name: "Add node", exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "About", exact: true })).toHaveCount(0);
   await expect(actions.getByRole("button", { name: "Export", exact: true })).toBeEnabled();
@@ -18,7 +19,7 @@ test("connected navbar has actions and the requested popup", async ({ page }) =>
   await page.keyboard.press("Escape");
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const name of ["Add node", "Process", "Import", "Export"])
+    for (const name of ["Add node", "Export", "Process"])
       await expect(actions.getByRole("button", { name, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
