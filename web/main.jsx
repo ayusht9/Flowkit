@@ -398,6 +398,7 @@ function App() {
         body: JSON.stringify({ text: aiPrompt }),
       });
       const body = await response.json();
+      if (response.status === 404) throw new Error("Your server is running an older version of FlowKit. Stop it, restart npm run dev, then refresh this page.");
       if (!response.ok) throw new Error(body.error || "Could not create a pipeline.");
       const workflow = body.workflow;
       const nextNodes = adaptNodes(workflow.nodes.map((node, index) => ({

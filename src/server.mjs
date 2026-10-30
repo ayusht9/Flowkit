@@ -77,7 +77,7 @@ function aiConfig() {
   };
 }
 
-async function createPipelineFromText(text) {
+async function createPipelineFromText(text, registry) {
   if (typeof text !== "string" || text.trim().length < 3 || text.length > 4000)
     throw Object.assign(new TypeError("Describe the workflow in 3–4000 characters."), { status: 400 });
   const config = aiConfig();
@@ -90,6 +90,7 @@ async function createPipelineFromText(text) {
     body: JSON.stringify({ model: config.model, temperature: 0.1, response_format: { type: "json_object" }, messages: [
       { role: "system", content: system }, { role: "user", content: text.trim() },
     ] }),
+    signal: AbortSignal.timeout(30_000),
   });
   if (!result.ok) throw Object.assign(new Error(`AI provider returned ${result.status}. Check your model and API configuration.`), { status: 502 });
   const payload = await result.json();
@@ -104,6 +105,12 @@ async function createPipelineFromText(text) {
     return { id: `ai-${index + 1}`, type: item.type, options: node.options && typeof node.options === "object" ? node.options : {} };
   });
   const edges = nodes.slice(1).map((node, index) => ({ source: nodes[index].id, target: node.id }));
+  if (allowed.get(nodes[0].type).group !== "Input" || allowed.get(nodes.at(-1).type).group !== "Output" ||
+      nodes.slice(1).some(node => allowed.get(node.type).group === "Input") ||
+      nodes.slice(0, -1).some(node => allowed.get(node.type).group === "Output"))
+    throw Object.assign(new Error("The AI must create a chain from an upload to a download."), { status: 502 });
+  try { validatePipeline({ nodes, edges }, registry); }
+  catch { throw Object.assign(new Error("The AI returned incompatible operations or invalid settings. Try describing the workflow again."), { status: 502 }); }
   return { name: parsed.name.slice(0, 100), nodes, edges };
 }
 
@@ -165,12 +172,12 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
     const path = new URL(request.url, `http://${host}`).pathname;
     try {
       if (request.method === "GET" && path === "/api/health")
-        return json(response, 200, { status: "ok" });
+        return json(response, 200, { status: "ok", features: { aiPipeline: true } });
       if (request.method === "GET" && path === "/api/operations")
         return json(response, 200, { operations: catalog });
       if (request.method === "POST" && path === "/api/ai/pipeline") {
         const body = await readJson(request);
-        return json(response, 200, { workflow: await createPipelineFromText(body?.text) });
+        return json(response, 200, { workflow: await createPipelineFromText(body?.text, registry) });
       }
       if (request.method === "GET" && path === "/api/sample") {
         const data = await readFile(
