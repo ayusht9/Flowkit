@@ -1,6 +1,10 @@
 # FlowKit
 
+[![CI](https://github.com/ayusht9/Flowkit/actions/workflows/pages.yml/badge.svg)](https://github.com/ayusht9/Flowkit/actions/workflows/pages.yml) [![Deploy](https://github.com/ayusht9/Flowkit/actions/workflows/deploy.yml/badge.svg)](https://github.com/ayusht9/Flowkit/actions/workflows/deploy.yml) [![npm](https://img.shields.io/npm/v/flowkit-mcp?logo=npm)](https://www.npmjs.com/package/flowkit-mcp) [![GitHub stars](https://img.shields.io/github/stars/ayusht9/Flowkit?style=flat&logo=github)](https://github.com/ayusht9/Flowkit)
+
 Local MCP tools for documents, images, audio, and video - with a visual workflow studio for composing and inspecting the same operations.
+
+[Repository](https://github.com/ayusht9/Flowkit) · [MCP guide](MCP.md) · [Deployment](DEPLOYMENT.md) · [Report an issue](https://github.com/ayusht9/Flowkit/issues/new)
 
 ![FlowKit workflow studio](docs/screenshots/workflow-studio.png)
 
@@ -96,3 +100,7 @@ FlowKit executes trusted native adapters locally. It does not yet provide OS/con
 ## Development workflow
 
 Use `develop` for integration and `main` for completed work. Create temporary feature branches from `develop`, verify and commit them, merge into `develop`, then merge the verified result into `main`. Keep `develop` synchronized with `main`; deployments are manual.
+
+## Contributing
+
+Bug reports and focused improvements are welcome. Please open an [issue](https://github.com/ayusht9/Flowkit/issues) before larger changes, keep pull requests scoped, and run `npm test` plus `npm run build` before submitting.
