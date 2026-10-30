@@ -57,7 +57,8 @@ svg { flex-shrink: 0; }
   inset: 0 0 auto;
   height: 60px;
   z-index: 10;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 440px) minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   padding: 0 18px 0 14px;
@@ -89,16 +90,19 @@ svg { flex-shrink: 0; }
   flex-shrink: 0;
   gap: 7px;
 }
-.ai-command { display: flex; align-items: center; gap: 6px; width: min(360px, 34vw); padding: 4px 5px 4px 9px; border: 1px solid #d9d0e4; border-radius: 999px; background: rgba(255,255,255,.86); box-shadow: 0 4px 16px rgba(74,55,99,.06); }
-.ai-command-mark { display: grid; place-items: center; color: #8c64aa; flex: 0 0 auto; }
-.ai-command input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #43394d; font: inherit; font-size: 11px; }
-.ai-command input::placeholder { color: #9c91a6; }
-.ai-command button { border: 0; border-radius: 999px; padding: 7px 12px; background: #8060a0; color: white; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.ai-command { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; height: 36px; margin: 0; padding: 3px 4px 3px 12px; border: 1px solid #e2e4ec; border-radius: 8px; background: #f4f5fa; transition: border-color .15s, box-shadow .15s; }
+.ai-command:focus-within { border-color: #a5a8b6; box-shadow: 0 0 0 3px rgba(100,105,125,.1); }
+.ai-command-mark { display: grid; place-items: center; color: #737580; flex: 0 0 auto; }
+.ai-command input { min-width: 0; width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #424450; font: inherit; font-size: 12px; }
+.ai-command input::placeholder { color: #858895; }
+.ai-command button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; height: 28px; border: 1px solid #dfe1e9; border-radius: 5px; padding: 0 10px; background: #fff; color: #424450; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.ai-command button:hover:not(:disabled) { background: #eceef5; }
+.ai-command button:focus-visible { outline: 2px solid #a5a8b6; outline-offset: 2px; }
 .ai-command button:disabled { opacity: .45; cursor: not-allowed; }
-[data-theme="dark"] .ai-command { border-color: #4e4258; background: rgba(40,34,47,.92); }
-[data-theme="dark"] .ai-command input { color: #eee6f4; }
-@media (max-width: 900px) { .ai-command { width: min(290px, 30vw); } }
-@media (max-width: 700px) { .ai-command { width: 100%; order: 3; } .navbar-actions { flex-wrap: wrap; } }
+[data-theme="dark"] .ai-command { border-color: #3b3d48; background: #252630; }
+[data-theme="dark"] .ai-command input { color: #e5e6ec; }
+[data-theme="dark"] .ai-command button { background: #32343f; border-color: #454754; color: #e5e6ec; }
+[data-theme="dark"] .ai-command button:hover:not(:disabled) { background: #414350; }
 .navbar-actions button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 0 13px; height: 34px; font-size: 12px; font-weight: 500;
@@ -1095,6 +1099,23 @@ svg { flex-shrink: 0; }
   .markdown-preview { max-height: calc(100dvh - 330px); }
 }
 @media (max-width: 380px) { .navbar-brand strong { display: none; } }
+@media (max-width: 1050px) {
+  .app-navbar { height: 106px; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 46px 36px; gap: 6px 10px; padding: 4px 12px 10px; }
+  .app-navbar .navbar-brand { grid-column: 1; grid-row: 1; min-width: 0; }
+  .app-navbar .navbar-actions { grid-column: 2; grid-row: 1; }
+  .app-navbar .ai-command { grid-column: 1 / -1; grid-row: 2; width: min(100%, 560px); justify-self: center; }
+  .node-picker, .inspector { top: 118px; }
+  .workflow-menu { top: 112px; }
+  .message-banner { top: 118px; }
+}
+@media (max-width: 460px) {
+  .app-navbar { padding-inline: 8px; column-gap: 4px; }
+  .navbar-brand { gap: 4px; }
+  .navbar-brand strong { display: none; }
+  .navbar-brand .navbar-tools { display: none; }
+  .navbar-actions { gap: 2px; }
+  .navbar-divider { margin-inline: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

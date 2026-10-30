@@ -1001,7 +1001,6 @@ function App() {
             </div>
           </div>
 
-          <nav className="navbar-actions" aria-label="Workflow actions">
             <form className="ai-command" onSubmit={buildFromPrompt}>
               <span className="ai-command-mark" aria-hidden="true"><Icon name="sparkles" size={14} /></span>
               <input
@@ -1015,6 +1014,7 @@ function App() {
                 {aiBuilding ? "Building…" : "Build"}
               </button>
             </form>
+          <nav className="navbar-actions" aria-label="Workflow actions">
             <button
               type="button"
               role="switch"
