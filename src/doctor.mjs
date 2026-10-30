@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { realpath, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { findPandoc } from "./server.mjs";
+import { findImageMagick } from "./image.mjs";
 
 function check(command, argument = "--version") {
   const run = spawnSync(command, [argument], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
@@ -15,7 +16,7 @@ export async function diagnoseMcp(workspace) {
   const pandoc = await findPandoc();
   const tools = {
     pandoc: check(pandoc),
-    imagemagick: check(process.env.IMAGEMAGICK_PATH || (process.platform === "win32" ? "magick" : "convert")),
+    imagemagick: check(findImageMagick()),
     ffmpeg: check(process.env.FFMPEG_PATH || "ffmpeg", "-version"),
     ffprobe: check(process.env.FFPROBE_PATH || "ffprobe", "-version"),
   };

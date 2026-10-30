@@ -1,13 +1,27 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { extname, join } from 'node:path';
+import { extname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { assertRecord } from './operations.mjs';
 
 const execute = promisify(execFile);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 export const defaultImageExecutable = process.platform === 'win32' ? 'magick' : 'convert';
+
+export function findImageMagick() {
+  if (process.env.IMAGEMAGICK_PATH) return process.env.IMAGEMAGICK_PATH;
+  for (const candidate of [
+    resolve('.tools/imagemagick/magick.exe'),
+    resolve('../.tools/imagemagick/magick.exe'),
+  ]) {
+    try {
+      if (existsSync(candidate)) return candidate;
+    } catch {}
+  }
+  return defaultImageExecutable;
+}
 
 export function validateImage(value) {
   assertRecord(value, 'Image');
@@ -23,7 +37,7 @@ export function validateImage(value) {
 }
 
 /** Executable and limits are trusted server settings, never workflow options. */
-export function createImageResize({ executable = process.env.IMAGEMAGICK_PATH || defaultImageExecutable, timeoutMs = 30_000 } = {}) {
+export function createImageResize({ executable = findImageMagick(), timeoutMs = 30_000 } = {}) {
   if (typeof executable !== 'string' || !executable.trim()) throw new TypeError('Expected an ImageMagick executable');
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('Timeout must be a positive integer');
   return {
