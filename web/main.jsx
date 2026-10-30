@@ -780,9 +780,6 @@ function App() {
             <img src="/flowkit.svg" alt="" width="27" height="27" />
             <strong>FlowKit</strong>
           </div>
-          <div className="navbar-workflow">
-            <span>{name}</span><small>{saved ? "Saved" : "Unsaved"}</small>
-          </div>
           <nav className="navbar-actions" aria-label="Workflow actions">
             <button aria-label="Add node" aria-expanded={showLibrary}
               onClick={() => showLibrary ? setShowLibrary(false) : openLibrary()} disabled={running}>

@@ -38,7 +38,6 @@ test("Save restores workflow JSON, Save as new keeps the original, and Import st
   expect(JSON.stringify(original)).not.toContain("private.html");
   expect(JSON.stringify(original)).not.toContain("PRIVATE_FILE_BYTES");
   await page.reload();
-  await expect(page.locator(".navbar-workflow")).toContainText("Original");
   await page.getByRole("button", { name: "Open workflow menu" }).click();
   await page.getByRole("button", { name: "Save as new", exact: true }).click();
   await page.getByLabel("New workflow name", { exact: true }).fill("Copy");
@@ -53,7 +52,6 @@ test("Save restores workflow JSON, Save as new keeps the original, and Import st
   expect(updated.workflows.map((entry) => entry.workflow.name)).toEqual(["Original", "Updated copy"]);
   await page.getByRole("button", { name: "Open workflow menu" }).click();
   await page.getByLabel("Saved workflows", { exact: true }).selectOption(original.activeId);
-  await expect(page.locator(".navbar-workflow")).toContainText("Original");
   const imported = { ...original.workflows[0].workflow, name: "Imported" };
   await page.locator('input[type=file][accept=".json"]').setInputFiles({ name: "import.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(imported)) });
   await page.getByRole("button", { name: "Open workflow menu" }).click();
