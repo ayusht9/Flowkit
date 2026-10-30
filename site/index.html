@@ -208,18 +208,24 @@
         </div>
       </div>
 
-      <!-- Navigation Tabs Inside Modal -->
+      <!-- Navigation Tabs Inside Modal (Crisp Dots, No Glitchy Emojis) -->
       <div class="modal-tabs" role="tablist" aria-label="Report Views">
-        <button role="tab" class="modal-tab-btn active" data-modal-tab="charts">📊 Latency & Engines</button>
-        <button role="tab" class="modal-tab-btn" data-modal-tab="table">📋 Test Matrix (18 Tests)</button>
-        <button role="tab" class="modal-tab-btn" data-modal-tab="tokens">⚡ Token Efficiency</button>
+        <button role="tab" class="modal-tab-btn active" data-modal-tab="charts">
+          <span class="tab-indicator tab-purple"></span> Latency & Engines
+        </button>
+        <button role="tab" class="modal-tab-btn" data-modal-tab="table">
+          <span class="tab-indicator tab-teal"></span> Test Matrix (18 Tests)
+        </button>
+        <button role="tab" class="modal-tab-btn" data-modal-tab="tokens">
+          <span class="tab-indicator tab-orange"></span> Token Efficiency
+        </button>
       </div>
 
       <!-- Modal Body Content -->
       <div class="modal-content">
         <!-- Tab 1: Latency Bar Chart, Summary Cards & Engine Health -->
         <div class="modal-tab-panel active" id="modal-tab-charts">
-          <!-- Summary Cards Grid -->
+          <!-- Compact Summary Cards Grid -->
           <div class="summary-cards-grid">
             <div class="summary-card">
               <div class="summary-card-val">94.4%</div>
@@ -229,17 +235,17 @@
             <div class="summary-card">
               <div class="summary-card-val">15 / 15</div>
               <div class="summary-card-label">MCP Tools Ready</div>
-              <div class="summary-card-sub">Typed schemas & bounded output</div>
+              <div class="summary-card-sub">Typed schemas & bounds</div>
             </div>
             <div class="summary-card">
               <div class="summary-card-val">4 / 4 Active</div>
               <div class="summary-card-label">Native Engines</div>
-              <div class="summary-card-sub">Pandoc, Magick, FFmpeg, FFprobe</div>
+              <div class="summary-card-sub">Pandoc, Magick, FFmpeg</div>
             </div>
             <div class="summary-card">
               <div class="summary-card-val">3 / 3 Passed</div>
               <div class="summary-card-label">Security Boundaries</div>
-              <div class="summary-card-sub">Path traversal & bounds validated</div>
+              <div class="summary-card-sub">Path escapes blocked</div>
             </div>
           </div>
 
@@ -250,7 +256,7 @@
               <div class="chart-header">
                 <div>
                   <h3>Tool Execution Latency (ms)</h3>
-                  <p class="chart-subtitle">Measured execution time per tool call over stdio transport</p>
+                  <p class="chart-subtitle">Execution time per tool call over stdio transport</p>
                 </div>
                 <div class="chart-controls">
                   <button class="chart-filter-btn active" data-chart-filter="all">All (14)</button>
@@ -260,7 +266,7 @@
                 </div>
               </div>
               <div class="chart-body" id="latency-bars-container">
-                <!-- Rendered dynamically by script.js -->
+                <!-- Rendered dynamically by script.js with its own smooth scroll -->
               </div>
               <div class="chart-legend">
                 <span><i class="legend-dot dot-teal"></i> Filesystem (3-11ms)</span>
@@ -280,7 +286,7 @@
               </div>
               <div class="donut-and-engines">
                 <div class="donut-wrapper">
-                  <svg class="donut-svg" viewBox="0 0 160 160" width="130" height="130">
+                  <svg class="donut-svg" viewBox="0 0 160 160" width="110" height="110">
                     <circle class="donut-bg" cx="80" cy="80" r="64" />
                     <circle class="donut-segment pass-segment" cx="80" cy="80" r="64" />
                     <circle class="donut-segment optional-segment" cx="80" cy="80" r="64" />
