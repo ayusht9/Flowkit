@@ -1,12 +1,5 @@
 import { createApp } from "./src/server.mjs";
 
-// Load local server configuration too; Vite only loads env files for its own config.
-try {
-  process.loadEnvFile(new URL("./.env.local", import.meta.url));
-} catch (error) {
-  if (error.code !== "ENOENT") throw error;
-}
-
 const allowedOrigins = [
   ...(process.env.PUBLIC_ORIGINS || "").split(",").filter(Boolean),
   ...[process.env.VERCEL_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]

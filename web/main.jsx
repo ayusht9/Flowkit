@@ -273,8 +273,6 @@ function App() {
   const [running, setRunning] = useState(false);
   const [history, setHistory] = useState(() => [{ nodes: initial.nodes, edges: initial.edges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiBuilding, setAiBuilding] = useState(false);
 
   const pushHistory = useCallback((nextNodes, nextEdges) => {
     setHistory((prev) => {
@@ -385,44 +383,6 @@ function App() {
   const nodeOutput = result?.nodes?.find(
     (node) => node.id === selectedId,
   )?.output;
-
-  async function buildFromPrompt(event) {
-    event?.preventDefault();
-    if (aiBuilding || running || !aiPrompt.trim()) return;
-    setAiBuilding(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/ai/pipeline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: aiPrompt }),
-      });
-      const body = await response.json();
-      if (response.status === 404) throw new Error("Your server is running an older version of FlowKit. Stop it, restart npm run dev, then refresh this page.");
-      if (!response.ok) throw new Error(body.error || "Could not create a pipeline.");
-      const workflow = body.workflow;
-      const nextNodes = adaptNodes(workflow.nodes.map((node, index) => ({
-        id: node.id,
-        type: "operation",
-        position: { x: 80 + index * 280, y: 240 },
-        data: { operation: node.type, options: node.options || {} },
-      })), workflow.edges);
-      setNodes(nextNodes);
-      setEdges(workflow.edges.map((edge) => ({ ...edge, id: `${edge.source}-${edge.target}` })));
-      setName(workflow.name);
-      setFiles({});
-      setResult(null);
-      setSelectedId(null);
-      setShowLibrary(false);
-      pushHistory(nextNodes, workflow.edges);
-      setAiPrompt("");
-      setMessage("Pipeline created. Review the nodes, upload your input, then press Run.");
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setAiBuilding(false);
-    }
-  }
 
   useEffect(() => () => abortRef.current?.abort(), []);
   useEffect(() => {
@@ -1002,19 +962,6 @@ function App() {
             </div>
           </div>
 
-            <form className="ai-command" onSubmit={buildFromPrompt}>
-              <span className="ai-command-mark" aria-hidden="true"><Icon name="sparkles" size={14} /></span>
-              <input
-                value={aiPrompt}
-                onChange={(event) => setAiPrompt(event.target.value)}
-                placeholder="Describe a pipeline..."
-                aria-label="Describe a pipeline in natural language"
-                disabled={running || aiBuilding}
-              />
-              <button type="submit" disabled={running || aiBuilding || !aiPrompt.trim()}>
-                {aiBuilding ? "Building…" : "Build"}
-              </button>
-            </form>
           <nav className="navbar-actions" aria-label="Workflow actions">
             <button
               type="button"
