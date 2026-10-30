@@ -58,24 +58,16 @@
     </section>
     <section class="benchmark-section" id="benchmark" aria-labelledby="benchmark-heading">
       <div class="benchmark-intro">
-        <p class="status"><span></span>Token benchmark</p>
-        <h2 id="benchmark-heading">Measure the savings. Include the overhead.</h2>
-        <p>The harness starts the real FlowKit MCP server in memory, reads its live tool schemas, and compares fixed MCP calls with equivalent generated-script instructions. It measures UTF-8 bytes and reports a transparent bytes / 4 token estimate.</p>
-        <a class="text-link" href="https://github.com/ayusht9/Flowkit/blob/main/benchmarks/mcp-token-benchmark.mjs">Inspect the benchmark source <span>↗</span></a>
+        <div><p class="status"><span></span>Token benchmark</p><h2 id="benchmark-heading">Measure the savings and the overhead.</h2></div>
+        <p>The harness starts the real MCP server, reads its live schemas, and compares fixed tool calls with generated-script instructions. Results use a transparent UTF-8 bytes / 4 token estimate—not provider billing data.</p>
       </div>
-      <div class="benchmark-results">
-        <div class="metric-grid" aria-label="Current benchmark results">
-          <article><strong>74.6%</strong><span>smaller marginal task payloads</span></article>
-          <article><strong>2,441</strong><span>estimated schema tokens loaded once</span></article>
-          <article><strong>12 rounds</strong><span>estimated break-even point</span></article>
-        </div>
-        <div class="terminal benchmark-terminal">
-          <div class="terminal-head"><span>Run it locally</span><button id="copy-benchmark" type="button">Copy</button></div>
-          <pre><code id="benchmark-command"><span class="prompt">$</span> npm run benchmark:mcp</code></pre>
-          <div class="terminal-foot"><span>JSON output · reproducible locally</span><span>Not provider billing data</span></div>
-        </div>
-        <p class="benchmark-caveat">At ten rounds, the full 15-tool schema still costs 12.5% more estimated context than the conservative baseline. FlowKit becomes smaller after the schema cost is reused across enough operations.</p>
+      <div class="metric-grid" aria-label="Current benchmark results">
+        <article><strong>74.6%</strong><span>smaller marginal task payloads</span></article>
+        <article><strong>2,441</strong><span>estimated schema tokens loaded once</span></article>
+        <article><strong>12 rounds</strong><span>estimated break-even point</span></article>
       </div>
+      <div class="benchmark-actions"><code id="benchmark-command">npm run benchmark:mcp</code><button id="copy-benchmark" type="button">Copy command</button><a class="text-link" href="https://github.com/ayusht9/Flowkit/blob/main/benchmarks/mcp-token-benchmark.mjs">View source <span>↗</span></a></div>
+      <p class="benchmark-caveat">At ten rounds, the full 15-tool schema costs 12.5% more estimated context than the conservative baseline. Savings begin after the schema is reused across enough operations.</p>
     </section>
   </main>
   <footer><a class="brand" href="#top"><img src="flowkit.svg?v=20261029" alt="" width="28" height="28"><span>FlowKit</span></a><p>Prebuilt operations for smaller prompts and repeatable results.</p><a href="https://github.com/ayusht9/Flowkit">Source on GitHub</a></footer>
