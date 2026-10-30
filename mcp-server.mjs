@@ -1,11 +1,21 @@
+#!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { serveStdio, StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { createFlowkitMcpServer } from "./src/mcp.mjs";
+import { diagnoseMcp } from "./src/doctor.mjs";
 
 try {
-  const { values } = parseArgs({ options: { workspace: { type: "string" }, help: { type: "boolean", short: "h" } } });
+  const { values } = parseArgs({ options: { workspace: { type: "string" }, doctor: { type: "boolean" }, json: { type: "boolean" }, help: { type: "boolean", short: "h" } } });
   if (values.help) {
-    console.error("Usage: node mcp-server.mjs --workspace <directory>\nExpose FlowKit tools over MCP stdio. Native tools must be installed on this machine.");
+    console.error("Usage: flowkit-mcp --workspace <directory>\n       flowkit-mcp --doctor [--workspace <directory>] [--json]\nExpose FlowKit tools over MCP stdio or verify the installation.");
+  } else if (values.doctor) {
+    const report = await diagnoseMcp(values.workspace);
+    console.log(values.json ? JSON.stringify(report, null, 2) : [
+      `FlowKit MCP ${report.version}: installed`, `Workspace: ${report.workspace}`,
+      ...Object.entries(report.tools).map(([name, tool]) => `${name}: ${tool.available ? "ready" : "missing"}`),
+      `Processing tools: ${report.processingReady ? "ready" : "incomplete"}`,
+    ].join("\n"));
+    if (!report.processingReady) process.exitCode = 1;
   } else {
     const shutdown = new AbortController();
     // Validate configuration before the first protocol request arrives.

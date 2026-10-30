@@ -1,10 +1,19 @@
 # FlowKit MCP
 
-FlowKit exposes nine local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
+FlowKit exposes 15 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
 ## Connect an MCP host
 
 Install dependencies with `npm install`. Install Pandoc, ImageMagick and FFmpeg/FFprobe for the operations you want to use. No LLM API key is required by this server; your MCP host provides the model.
+
+To install the CLI directly from GitHub and verify both the package and native processors:
+
+```sh
+npm install --global https://github.com/ayusht9/Flowkit.git
+flowkit-mcp --doctor --workspace /absolute/path/to/workspace
+```
+
+Use `flowkit-mcp.cmd` on Windows if PowerShell resolves a blocked `.ps1` shim. Add `--json` for a machine-readable report. The command exits unsuccessfully when a required native processor is missing.
 
 Copy the `flowkit` entry from [mcp.example.json](mcp.example.json) into your host's MCP configuration. Replace both example paths with absolute paths on your machine. `command` must resolve to Node.js 22.12 or newer. The workspace is an existing directory containing files you want the model to process; choose a dedicated input/output directory.
 
@@ -39,6 +48,12 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 
 | Tool | Arguments | Result |
 | --- | --- | --- |
+| `flowkit_document_to_html` | `inputPath` | Supported document to standalone HTML |
+| `flowkit_document_to_docx` | `inputPath` | Supported document to Word DOCX |
+| `flowkit_document_to_odt` | `inputPath` | Supported document to OpenDocument ODT |
+| `flowkit_document_to_epub` | `inputPath` | Supported document to EPUB 3 |
+| `flowkit_document_to_pdf` | `inputPath` | Supported document to PDF |
+| `flowkit_merge_documents` | `inputPaths` (2-10 same-format files) | Combined Word DOCX |
 | `flowkit_list_files` | `directory` (default `.`) | Up to 100 non-hidden entries; no recursion or symlink following |
 | `flowkit_read_text` | `inputPath`, `offset` (default 0), `limit` (default 2000, max 12000) | Text excerpt, total characters, next offset |
 | `flowkit_document_to_markdown` | `inputPath` | DOCX/HTML/EPUB/Markdown → Markdown |
@@ -79,4 +94,6 @@ This is a local stdio server, not an authenticated remote endpoint. The existing
 
 ## Verification
 
-`node --test test/mcp.test.mjs` exercises official-client stdio discovery, chained file results, bounded text, path/symlink rejection, input limits, cancellation, concurrent calls, and all native processing tools. Native integration tests require all four installed tools; the test reports a skip otherwise. `npm test` includes these checks in the full suite.
+`flowkit-mcp --doctor --workspace <path>` verifies the installed CLI, workspace and four native processors. `node --test test/mcp.test.mjs` exercises official-client stdio discovery, chained file results, bounded text, path/symlink rejection, input limits, cancellation, concurrent calls, and all native processing tools.
+
+Run `npm run benchmark:mcp` for a reproducible JSON comparison between fixed MCP calls and explicit generated-script instructions. It measures actual UTF-8 payload bytes and reports a transparent `bytes / 4` token estimate, including the one-time MCP tool-schema cost. It is not provider billing data; use your model host's usage fields for exact billed input/output tokens.

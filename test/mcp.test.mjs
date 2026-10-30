@@ -44,7 +44,9 @@ async function session(t, registry) {
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {
   const { workspace, client, call } = await session(t);
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 9);
+  assert.equal(tools.length, 15);
+  assert.ok(tools.some((tool) => tool.name === "flowkit_merge_documents"));
+  assert.ok(tools.some((tool) => tool.name === "flowkit_document_to_pdf"));
   assert.ok(tools.some((tool) => tool.name === "flowkit_video_extract_audio"));
   assert.ok(tools.every((tool) => !tool.name.includes("pipeline")));
   const source = "# Document\r\n\r\n\r\n" + "Content ".repeat(2000);
@@ -148,4 +150,14 @@ test("MCP CLI requires an explicit workspace and keeps diagnostics off stdout", 
   assert.equal(response.status, 1);
   assert.equal(response.stdout, "");
   assert.match(response.stderr, /--workspace/);
+});
+
+test("MCP doctor proves the installed CLI can inspect its workspace and dependencies", () => {
+  const response = spawnSync(process.execPath, [join(project, "mcp-server.mjs"), "--doctor", "--workspace", project, "--json"], { encoding: "utf8", windowsHide: true });
+  const report = JSON.parse(response.stdout);
+  assert.equal(report.installed, true);
+  assert.equal(report.mcpTools, 15);
+  assert.equal(report.workspace, project);
+  assert.deepEqual(Object.keys(report.tools), ["pandoc", "imagemagick", "ffmpeg", "ffprobe"]);
+  assert.equal(response.stderr, "");
 });

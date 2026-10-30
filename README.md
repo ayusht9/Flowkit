@@ -4,7 +4,7 @@ Visual workflows and MCP tools for document and media processing. Implemented: a
 
 ## MCP for LLMs
 
-FlowKit exposes local document, image, audio, and video tools over MCP stdio. The model can call each tool independently and chain returned file paths. Results contain compact metadata and bounded text previews. See [MCP.md](MCP.md) for the nine tools, connection configuration, and workspace limits; [mcp.example.json](mcp.example.json) is ready to adapt to your MCP host.
+FlowKit exposes local document, image, audio, and video tools over MCP stdio. The model can call each tool independently and chain returned file paths. Results contain compact metadata and bounded text previews. See [MCP.md](MCP.md) for the tools, install check, token benchmark, connection configuration, and workspace limits; [mcp.example.json](mcp.example.json) is ready to adapt to your MCP host.
 
 ## Run
 

@@ -90,6 +90,10 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
     const input = definition.inputType === "markdown" ? { text: file.data.toString("utf8"), source: file.name } : file;
     if (definition.inputType === "markdown" && extname(file.name).toLowerCase() !== ".md") throw new Error("Clean Markdown accepts .md files");
     const output = await registry.execute(operation, { type: definition.inputType, value: input }, options, { signal });
+    return saveOutput(output, signal);
+  }
+
+  async function saveOutput(output, signal) {
     const value = output.value;
     const bytes = output.type === "markdown" ? Buffer.from(value.text) : Buffer.from(value.data);
     if (bytes.length > maxOutput) throw new Error("Output exceeded 8 MiB");
@@ -111,8 +115,19 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
     } catch (error) { await rm(directory, { recursive: true, force: true }); throw error; }
   }
 
+  async function mergeDocuments({ inputPaths }, signal) {
+    const files = [];
+    for (const path of inputPaths) files.push(await readInput(path, signal));
+    const output = await registry.execute("document.merge", { type: "document", value: files }, {}, { signal });
+    return saveOutput(output, signal);
+  }
+
   for (const [name, operation, description, options] of [
     ["flowkit_document_to_markdown", "document.toMarkdown", "Convert DOCX, HTML, EPUB or Markdown to a Markdown artifact using Pandoc. Returns a path and at most 1000 preview characters, not the full document.", {}],
+    ...[
+      ["html", "HTML"], ["docx", "Word DOCX"], ["odt", "OpenDocument ODT"],
+      ["epub", "EPUB 3"], ["pdf", "PDF"],
+    ].map(([formatName, label]) => [`flowkit_document_to_${formatName}`, `document.to${formatName[0].toUpperCase()}${formatName.slice(1)}`, `Convert a supported document to ${label} using Pandoc. Returns an artifact path without file bytes.`, {}]),
     ["flowkit_clean_markdown", "context.clean", "Normalize Markdown line endings and blank lines while preserving code spacing. Writes a new artifact.", { collapseBlankLines: z.boolean().default(true) }],
     ["flowkit_image_resize", "image.resize", "Resize PNG/JPEG within a bounding box, preserving aspect ratio. Returns a PNG file path and dimensions. Specify width or height, or both.", { width: z.number().int().min(1).max(4096).optional(), height: z.number().int().min(1).max(4096).optional() }],
     ["flowkit_audio_convert", "audio.convert", "Convert WAV, MP3 or M4A to MP3/WAV using FFmpeg. Maximum input: 20 MiB and 5 minutes; output: 8 MiB.", { format }],
@@ -120,6 +135,10 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
     ["flowkit_video_trim", "video.trim", "Trim MP4, MOV, WebM or MKV to H.264 MP4. Input: at most 20 MiB, 5 minutes, 1080p pixel area and 60 fps. Output: at most 8 MiB.", trim],
     ["flowkit_video_extract_audio", "video.extractAudio", "Extract a video's audio track to MP3/WAV. Chain after video trim by passing its returned path. Fails clearly if there is no audio track.", { format }],
   ]) register(name, description, { inputPath, ...options }, (args, signal) => processFile(operation, args, signal));
+
+  register("flowkit_merge_documents", "Combine 2–10 same-format documents into one Word DOCX artifact using Pandoc.", {
+    inputPaths: z.array(inputPath).min(2).max(10),
+  }, mergeDocuments);
 
   return server;
 }

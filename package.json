@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": { "flowkit-mcp": "mcp-server.mjs" },
+  "files": ["mcp-server.mjs", "src", "README.md", "MCP.md"],
   "engines": {
     "node": ">=22.12.0"
   },
@@ -14,6 +16,8 @@
     "build": "vite build",
     "start": "node server.mjs",
     "mcp": "node mcp-server.mjs",
+    "mcp:doctor": "node mcp-server.mjs --doctor",
+    "benchmark:mcp": "node benchmarks/mcp-token-benchmark.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
