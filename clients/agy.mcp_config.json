@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "flowkit": {
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "/absolute/path/to/files"],
+      "timeoutSeconds": 180
+    }
+  }
+}

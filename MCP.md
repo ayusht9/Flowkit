@@ -15,6 +15,28 @@ flowkit-mcp --doctor --workspace /absolute/path/to/workspace
 
 Use `flowkit-mcp.cmd` on Windows if PowerShell resolves a blocked `.ps1` shim. Add `--json` for a machine-readable report. The command exits unsuccessfully when a required native processor is missing.
 
+### Connect Codex
+
+```sh
+codex mcp add flowkit -- flowkit-mcp --workspace /absolute/path/to/files
+codex mcp list
+```
+
+The equivalent TOML is in [`clients/codex.config.toml.example`](clients/codex.config.toml.example).
+
+### Connect Claude Code
+
+```sh
+claude mcp add --transport stdio flowkit -- flowkit-mcp --workspace /absolute/path/to/files
+claude mcp list
+```
+
+The equivalent project configuration is in [`clients/claude.mcp.json`](clients/claude.mcp.json).
+
+### Connect Google Antigravity (AGY)
+
+Copy [`clients/agy.mcp_config.json`](clients/agy.mcp_config.json) to `<workspace>/.agents/mcp_config.json`, replace the workspace path, then open `/mcp` inside AGY to inspect the connection. AGY also supports the global `~/.gemini/config/mcp_config.json` location.
+
 Copy the `flowkit` entry from [mcp.example.json](mcp.example.json) into your host's MCP configuration. Replace both example paths with absolute paths on your machine. `command` must resolve to Node.js 22.12 or newer. The workspace is an existing directory containing files you want the model to process; choose a dedicated input/output directory.
 
 ```json

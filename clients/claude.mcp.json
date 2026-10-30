@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "flowkit": {
+      "type": "stdio",
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "/absolute/path/to/files"]
+    }
+  }
+}
