@@ -54,6 +54,23 @@ test('supports a single node and direct calls without pipeline orchestration', a
   assert.deepEqual(result.output, direct);
 });
 
+test('merges multiple pipeline inputs before continuing to one output', async () => {
+  const registry = new OperationRegistry()
+    .register('source', { inputType: 'text', outputType: 'text', run: async value => value })
+    .register('merge', { inputType: 'text', outputType: 'text', acceptsMany: true,
+      run: async value => ({ type: 'text', value: value.value.join('+') }) })
+    .register('finish', { inputType: 'text', outputType: 'text', run: async value => value });
+  const graph = { nodes: [
+    { id: 'a', type: 'source' }, { id: 'b', type: 'source' },
+    { id: 'merge', type: 'merge' }, { id: 'finish', type: 'finish' },
+  ], edges: [edge('a', 'merge'), edge('b', 'merge'), edge('merge', 'finish')] };
+  const result = await runPipeline(graph, registry, { inputs: {
+    a: { type: 'text', value: 'first' }, b: { type: 'text', value: 'second' },
+  } });
+  assert.equal(result.status, 'succeeded');
+  assert.equal(result.output.value, 'first+second');
+});
+
 const invalidGraphs = [
   ['empty graph', { nodes: [], edges: [] }],
   ['missing edges', { nodes: [node('a')] }],
@@ -65,7 +82,7 @@ const invalidGraphs = [
   ['cycle', { nodes: [node('a'), node('b')], edges: [edge('a', 'b'), edge('b', 'a')] }],
   ['disconnected cycle', { nodes: [node('a'), node('b'), node('c')], edges: [edge('b', 'c'), edge('c', 'b')] }],
   ['branch', { nodes: [node('a'), node('b'), node('c')], edges: [edge('a', 'b'), edge('a', 'c')] }],
-  ['merge', { nodes: [node('a'), node('b'), node('c')], edges: [edge('a', 'c'), edge('b', 'c')] }],
+  ['merge into a single-input operation', { nodes: [node('a'), node('b'), node('c')], edges: [edge('a', 'c'), edge('b', 'c')] }],
   ['duplicate edge', { nodes: [node('a'), node('b')], edges: [edge('a', 'b'), edge('a', 'b')] }],
   ['invalid downstream options', { nodes: [node('a'), node('b', 42)], edges: [edge('a', 'b')] }],
   ['null options', { nodes: [{ ...node('a'), options: null }], edges: [] }],

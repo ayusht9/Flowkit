@@ -17,6 +17,18 @@ export const catalog = [
   { type: "image.resize", category: "Image", title: "Resize image", description: "Fit within dimensions, preserving aspect ratio", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" },
   { type: "image.preview", category: "Image", title: "Preview & download image", description: "Inspect and download the resized PNG", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
   {
+    type: "document.merge",
+    category: "Text",
+    title: "Merge documents",
+    description: "Combine 2–10 documents into one Word file",
+    inputType: "document",
+    outputType: "document",
+    icon: "arrow",
+    color: "teal",
+    group: "Pipe",
+    acceptsMany: true,
+  },
+  {
     type: "file.upload",
     category: "Text",
     title: "Upload document",
@@ -173,12 +185,9 @@ export function canConnect(connection, nodes, edges) {
     from.outputType !== to.inputType
   )
     return false;
-  if (
-    edges.some(
-      (edge) =>
-        edge.source === connection.source || edge.target === connection.target,
-    )
-  )
+  if (edges.some((edge) => edge.source === connection.source) ||
+      (!to.acceptsMany && edges.some((edge) => edge.target === connection.target)) ||
+      edges.some((edge) => edge.source === connection.source && edge.target === connection.target))
     return false;
   let id = connection.target;
   const visited = new Set();

@@ -3,7 +3,7 @@ import { catalog, canConnect } from "./catalog.mjs";
 export const nodeKinds = [
   { kind: "upload", title: "Upload", description: "Start with your input file", icon: "upload", color: "blue" },
   { kind: "process", title: "Process", description: "Choose a file type and operation", icon: "settings", color: "purple" },
-  { kind: "pipe", title: "Pipe", description: "Pass data to the next step unchanged", icon: "arrow", color: "teal" },
+  { kind: "pipe", title: "Pipe", description: "Merge documents or pass one file through", icon: "arrow", color: "teal" },
   { kind: "download", title: "Download", description: "Preview and download the result", icon: "download", color: "orange" },
 ];
 export const fileTypes = ["Image", "Text", "Audio", "Video"];
@@ -57,7 +57,7 @@ export function adaptNodes(nodes, edges, filename) {
       const options = processOptions(category, input?.outputType);
       if (!options.some((item) => item.type === operation)) operation = options[0]?.type || "";
     } else if (kind === "pipe") {
-      operation = `${input?.outputType || nodeItem(node).inputType || (category === "Text" ? "document" : category.toLowerCase())}.pipe`;
+      operation = node.data.operation === "document.merge" ? "document.merge" : `${input?.outputType || nodeItem(node).inputType || (category === "Text" ? "document" : category.toLowerCase())}.pipe`;
     } else if (kind === "download") {
       operation = category === "Text" ? (input?.outputType === "document" ? "document.preview" : "artifact.preview") : `${category.toLowerCase()}.preview`;
     }

@@ -21,14 +21,15 @@ export function validatePipeline(pipeline, registry) {
   }
 
   const next = new Map();
-  const previous = new Set();
+  const previous = new Map();
   for (const edge of pipeline.edges) {
     assertRecord(edge, 'Edge');
     if (!nodes.has(edge.source) || !nodes.has(edge.target)) {
       throw new TypeError('Every edge must reference existing nodes');
     }
-    if (next.has(edge.source) || previous.has(edge.target)) {
-      throw new TypeError('Only linear pipelines are supported; branching and merging are not allowed');
+    const targetDefinition = registry.get(nodes.get(edge.target).type);
+    if (next.has(edge.source) || (previous.has(edge.target) && !targetDefinition.acceptsMany)) {
+      throw new TypeError('Branching is not allowed; only merge operations accept multiple inputs');
     }
     const source = registry.get(nodes.get(edge.source).type);
     const target = registry.get(nodes.get(edge.target).type);
@@ -36,34 +37,37 @@ export function validatePipeline(pipeline, registry) {
       throw new TypeError(`Incompatible connection: ${edge.source} -> ${edge.target}`);
     }
     next.set(edge.source, edge.target);
-    previous.add(edge.target);
+    previous.set(edge.target, [...(previous.get(edge.target) || []), edge.source]);
   }
 
   const roots = [...nodes.keys()].filter(id => !previous.has(id));
-  if (roots.length !== 1) {
-    throw new TypeError('Pipeline must have one connected start node and no cycles');
-  }
+  if (!roots.length) throw new TypeError('Pipeline must have a connected start node and no cycles');
+  if ([...nodes.keys()].filter(id => !next.has(id)).length !== 1) throw new TypeError('Pipeline inputs must converge into one output');
   const ordered = [];
   const visited = new Set();
-  let id = roots[0];
-  while (id !== undefined && !visited.has(id)) {
-    visited.add(id);
-    ordered.push(nodes.get(id));
-    id = next.get(id);
+  const queue = [...roots];
+  while (queue.length) {
+    const id = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id); ordered.push(nodes.get(id));
+    const target = next.get(id);
+    if (target && previous.get(target).every(source => visited.has(source))) queue.push(target);
   }
-  if (ordered.length !== nodes.size || id !== undefined) {
+  if (ordered.length !== nodes.size) {
     throw new TypeError('Pipeline must be connected and contain no cycles');
   }
   return ordered;
 }
 
 /** Invalid definitions reject before execution; operation failures return a failed run. */
-export async function runPipeline(pipeline, registry, { input, signal, onEvent } = {}) {
+export async function runPipeline(pipeline, registry, { input, inputs, signal, onEvent } = {}) {
   const ordered = validatePipeline(pipeline, registry);
-  assertRecord(input, 'Pipeline input');
-  if (input.type !== registry.get(ordered[0].type).inputType || !Object.hasOwn(input, 'value')) {
-    throw new TypeError('Pipeline input must match the first operation input type and contain a value');
-  }
+  const edges = pipeline.edges;
+  const roots = ordered.filter(node => !edges.some(edge => edge.target === node.id));
+  const supplied = inputs || (roots.length === 1 ? { [roots[0].id]: input } : null);
+  assertRecord(supplied, 'Pipeline inputs');
+  for (const root of roots) if (supplied[root.id]?.type !== registry.get(root.type).inputType || !Object.hasOwn(supplied[root.id] || {}, 'value'))
+    throw new TypeError('Each pipeline start node requires a matching input');
   if (onEvent !== undefined && typeof onEvent !== 'function') {
     throw new TypeError('onEvent must be a function');
   }
@@ -76,7 +80,7 @@ export async function runPipeline(pipeline, registry, { input, signal, onEvent }
   // Observers receive copies; their exceptions reject the call instead of becoming tool errors.
   const emit = async event => { await onEvent?.(structuredClone(event)); };
   await emit({ type: 'pipeline.started' });
-  let value = input;
+  const outputs = new Map();
 
   for (let index = 0; index < ordered.length; index++) {
     const node = ordered[index];
@@ -89,9 +93,13 @@ export async function runPipeline(pipeline, registry, { input, signal, onEvent }
     const nodeStarted = performance.now();
     await emit({ type: 'node.started', nodeId: node.id });
     try {
-      value = await registry.execute(node.type, value, node.options, { signal });
+      const sources = edges.filter(edge => edge.target === node.id).map(edge => outputs.get(edge.source));
+      const definition = registry.get(node.type);
+      const value = sources.length ? (definition.acceptsMany ? { type: definition.inputType, value: sources.map(source => source.value) } : sources[0]) : supplied[node.id];
+      const output = await registry.execute(node.type, value, node.options, { signal });
+      outputs.set(node.id, output);
       state.status = 'succeeded';
-      state.output = value;
+      state.output = output;
     } catch (error) {
       state.status = signal?.aborted ? 'cancelled' : 'failed';
       state.error = error instanceof Error ? error.message : String(error);
@@ -105,7 +113,7 @@ export async function runPipeline(pipeline, registry, { input, signal, onEvent }
 
   if (result.status === 'running') {
     result.status = 'succeeded';
-    result.output = value;
+    result.output = outputs.get(ordered.at(-1).id);
   }
   for (const state of result.nodes) {
     if (state.status === 'pending') state.status = 'skipped';

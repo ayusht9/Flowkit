@@ -155,36 +155,35 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
             !Array.isArray(body.pipeline.edges) ||
             body.pipeline.edges.length > 20
           ) {
-            throw new TypeError("Provide a linear workflow with 1–20 nodes.");
+            throw new TypeError("Provide a workflow with 1–20 nodes.");
           }
           const ordered = validatePipeline(body.pipeline, registry);
+          const roots = ordered.filter((node) => !body.pipeline.edges.some((edge) => edge.target === node.id));
           if (
-            catalog.find((item) => item.type === ordered[0].type)?.group !== "Input" ||
-            ordered.filter((node) => catalog.find((item) => item.type === node.type)?.group === "Input").length !==
-              1 ||
+            roots.some((node) => catalog.find((item) => item.type === node.type)?.group !== "Input") ||
+            ordered.filter((node) => catalog.find((item) => item.type === node.type)?.group === "Input").length !== roots.length ||
             catalog.find((item) => item.type === ordered.at(-1).type)?.group !== "Output"
           ) {
             throw new TypeError(
-              "Connect one upload node to a compatible preview node.",
+              "Connect every upload node through a compatible workflow to one preview node.",
             );
           }
-          const input = body.input;
-          if (
-            !input ||
-            typeof input.data !== "string" ||
-            !input.data.length ||
-            input.data.length > 28 * 1024 * 1024 ||
-            Buffer.from(input.data, "base64").toString("base64") !== input.data
-          ) {
-            throw new TypeError(
-              "Upload a document before running the workflow.",
-            );
+          const provided = body.inputs || (roots.length === 1 && body.input ? { [roots[0].id]: body.input } : null);
+          if (!provided || typeof provided !== "object" || Array.isArray(provided) || Object.keys(provided).length !== roots.length)
+            throw new TypeError("Upload one file for every Upload node.");
+          const inputs = {};
+          let totalBytes = 0;
+          for (const root of roots) {
+            const input = provided[root.id];
+            if (!input || typeof input.name !== "string" || typeof input.data !== "string" || !input.data.length ||
+                input.data.length > 28 * 1024 * 1024 || Buffer.from(input.data, "base64").toString("base64") !== input.data)
+              throw new TypeError("Upload one valid file for every Upload node.");
+            const value = { name: input.name, data: Buffer.from(input.data, "base64") };
+            totalBytes += value.data.byteLength;
+            registry.get(root.type).validateInput(value);
+            inputs[root.id] = { type: registry.get(root.type).inputType, value };
           }
-          const value = {
-            name: input.name,
-            data: Buffer.from(input.data, "base64"),
-          };
-          registry.get(ordered[0].type).validateInput(value);
+          if (totalBytes > 20 * 1024 * 1024) throw new TypeError("Uploaded files must total 20 MiB or less.");
           response.writeHead(200, {
             "Content-Type": "application/x-ndjson",
             "Cache-Control": "no-store",
@@ -195,7 +194,7 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
               response.write(`${JSON.stringify(data)}\n`);
           };
           const result = await runPipeline(body.pipeline, registry, {
-            input: { type: registry.get(ordered[0].type).inputType, value },
+            inputs,
             signal: controller.signal,
             onEvent: send,
           });

@@ -66,6 +66,7 @@ function NodeGroupBadge({ group }) {
 
 // Subtitle helper
 function NodeSubtitle({ item, data }) {
+  if (item.type === "document.merge") return "Combine 2–10 documents into DOCX";
   if (item.group === "Pipe") return "Pass through unchanged";
   if (isUpload(item.type)) return data.filename || "Drop or upload a file";
   if (item.type === "document.toMarkdown") return "via Pandoc · Markdown";
@@ -244,7 +245,7 @@ function App() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorId, setAnchorId] = useState(null);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState({});
   const [result, setResult] = useState(null);
   const [events, setEvents] = useState([]);
   const [states, setStates] = useState({});
@@ -260,6 +261,7 @@ function App() {
   const [template, setTemplate] = useState("blank");
   const [showCanvasHint, setShowCanvasHint] = useState(true);
   const fileRef = useRef(null);
+  const pendingUploadId = useRef(null);
   const importRef = useRef(null);
   const abortRef = useRef(null);
   const menuRef = useRef(null);
@@ -268,6 +270,7 @@ function App() {
   const flow = useReactFlow();
   const selected = nodes.find((node) => node.id === selectedId);
   const selectedItem = selected ? nodeItem(selected) : null;
+  const file = files[selectedId] || Object.values(files)[0] || null;
   const output = result?.output?.value;
   const inputCategory = file ? fileCategory(file.name) : nodes.find((node) => isUpload(node.data.operation))?.data.fileType || "Text";
   const mediaOutput = isPreview(selected?.data.operation) && ["audio", "video"].includes(result?.output?.type) ? output : null;
@@ -331,8 +334,9 @@ function App() {
     setMessage("");
   }
 
-  async function chooseFile(candidate) {
+  async function chooseFile(candidate, uploadId) {
     if (!candidate || running) return;
+    if (!uploadId) return setMessage("Select an Upload node before choosing a file.");
     if (!/\.(png|jpe?g|docx|odt|html?|epub|md|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
       setMessage("Choose a supported document, image, audio (WAV/MP3/M4A), or video (MP4/MOV/WebM/MKV) file.");
       return;
@@ -348,8 +352,11 @@ function App() {
         reader.onerror = () => reject(new Error("Could not read this file."));
         reader.readAsDataURL(candidate);
       });
-      setFile({ name: candidate.name, data, size: candidate.size });
-      setNodes((current) => adaptNodes(current, edges, candidate.name));
+      setFiles((current) => ({ ...current, [uploadId]: { name: candidate.name, data, size: candidate.size } }));
+      const category = fileCategory(candidate.name);
+      const operation = category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`;
+      setNodes((current) => adaptNodes(current.map((node) => node.id === uploadId
+        ? { ...node, data: { ...node.data, fileType: category, operation } } : node), edges));
       invalidate();
     } catch (error) {
       setMessage(error.message);
@@ -375,6 +382,7 @@ function App() {
     setEdges((current) =>
       current.filter((edge) => edge.source !== id && edge.target !== id),
     );
+    setFiles((current) => { const next = { ...current }; delete next[id]; return next; });
     if (selectedId === id) {
       setSelectedId(null);
       setInspectorOpen(false);
@@ -389,43 +397,35 @@ function App() {
     if (!spec || typeof spec !== "object") return;
     const kind = nodeKinds.some((item) => item.kind === spec.kind) ? spec.kind : nodeKind({ data: { operation: spec.kind } });
     if (!kind) return;
-    if (kind === "upload") {
-      const existing = nodes.find((node) => nodeKind(node) === "upload");
-      if (existing) {
-        setSelectedId(existing.id);
-        setShowLibrary(false);
-        fileRef.current?.click();
-        return;
-      }
-    }
     const id = crypto.randomUUID();
     const anchor = nodes.find((node) => node.id === anchorId);
     const category = (anchor && outputCategory(nodeItem(anchor))) || spec.fileType || (file ? fileCategory(file.name) : "Text");
     const operation = spec.operation || (catalog.some((item) => item.type === spec.kind) ? spec.kind : {
       upload: category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`, process: processOptions(category)[0]?.type || "",
-      pipe: category === "Text" ? "document.pipe" : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
+      pipe: category === "Text" ? "document.merge" : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
     }[kind]);
     const location = position || (anchor ? { x: anchor.position.x + 300, y: anchor.position.y }
       : flow.screenToFlowPosition({ x: innerWidth / 2, y: innerHeight / 2 }));
     const candidates = [...nodes, { id, type: "operation", position: location,
       data: { kind, fileType: category, operation, options: defaultOptions(operation) } }];
-    const connection = anchor ? connectNodes({ source: anchor.id, target: id }, candidates, edges, file?.name) : null;
+    const connection = anchor ? connectNodes({ source: anchor.id, target: id }, candidates, edges) : null;
     if (anchor && !connection) { setMessage("Choose a compatible next step with an available connection."); return; }
-    setNodes(connection?.nodes || adaptNodes(candidates, edges, file?.name));
+    setNodes(connection?.nodes || adaptNodes(candidates, edges));
     if (connection) setEdges(connection.edges);
     setSelectedId(id); setShowLibrary(false); setInspectorOpen(false); setAnchorId(null); setInspectorTab("settings"); invalidate();
+    if (kind === "upload") { pendingUploadId.current = id; setTimeout(() => fileRef.current?.click(), 0); }
     if (anchor) setTimeout(() => flow.fitView({ padding: 0.3, maxZoom: 1.2, duration: 200 }), 50);
   }
   function changeProcess(id, changes) {
     if (running) return;
     setNodes((current) => adaptNodes(current.map((node) => node.id === id
-      ? { ...node, data: { ...node.data, ...changes, options: defaultOptions(changes.operation) } } : node), edges, file?.name));
+      ? { ...node, data: { ...node.data, ...changes, options: defaultOptions(changes.operation) } } : node), edges));
     invalidate();
   }
-  const isValidConnection = useCallback((connection) => Boolean(connectNodes(connection, nodes, edges, file?.name)), [nodes, edges, file]);
+  const isValidConnection = useCallback((connection) => Boolean(connectNodes(connection, nodes, edges)), [nodes, edges]);
   const connect = useCallback((connection) => {
     if (running) return;
-    const next = connectNodes(connection, nodes, edges, file?.name);
+    const next = connectNodes(connection, nodes, edges);
     if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
   }, [nodes, edges, running, file]);
 
@@ -433,7 +433,7 @@ function App() {
     const template = blank
       ? { name: "Untitled workflow", nodes: [], edges: [] }
       : media ? mediaWorkflow(media) : image ? imageWorkflow() : defaultWorkflow();
-    setFile(null);
+    setFiles({});
     setWorkflowId(null);
     setNodes(adaptNodes(template.nodes, template.edges));
     setEdges(template.edges);
@@ -518,7 +518,7 @@ function App() {
       setNodes(adaptNodes(imported.nodes, imported.edges));
       setEdges(imported.edges);
       setName(imported.name);
-      setFile(null);
+      setFiles({});
       setWorkflowId(null);
       setSelectedId(null);
       setShowLibrary(false);
@@ -531,8 +531,11 @@ function App() {
   }
 
   async function run() {
-    if (!file) {
-      setMessage(`Upload a ${inputCategory === "Text" ? "document" : inputCategory.toLowerCase() + " file"} before processing.`);
+    const uploads = nodes.filter((node) => isUpload(node.data.operation));
+    const missing = uploads.find((node) => !files[node.id]);
+    if (missing) {
+      setSelectedId(missing.id);
+      setMessage("Choose a file for every Upload node before processing.");
       return;
     }
     if (running) return;
@@ -547,7 +550,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pipeline: toPipeline(nodes, edges),
-          input: { name: file.name, data: file.data },
+          inputs: Object.fromEntries(uploads.map((node) => [node.id, { name: files[node.id].name, data: files[node.id].data }])),
         }),
         signal: controller.signal,
       });
@@ -637,7 +640,7 @@ function App() {
             states[node.id]?.status === "started"
               ? "running"
               : states[node.id]?.status,
-          filename: file?.name,
+          filename: files[node.id]?.name,
           running,
           inferred: edges.some((edge) => edge.target === node.id),
           inputType: nodeItem(nodes.find((source) => source.id === edges.find((edge) => edge.target === node.id)?.source)).outputType,
@@ -647,7 +650,7 @@ function App() {
             !isPreview(node.data.operation) &&
             !edges.some((edge) => edge.source === node.id),
           onAddAfter: () => openLibrary(node.id),
-          onUpload: () => fileRef.current?.click(),
+          onUpload: () => { pendingUploadId.current = node.id; fileRef.current?.click(); },
           onRemove: () => removeNode(node.id),
           onConfigure: () => {
             setSelectedId(node.id);
@@ -657,7 +660,7 @@ function App() {
           },
         },
       })),
-    [nodes, states, selectedId, file, edges, running],
+    [nodes, states, selectedId, files, edges, running],
   );
   const displayEdges = useMemo(
     () =>
@@ -936,15 +939,7 @@ function App() {
                   if (item.kind === "process") {
                     setPickerProcess((value) => !value);
                   } else if (item.kind === "upload") {
-                    const existingUpload = nodes.find((node) => nodeKind(node) === "upload");
-                    if (existingUpload) {
-                      setSelectedId(existingUpload.id);
-                      setShowLibrary(false);
-                      fileRef.current?.click();
-                    } else {
-                      addNode(spec);
-                      fileRef.current?.click();
-                    }
+                    addNode(spec);
                   } else {
                     addNode(spec);
                   }
@@ -1039,7 +1034,7 @@ function App() {
                 </div>
                 <div className="inspector-section">
                   <label className="field-label">Source {inputCategory === "Text" ? "document" : inputCategory.toLowerCase()}</label>
-                  <div className="source-summary" onClick={() => fileRef.current?.click()} style={{ cursor: "pointer" }} title="Click to choose a file">
+                  <div className="source-summary" onClick={() => { pendingUploadId.current = selectedId; fileRef.current?.click(); }} style={{ cursor: "pointer" }} title="Click to choose a file">
                     <Icon name={({ Image: "image", Audio: "audio", Video: "video", Text: "document" })[inputCategory]} size={20} />
                     <div><strong>{file?.name || "No file uploaded"}</strong>
                       <small>{file ? formatBytes(file.size) : "Click here to choose a file, or drop a file on the canvas."}</small>
@@ -1152,8 +1147,8 @@ function App() {
                               (edge) => edge.source !== selectedId,
                             );
                             const next = target
-                              ? connectNodes({ source: selectedId, target }, nodes, remaining, file?.name)
-                              : { nodes: adaptNodes(nodes, remaining, file?.name), edges: remaining };
+                              ? connectNodes({ source: selectedId, target }, nodes, remaining)
+                              : { nodes: adaptNodes(nodes, remaining), edges: remaining };
                             if (next) { setNodes(next.nodes); setEdges(next.edges); invalidate(); }
                           }}
                         >
@@ -1171,7 +1166,7 @@ function App() {
                                   edges.filter(
                                     (edge) => edge.source !== selectedId,
                                   ),
-                                  file?.name,
+                                  undefined,
                                 ),
                             )
                             .map((node) => (
@@ -1335,7 +1330,7 @@ function App() {
                 const entry = savedWorkflows.find((item) => item.id === event.target.value);
                 if (!entry) return;
                 setNodes(adaptNodes(entry.workflow.nodes, entry.workflow.edges)); setEdges(entry.workflow.edges); setName(entry.workflow.name);
-                setFile(null); setWorkflowId(entry.id); setSelectedId(null); setInspectorOpen(false);
+                setFiles({}); setWorkflowId(entry.id); setSelectedId(null); setInspectorOpen(false);
                 setShowLibrary(false); invalidate(); setSaved(true); setMenuOpen(false);
                 setTimeout(() => flow.fitView({ padding: 0.25 }), 50);
               }}>
@@ -1394,7 +1389,7 @@ function App() {
         accept=".png,.jpg,.jpeg,.docx,.odt,.html,.htm,.epub,.md,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
         hidden
         onChange={(event) => {
-          chooseFile(event.target.files[0]);
+          chooseFile(event.target.files[0], pendingUploadId.current);
           event.target.value = "";
         }}
       />

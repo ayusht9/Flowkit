@@ -118,3 +118,44 @@ export function createDocumentConversion(target, { executable = 'pandoc', timeou
     },
   };
 }
+
+export function createDocumentMerge({ executable = 'pandoc', timeoutMs = 30_000 } = {}) {
+  settings(executable, timeoutMs);
+  return {
+    inputType: 'document', outputType: 'document', acceptsMany: true,
+    validateInput(values) {
+      if (!Array.isArray(values) || values.length < 2 || values.length > 10) throw new TypeError('Merge requires 2–10 documents');
+      values.forEach(validateDocument);
+      if (new Set(values.map(value => extname(value.name).toLowerCase())).size !== 1) throw new TypeError('Merge documents must use the same file format');
+      if (values.reduce((total, value) => total + value.data.byteLength, 0) > maxInputBytes) throw new TypeError('Merged documents must total 20 MiB or less');
+    },
+    validateOutput(value) {
+      if (value?.name !== 'merged.docx' || !(value.data instanceof Uint8Array) || !value.data.byteLength || value.data.byteLength > maxOutputBytes) {
+        throw new TypeError('Expected merged DOCX output');
+      }
+    },
+    async run(input, options, { signal }) {
+      signal?.throwIfAborted();
+      const directory = await mkdtemp(join(tmpdir(), 'flowkit-pandoc-'));
+      try {
+        const sources = [];
+        for (const [index, value] of input.value.entries()) {
+          const extension = extname(value.name).toLowerCase();
+          const source = join(directory, `input-${index}${extension}`);
+          await writeFile(source, value.data, { signal, mode: 0o600 });
+          sources.push(source);
+        }
+        const destination = join(directory, 'merged.docx');
+        await execute(executable, ['--sandbox', '--to', 'docx', '--output', destination, ...sources, '+RTS', '-M512M', '-RTS'], {
+          cwd: directory, signal, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, windowsHide: true,
+        });
+        const data = await readFile(destination);
+        return { type: 'document', value: { name: 'merged.docx', data, mimeType: targets.docx.mimeType } };
+      } catch (error) {
+        conversionError(error, signal, timeoutMs);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  };
+}
