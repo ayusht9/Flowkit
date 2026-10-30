@@ -1,0 +1,126 @@
+================================================================================
+FLOWKIT MCP SERVER — 2.5-MINUTE DEMO PRESENTATION SCRIPT
+================================================================================
+
+TIMING OVERVIEW:
+- Part 1 (0:00 - 0:35): The Problem with AI Agents & Media
+- Part 2 (0:35 - 1:20): MCP Server Architecture, Security & 15 Tools
+- Part 3 (1:20 - 2:05): Live Verification Telemetry, Latency & Token Savings
+- Part 4 (2:05 - 2:35): The Companion Visual Workflow Studio
+- Part 5 (2:35 - 2:50): Conclusion & Getting Started
+
+================================================================================
+PART 1: THE PROBLEM WITH AI AGENTS & MEDIA (0:00 - 0:35)
+================================================================================
+[ACTION: Start on Landing Page http://127.0.0.1:3000/site/index.html at top hero section]
+
+"Hi everyone! Today I’m introducing FlowKit — an open-source, local Model Context 
+Protocol (MCP) server built specifically to give AI coding agents reliable, 
+sandboxed document and media processing superpowers.
+
+If you’ve ever asked an AI agent like Claude Code, Codex, or AGY to convert a 
+document, resize an image, or trim a video, you know how fragile it is. The agent 
+burns hundreds of tokens hallucinating complex Python or FFmpeg shell scripts, 
+which often fail, lack error handling, or create serious path-traversal security risks.
+
+FlowKit solves this by providing 15 typed, local MCP tools running over standard 
+stdio: Process files once, and let your agents reuse the tools deterministically."
+
+
+================================================================================
+PART 2: THE MCP SERVER ARCHITECTURE & CAPABILITIES (0:35 - 1:20)
+================================================================================
+[ACTION: Scroll down to Installation (#install) and Agent Setup (#agents) sections. 
+ Click between Codex, Claude Code, and AGY tabs]
+
+"Getting started takes literally five seconds. Running 'npm install -g flowkit-mcp' 
+installs the server locally with zero external API dependencies. 
+
+Under the hood, FlowKit bundles and orchestrates four trusted native engines: 
+Pandoc, ImageMagick, FFmpeg, and FFprobe.
+
+It connects natively to any MCP client — Codex, Claude, or Google Antigravity.
+
+When an agent needs to work with files, it calls typed tools like 
+'flowkit_document_to_markdown', 'flowkit_image_resize', or 'flowkit_video_extract_audio'. 
+
+FlowKit provides three critical architectural guarantees for agents:
+1. Strict Sandboxing: Directory escapes like '../../' are rejected at the protocol layer. 
+   The agent can never access files outside its workspace.
+2. Schema Validation: Bad flags or invalid dimensions are caught before execution.
+3. Bounded Previews: Instead of flooding the LLM's context window with megabytes of raw 
+   bytes, FlowKit creates relative artifact files and returns compact text previews."
+
+
+================================================================================
+PART 3: LIVE VERIFICATION, LATENCY & TOKEN SAVINGS (1:20 - 2:05)
+================================================================================
+[ACTION: Click the button '📊 View Test Results' to open the live Verification Modal]
+
+"We don’t just claim reliability — we prove it. FlowKit includes an automated test 
+runner and diagnostic doctor.
+
+[ACTION: In the modal, point to the 94.4% Pass Rate, then click through the Latency 
+ filters: 'Filesystem', 'Document', and 'Media']
+
+In our live automated test suite, 17 out of 18 test cases pass with a 94.4% success 
+rate across all 15 tools and security boundaries. 
+
+Notice the latency telemetry: filesystem reads take just 3 to 10 milliseconds, 
+Pandoc document conversions take 80 to 130 milliseconds, and FFmpeg media operations 
+finish in under 180 milliseconds.
+
+[ACTION: Click the '⚡ Token Efficiency' tab inside the modal]
+
+Now look at the Token Efficiency benchmark. 
+Because the agent calls structured tools rather than generating raw scripts, 
+marginal prompt payloads drop by over 74% per task. That directly translates to 
+smaller context windows, lower latency, and zero hallucinated commands.
+
+You can even download the full multi-sheet audit report as an Excel spreadsheet 
+right from this button."
+
+
+================================================================================
+PART 4: THE COMPANION VISUAL WORKFLOW STUDIO (2:05 - 2:35)
+================================================================================
+[ACTION: Close the modal (press Esc or click ✕) and switch tab to the Studio Canvas 
+ http://127.0.0.1:3000/]
+
+"To make testing and human inspection seamless, we also built the FlowKit Workflow 
+Studio.
+
+Here, developers can visually prototype the exact same pipelines that agents run. 
+We have an Upload node, a typed Transform node, and an Output node.
+
+[ACTION: Select your file in the Upload node, and click the red 'Run' button in the 
+ top right]
+
+I'll select a file and click Run. FlowKit executes the exact same underlying native 
+pipeline, streams real-time status updates, and gives us an instant preview and 
+download artifact right on the canvas. 
+
+If it works here, you know with 100% certainty that your AI agent will execute it 
+flawlessly."
+
+
+================================================================================
+PART 5: CONCLUSION & GET STARTED (2:35 - 2:50)
+================================================================================
+[ACTION: Switch back to the landing page or GitHub repo tab]
+
+"FlowKit turns messy media and document tasks into typed, repeatable, and sandboxed 
+MCP tools for the next generation of AI agents.
+
+You can install the MCP server today with 'npm install -g flowkit-mcp' or try the 
+workflow studio at flowkit-ruddy.vercel.app.
+
+Thank you!"
+
+================================================================================
+PRESENTER TIPS:
+- Pacing: Speak naturally at ~130 words per minute.
+- Pauses: Give a 1-second pause after clicking 'Run' and after opening the Test 
+  Results modal to let the audience see the live UI.
+- Preparation: Have your sample file ready in your file picker before starting.
+================================================================================
