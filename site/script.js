@@ -49,7 +49,67 @@ const mcpTestData = {
   ]
 };
 
-// ── 1. Installation Methods ──
+// ── 1. Modal Dialog Logic (Open on Click) ──
+const modal = document.querySelector("#test-results-modal");
+const closeModalBtn = document.querySelector("#close-modal-btn");
+
+function openModal(targetTab = "charts") {
+  if (!modal) return;
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden"; // Prevent background scrolling
+  switchModalTab(targetTab);
+}
+
+function closeModal() {
+  if (!modal) return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+}
+
+function switchModalTab(tabId) {
+  document.querySelectorAll(".modal-tab-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.modalTab === tabId);
+  });
+  document.querySelectorAll(".modal-tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `modal-tab-${tabId}`);
+  });
+}
+
+// Attach click listeners to all open-modal trigger buttons
+document.querySelectorAll(".open-results-modal-btn").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const target = btn.dataset.targetTab || "charts";
+    openModal(target);
+  });
+});
+
+if (closeModalBtn) {
+  closeModalBtn.addEventListener("click", closeModal);
+}
+
+// Close on backdrop click (outside modal window)
+if (modal) {
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+}
+
+// Close on Escape key
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && modal?.classList.contains("open")) {
+    closeModal();
+  }
+});
+
+// Modal internal tab switcher
+document.querySelectorAll(".modal-tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => switchModalTab(btn.dataset.modalTab));
+});
+
+// ── 2. Installation Methods ──
 const installMethods = {
   global: {
     label: "Global npm install",
@@ -77,10 +137,10 @@ let activeInstall = "global";
 function showInstall(name) {
   activeInstall = name;
   const item = installMethods[name];
-  if (!item) return;
+  if (!item || !installCode) return;
   installCode.textContent = item.command;
-  installLabel.textContent = item.label;
-  installNote.textContent = item.note;
+  if (installLabel) installLabel.textContent = item.label;
+  if (installNote) installNote.textContent = item.note;
   document.querySelectorAll("[data-install]").forEach((tab) => {
     tab.setAttribute("aria-selected", String(tab.dataset.install === name));
   });
@@ -107,7 +167,7 @@ if (copyInstallBtn) {
 }
 showInstall("global");
 
-// ── 2. Render Native Engines ──
+// ── 3. Render Native Engines ──
 function renderEngines() {
   const container = document.querySelector("#engine-items");
   if (!container) return;
@@ -127,14 +187,13 @@ function renderEngines() {
     .join("");
 }
 
-// ── 3. Render Latency Bar Chart (Interactive Graph) ──
+// ── 4. Render Latency Bar Chart (Interactive Graph) ──
 let activeChartFilter = "all";
 
 function renderLatencyChart() {
   const container = document.querySelector("#latency-bars-container");
   if (!container) return;
 
-  // Filter out non-tool tests and optional failing ones for execution latency chart
   let items = mcpTestData.testCases.filter(
     (tc) => tc.category !== "Security" && tc.status === "PASS"
   );
@@ -147,9 +206,7 @@ function renderLatencyChart() {
     items = items.filter((tc) => tc.category === "Image" || tc.category === "Audio/Video");
   }
 
-  // Sort by duration ascending
   items.sort((a, b) => a.durationMs - b.durationMs);
-
   const maxDuration = Math.max(...items.map((i) => i.durationMs), 200);
 
   container.innerHTML = `
@@ -188,7 +245,7 @@ document.querySelectorAll("[data-chart-filter]").forEach((btn) => {
   });
 });
 
-// ── 4. Render Test Execution Matrix Table ──
+// ── 5. Render Test Execution Matrix Table ──
 let activeTableFilter = "all";
 let tableSearchQuery = "";
 
@@ -255,12 +312,12 @@ if (searchInput) {
   });
 }
 
-// ── 5. Render Token Comparison Visual Bars ──
+// ── 6. Render Token Comparison Visual Bars ──
 function renderTokenComparison() {
   const container = document.querySelector("#token-comparison-bars");
   if (!container) return;
 
-  const maxVal = 120; // token bar scale max
+  const maxVal = 120;
 
   container.innerHTML = mcpTestData.tokenBenchmarks
     .map((bm) => {
@@ -292,7 +349,7 @@ function renderTokenComparison() {
     .join("");
 }
 
-// ── 6. CLI Verification Snippets ──
+// ── 7. CLI Verification Snippets (Front Page Terminal) ──
 const testMethods = {
   doctor: {
     label: "flowkit-mcp --doctor",
@@ -355,7 +412,7 @@ if (copyTestBtn) {
 }
 showTest("doctor");
 
-// ── 7. Agent Clients Setup ──
+// ── 8. Agent Clients Setup ──
 const clients = {
   codex: {
     label: "Codex CLI",
@@ -418,7 +475,7 @@ if (clientCopy) {
 }
 showClient(activeClient);
 
-// ── 8. Benchmark Copy ──
+// ── 9. Benchmark Copy ──
 const benchmarkCopy = document.querySelector("#copy-benchmark");
 if (benchmarkCopy) {
   benchmarkCopy.addEventListener("click", async () => {

@@ -11,15 +11,16 @@
     <a class="brand" href="#top" aria-label="FlowKit home"><img src="flowkit.svg?v=20261029" alt="" width="34" height="34"><span>FlowKit</span></a>
     <nav aria-label="Primary navigation">
       <a href="#install">Installation</a>
-      <a href="#testing">Test Results</a>
-      <a href="#latency">Latency Chart</a>
+      <a href="#testing">Testing</a>
       <a href="#benchmark">Benchmark</a>
       <a href="#agents">Agent setup</a>
+      <button type="button" class="nav-results-btn open-results-modal-btn">Test Results</button>
       <a href="https://github.com/ayusht9/Flowkit">GitHub</a>
       <a class="nav-cta" href="https://flowkit-ruddy.vercel.app">Open FlowKit</a>
     </nav>
   </header>
   <main id="top">
+    <!-- Hero Section -->
     <section class="hero">
       <div class="hero-copy">
         <p class="status"><span></span>Visual workflows + local MCP</p>
@@ -28,7 +29,7 @@
         <div class="hero-actions">
           <a class="button primary" href="https://flowkit-ruddy.vercel.app">Launch the workflow studio</a>
           <a class="button secondary" href="#install">Install MCP Server</a>
-          <a class="button secondary" href="#testing">View Test Results</a>
+          <button type="button" class="button secondary open-results-modal-btn">📊 View Test Results</button>
         </div>
       </div>
       <div class="workflow-stage" aria-label="Example FlowKit workflow">
@@ -42,6 +43,7 @@
       </div>
     </section>
 
+    <!-- Capabilities Bar -->
     <section class="capabilities" aria-label="FlowKit capabilities">
       <article><span>Document</span><strong>DOCX · HTML · EPUB → Markdown</strong></article>
       <article><span>Image</span><strong>Resize PNG and JPEG</strong></article>
@@ -86,184 +88,63 @@
       </div>
     </section>
 
-    <!-- MCP Test Results & Diagnostics Dashboard Section -->
-    <section class="testing-dashboard-section" id="testing" aria-labelledby="testing-heading">
-      <div class="section-intro">
-        <div>
-          <p class="status"><span></span>Automated Test Suite & Live Diagnostics</p>
-          <h2 id="testing-heading">Verified, benchmarked, and ready for agents.</h2>
-        </div>
-        <p class="intro-description">
-          Real execution results from the automated FlowKit MCP test suite. All 15 typed tools and security sandboxing boundaries are executed against live local engines with millisecond latency tracking.
-        </p>
-      </div>
-
-      <!-- Executive Test Summary Cards (Dynamically populated) -->
-      <div class="summary-cards-grid" id="summary-cards">
-        <div class="summary-card">
-          <div class="summary-card-val" id="metric-pass-rate">94.4%</div>
-          <div class="summary-card-label">Pass Rate (17 / 18 Tests)</div>
-          <div class="summary-card-sub">1 optional PDF engine requirement</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-card-val" id="metric-total-tools">15 / 15</div>
-          <div class="summary-card-label">MCP Tools Registered</div>
-          <div class="summary-card-sub">Typed schemas with bounded output</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-card-val" id="metric-engines">4 / 4 Ready</div>
-          <div class="summary-card-label">Native Engines Active</div>
-          <div class="summary-card-sub">Pandoc, ImageMagick, FFmpeg, FFprobe</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-card-val" id="metric-security">3 / 3 Passed</div>
-          <div class="summary-card-label">Security & Sandboxing</div>
-          <div class="summary-card-sub">Path escapes & injections blocked</div>
-        </div>
-      </div>
-
-      <!-- Download Excel Report Banner -->
-      <div class="report-action-banner">
-        <div class="banner-text">
-          <strong>Download Full Test & Verification Excel Report</strong>
-          <span>Complete multi-sheet workbook with executive summary, per-tool latency telemetry, security sandboxing matrix, and token benchmarks.</span>
-        </div>
-        <a class="button primary download-btn" href="Flowkit_MCP_Installation_and_Testing_Report.xlsx" download="Flowkit_MCP_Installation_and_Testing_Report.xlsx">
-          <span class="btn-icon">📥</span> Download Report (.xlsx)
-        </a>
-      </div>
-
-      <!-- Visual Charts Grid: Latency Bar Chart & Pass Rate / Engines Gauge -->
-      <div class="charts-grid" id="latency">
-        <!-- Latency Bar Chart Card -->
-        <div class="chart-card latency-chart-card">
-          <div class="chart-header">
-            <div>
-              <h3>Tool Execution Latency (ms)</h3>
-              <p class="chart-subtitle">Measured execution time per tool call over stdio transport</p>
+    <!-- MCP Testing & Verification Section (Clean Front Page Overview) -->
+    <section class="mcp-section testing-section" id="testing" aria-labelledby="testing-heading">
+      <div class="mcp-copy">
+        <p class="status"><span></span>Testing & Verification</p>
+        <h2 id="testing-heading">Tested, verified, and benchmarked.</h2>
+        <p>Never guess whether tools and native processors are ready. FlowKit tests all 15 typed operations across Pandoc, ImageMagick, and FFmpeg with rigorous sandboxing and latency tracking.</p>
+        
+        <!-- Clean High-Level Overview Card -->
+        <div class="front-test-card">
+          <div class="front-stats-row">
+            <div class="front-stat-item">
+              <strong class="stat-highlight">94.4%</strong>
+              <span>Pass Rate (17 / 18)</span>
             </div>
-            <div class="chart-controls">
-              <button class="chart-filter-btn active" data-chart-filter="all">All (14)</button>
-              <button class="chart-filter-btn" data-chart-filter="Filesystem">Filesystem</button>
-              <button class="chart-filter-btn" data-chart-filter="Document">Document</button>
-              <button class="chart-filter-btn" data-chart-filter="Media">Media</button>
+            <div class="front-stat-item">
+              <strong>15 Tools</strong>
+              <span>Registered & Typed</span>
+            </div>
+            <div class="front-stat-item">
+              <strong>4 Engines</strong>
+              <span>Pandoc, Magick, FFmpeg</span>
             </div>
           </div>
-          <!-- Dynamic SVG/CSS Bar Chart Container -->
-          <div class="chart-body" id="latency-bars-container">
-            <!-- Rendered by script.js -->
-          </div>
-          <div class="chart-legend">
-            <span><i class="legend-dot dot-teal"></i> Filesystem (3-11ms)</span>
-            <span><i class="legend-dot dot-purple"></i> Document (83-169ms)</span>
-            <span><i class="legend-dot dot-blue"></i> Image (179ms)</span>
-            <span><i class="legend-dot dot-orange"></i> Audio/Video (155-184ms)</span>
-          </div>
-        </div>
-
-        <!-- Donut & Engine Health Card -->
-        <div class="chart-card engine-health-card">
-          <div class="chart-header">
-            <div>
-              <h3>Test Pass Distribution & Engines</h3>
-              <p class="chart-subtitle">Diagnostic health & native processor readiness</p>
-            </div>
-          </div>
-          <div class="donut-and-engines">
-            <!-- Donut Visual -->
-            <div class="donut-wrapper">
-              <svg class="donut-svg" viewBox="0 0 160 160" width="140" height="140">
-                <circle class="donut-bg" cx="80" cy="80" r="64" />
-                <circle class="donut-segment pass-segment" cx="80" cy="80" r="64" />
-                <circle class="donut-segment optional-segment" cx="80" cy="80" r="64" />
-              </svg>
-              <div class="donut-center">
-                <strong id="donut-pct">94.4%</strong>
-                <small>Pass Rate</small>
-              </div>
-            </div>
-            <!-- Test Breakdown Legend -->
-            <div class="donut-legend">
-              <div class="legend-item"><span class="legend-pill pill-pass"></span> <strong>17 Passed</strong> (94.4%)</div>
-              <div class="legend-item"><span class="legend-pill pill-optional"></span> <strong>1 Optional</strong> (PDF engine)</div>
-              <div class="legend-item"><span class="legend-pill pill-zero"></span> <strong>0 Critical Failures</strong></div>
-            </div>
-          </div>
-
-          <div class="engine-status-list">
-            <h4>Native Engine Verification</h4>
-            <div class="engine-items-grid" id="engine-items">
-              <!-- Dynamically populated by script.js -->
-            </div>
+          
+          <div class="front-card-actions">
+            <button type="button" class="button primary open-results-modal-btn">
+              <span>📊 View Test Results & Charts</span>
+            </button>
+            <a class="button secondary" href="Flowkit_MCP_Installation_and_Testing_Report.xlsx" download="Flowkit_MCP_Installation_and_Testing_Report.xlsx">
+              <span>📥 Download Report (.xlsx)</span>
+            </a>
           </div>
         </div>
       </div>
-
-      <!-- Interactive Test Results Matrix / Table -->
-      <div class="matrix-card">
-        <div class="matrix-header">
-          <div>
-            <h3>Automated Test Execution Matrix</h3>
-            <p class="chart-subtitle">Individual test case telemetry, required engines, and output validation</p>
-          </div>
-          <div class="matrix-filters">
-            <div class="filter-pills" role="tablist">
-              <button class="pill-btn active" data-table-filter="all">All Tests (18)</button>
-              <button class="pill-btn" data-table-filter="Document">Document (6)</button>
-              <button class="pill-btn" data-table-filter="Filesystem">Filesystem (2)</button>
-              <button class="pill-btn" data-table-filter="Image">Image (1)</button>
-              <button class="pill-btn" data-table-filter="Audio/Video">Audio & Video (4)</button>
-              <button class="pill-btn" data-table-filter="Security">Security (3)</button>
-            </div>
-            <input type="text" id="table-search" class="table-search-input" placeholder="Search test or tool..." aria-label="Search test cases">
-          </div>
+      
+      <div class="terminal-container">
+        <div class="terminal-tabs" role="tablist" aria-label="Testing methods">
+          <button role="tab" aria-selected="true" data-test="doctor">flowkit-mcp --doctor</button>
+          <button role="tab" aria-selected="false" data-test="runner">test runner</button>
+          <button role="tab" aria-selected="false" data-test="suite">npm test (71 tests)</button>
+          <button role="tab" aria-selected="false" data-test="inspector">MCP Inspector</button>
         </div>
-
-        <div class="table-container">
-          <table class="results-table">
-            <thead>
-              <tr>
-                <th>Test ID</th>
-                <th>Tool / Test Name</th>
-                <th>Category</th>
-                <th>Status</th>
-                <th>Duration</th>
-                <th>Engine / Layer</th>
-                <th>Verification Summary</th>
-              </tr>
-            </thead>
-            <tbody id="test-results-tbody">
-              <!-- Rendered dynamically by script.js -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Reproducible CLI Diagnostics Terminal (Clean real logs, no fake simulation) -->
-      <div class="cli-verification-block">
-        <div class="terminal-container">
-          <div class="terminal-tabs" role="tablist" aria-label="Testing methods">
-            <button role="tab" aria-selected="true" data-test="doctor">flowkit-mcp --doctor</button>
-            <button role="tab" aria-selected="false" data-test="runner">node test_mcp_full.mjs</button>
-            <button role="tab" aria-selected="false" data-test="suite">npm test (71 unit tests)</button>
-            <button role="tab" aria-selected="false" data-test="inspector">MCP Inspector</button>
+        <div class="terminal" aria-label="MCP testing console">
+          <div class="terminal-head">
+            <span id="test-label">Diagnostic Health Check Doctor</span>
+            <button id="copy-test" type="button">Copy</button>
           </div>
-          <div class="terminal" aria-label="MCP testing console">
-            <div class="terminal-head">
-              <span id="test-label">Diagnostic Health Check Doctor</span>
-              <button id="copy-test" type="button">Copy</button>
-            </div>
-            <pre><code id="test-command"></code></pre>
-            <div class="terminal-foot">
-              <span id="test-note">Checks Node runtime, workspace directory, and all 4 native processors</span>
-              <span class="test-status-ready">Verified 100% Operational</span>
-            </div>
+          <pre><code id="test-command"></code></pre>
+          <div class="terminal-foot">
+            <span id="test-note">Checks Node runtime, workspace directory, and all 4 native processors</span>
+            <span class="test-status-ready">Verified Operational</span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Token Benchmark Section with Visual Comparison Graph -->
+    <!-- Token Benchmark Section -->
     <section class="benchmark-section" id="benchmark" aria-labelledby="benchmark-heading">
       <div class="benchmark-intro">
         <div>
@@ -279,21 +160,10 @@
         <article><strong id="metric-breakeven">12 rounds</strong><span>estimated break-even point</span></article>
       </div>
 
-      <!-- Visual Token Comparison Chart -->
-      <div class="token-comparison-container">
-        <div class="token-comparison-header">
-          <h3>Marginal Token Payload Comparison</h3>
-          <p>Tokens per task: LLM Script Generation vs FlowKit Typed MCP Call</p>
-        </div>
-        <div class="token-comparison-bars" id="token-comparison-bars">
-          <!-- Rendered dynamically by script.js -->
-        </div>
-      </div>
-
       <div class="benchmark-actions">
         <code id="benchmark-command">npm run benchmark:mcp</code>
         <button id="copy-benchmark" type="button">Copy command</button>
-        <a class="text-link" href="https://github.com/ayusht9/Flowkit/blob/main/benchmarks/mcp-token-benchmark.mjs">View benchmark source <span>↗</span></a>
+        <button type="button" class="benchmark-modal-btn open-results-modal-btn" data-target-tab="tokens">View token comparison graph ↗</button>
       </div>
       <p class="benchmark-caveat">At ten rounds, the full 15-tool schema costs 12.5% more estimated context than the conservative baseline. Savings begin after the schema is reused across enough operations.</p>
     </section>
@@ -319,6 +189,182 @@
       </div>
     </section>
   </main>
+
+  <!-- Interactive Test Results & Latency Modal Dialog (Appears on click) -->
+  <div id="test-results-modal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-window">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-badge">MCP Automated Test Report</div>
+          <h2 id="modal-title">FlowKit MCP Verification & Performance</h2>
+          <p class="modal-subtitle">18 automated tests · 15 typed tools · 4 native processors · End-to-end stdio transport</p>
+        </div>
+        <div class="modal-header-actions">
+          <a class="modal-download-btn" href="Flowkit_MCP_Installation_and_Testing_Report.xlsx" download="Flowkit_MCP_Installation_and_Testing_Report.xlsx">
+            <span>📥 Download Excel</span>
+          </a>
+          <button type="button" class="modal-close-btn" id="close-modal-btn" aria-label="Close dialog">✕</button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs Inside Modal -->
+      <div class="modal-tabs" role="tablist" aria-label="Report Views">
+        <button role="tab" class="modal-tab-btn active" data-modal-tab="charts">📊 Latency & Engines</button>
+        <button role="tab" class="modal-tab-btn" data-modal-tab="table">📋 Test Matrix (18 Tests)</button>
+        <button role="tab" class="modal-tab-btn" data-modal-tab="tokens">⚡ Token Efficiency</button>
+      </div>
+
+      <!-- Modal Body Content -->
+      <div class="modal-content">
+        <!-- Tab 1: Latency Bar Chart, Summary Cards & Engine Health -->
+        <div class="modal-tab-panel active" id="modal-tab-charts">
+          <!-- Summary Cards Grid -->
+          <div class="summary-cards-grid">
+            <div class="summary-card">
+              <div class="summary-card-val">94.4%</div>
+              <div class="summary-card-label">Pass Rate</div>
+              <div class="summary-card-sub">17 / 18 tests passed</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-val">15 / 15</div>
+              <div class="summary-card-label">MCP Tools Ready</div>
+              <div class="summary-card-sub">Typed schemas & bounded output</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-val">4 / 4 Active</div>
+              <div class="summary-card-label">Native Engines</div>
+              <div class="summary-card-sub">Pandoc, Magick, FFmpeg, FFprobe</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-val">3 / 3 Passed</div>
+              <div class="summary-card-label">Security Boundaries</div>
+              <div class="summary-card-sub">Path traversal & bounds validated</div>
+            </div>
+          </div>
+
+          <!-- Charts Grid (Latency Bar Chart & Engines Status) -->
+          <div class="charts-grid">
+            <!-- Latency Bar Chart Card -->
+            <div class="chart-card latency-chart-card">
+              <div class="chart-header">
+                <div>
+                  <h3>Tool Execution Latency (ms)</h3>
+                  <p class="chart-subtitle">Measured execution time per tool call over stdio transport</p>
+                </div>
+                <div class="chart-controls">
+                  <button class="chart-filter-btn active" data-chart-filter="all">All (14)</button>
+                  <button class="chart-filter-btn" data-chart-filter="Filesystem">Filesystem</button>
+                  <button class="chart-filter-btn" data-chart-filter="Document">Document</button>
+                  <button class="chart-filter-btn" data-chart-filter="Media">Media</button>
+                </div>
+              </div>
+              <div class="chart-body" id="latency-bars-container">
+                <!-- Rendered dynamically by script.js -->
+              </div>
+              <div class="chart-legend">
+                <span><i class="legend-dot dot-teal"></i> Filesystem (3-11ms)</span>
+                <span><i class="legend-dot dot-purple"></i> Document (83-169ms)</span>
+                <span><i class="legend-dot dot-blue"></i> Image (179ms)</span>
+                <span><i class="legend-dot dot-orange"></i> Audio/Video (155-184ms)</span>
+              </div>
+            </div>
+
+            <!-- Donut Pass Distribution & Engine Status Card -->
+            <div class="chart-card engine-health-card">
+              <div class="chart-header">
+                <div>
+                  <h3>Pass Rate & Engines</h3>
+                  <p class="chart-subtitle">Diagnostic health & engine readiness</p>
+                </div>
+              </div>
+              <div class="donut-and-engines">
+                <div class="donut-wrapper">
+                  <svg class="donut-svg" viewBox="0 0 160 160" width="130" height="130">
+                    <circle class="donut-bg" cx="80" cy="80" r="64" />
+                    <circle class="donut-segment pass-segment" cx="80" cy="80" r="64" />
+                    <circle class="donut-segment optional-segment" cx="80" cy="80" r="64" />
+                  </svg>
+                  <div class="donut-center">
+                    <strong>94.4%</strong>
+                    <small>Pass Rate</small>
+                  </div>
+                </div>
+                <div class="donut-legend">
+                  <div class="legend-item"><span class="legend-pill pill-pass"></span> <strong>17 Passed</strong> (94.4%)</div>
+                  <div class="legend-item"><span class="legend-pill pill-optional"></span> <strong>1 Optional</strong> (PDF)</div>
+                  <div class="legend-item"><span class="legend-pill pill-zero"></span> <strong>0 Critical Failures</strong></div>
+                </div>
+              </div>
+
+              <div class="engine-status-list">
+                <h4>Native Engine Verification</h4>
+                <div class="engine-items-grid" id="engine-items">
+                  <!-- Dynamically populated by script.js -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Test Matrix Table -->
+        <div class="modal-tab-panel" id="modal-tab-table">
+          <div class="matrix-card">
+            <div class="matrix-header">
+              <div>
+                <h3>Automated Test Execution Matrix</h3>
+                <p class="chart-subtitle">Individual test case telemetry, required engines, and output validation</p>
+              </div>
+              <div class="matrix-filters">
+                <div class="filter-pills" role="tablist">
+                  <button class="pill-btn active" data-table-filter="all">All Tests (18)</button>
+                  <button class="pill-btn" data-table-filter="Document">Document (6)</button>
+                  <button class="pill-btn" data-table-filter="Filesystem">Filesystem (2)</button>
+                  <button class="pill-btn" data-table-filter="Image">Image (1)</button>
+                  <button class="pill-btn" data-table-filter="Audio/Video">Audio & Video (4)</button>
+                  <button class="pill-btn" data-table-filter="Security">Security (3)</button>
+                </div>
+                <input type="text" id="table-search" class="table-search-input" placeholder="Search test or tool..." aria-label="Search test cases">
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="results-table">
+                <thead>
+                  <tr>
+                    <th>Test ID</th>
+                    <th>Tool / Test Name</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>Engine / Layer</th>
+                    <th>Verification Summary</th>
+                  </tr>
+                </thead>
+                <tbody id="test-results-tbody">
+                  <!-- Rendered dynamically by script.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Token Efficiency -->
+        <div class="modal-tab-panel" id="modal-tab-tokens">
+          <div class="token-comparison-container">
+            <div class="token-comparison-header">
+              <h3>Marginal Token Payload Comparison</h3>
+              <p>Tokens per task: LLM Script Generation vs FlowKit Typed MCP Call (-74.6% average reduction)</p>
+            </div>
+            <div class="token-comparison-bars" id="token-comparison-bars">
+              <!-- Rendered dynamically by script.js -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <a class="brand" href="#top"><img src="flowkit.svg?v=20261029" alt="" width="28" height="28"><span>FlowKit</span></a>
     <p>Prebuilt operations for smaller prompts and repeatable results.</p>
