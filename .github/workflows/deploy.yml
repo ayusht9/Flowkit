@@ -23,11 +23,20 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y pandoc imagemagick ffmpeg
+      - run: sudo apt-get update && sudo apt-get install -y imagemagick ffmpeg
+      - name: Install the same sandbox-capable Pandoc build as the container
+        env:
+          PANDOC_VERSION: '3.13'
+          PANDOC_SHA256: 38aa33b325a2bc96a4c39409631212db55702f564250bcdbead180b3bf646389
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz" -o "$RUNNER_TEMP/pandoc.tar.gz"
+          echo "${PANDOC_SHA256}  $RUNNER_TEMP/pandoc.tar.gz" | sha256sum -c -
+          sudo tar -xzf "$RUNNER_TEMP/pandoc.tar.gz" --strip-components=1 -C /usr/local
       - run: npm ci
       - run: npm test
         env:
-          PANDOC_PATH: /usr/bin/pandoc
+          PANDOC_PATH: /usr/local/bin/pandoc
           IMAGEMAGICK_PATH: /usr/bin/convert
       - run: npm run build
       - run: npx playwright install --with-deps chromium
