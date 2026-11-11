@@ -524,7 +524,7 @@ function App() {
     const category = (anchor && outputCategory(nodeItem(anchor))) || spec.fileType || (file ? fileCategory(file.name) : "Text");
     const operation = spec.operation || (catalog.some((item) => item.type === spec.kind) ? spec.kind : {
       upload: category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`, process: processOptions(category)[0]?.type || "",
-      pipe: category === "Text" ? "document.merge" : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
+      pipe: category === "Text" ? (anchor && nodeItem(anchor).outputType === "markdown" ? "markdown.pipe" : "document.merge") : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
     }[kind]);
     const location = position || (anchor ? { x: anchor.position.x + 300, y: anchor.position.y }
       : flow.screenToFlowPosition({ x: innerWidth / 2, y: innerHeight / 2 }));

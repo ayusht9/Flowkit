@@ -25,7 +25,7 @@ test("Add Node offers four stages and Process configures file type above operati
   await page.getByRole("button", { name: "Add node", exact: true }).click();
   const library = page.getByLabel("Node library", { exact: true });
   await expect(library.locator(".palette-node strong")).toHaveText(["Upload", "Process", "Pipe", "Download"]);
-  await expect(library.getByRole("button", { name: "Upload", exact: true })).toBeDisabled();
+  await expect(library.getByRole("button", { name: "Upload", exact: true })).toBeEnabled();
   await library.getByRole("button", { name: "Process", exact: true }).click();
   const config = page.getByLabel("Configure Process");
   await expect(config.getByLabel("File type", { exact: true })).toHaveValue("Text");
@@ -39,7 +39,7 @@ test("Add Node offers four stages and Process configures file type above operati
   await expect(process.getByLabel("File type", { exact: true })).toHaveValue("Image");
   await process.getByLabel("File type", { exact: true }).selectOption("Video");
   await expect(process.getByLabel("Operation", { exact: true })).toHaveValue("video.trim");
-  await expect(page.locator(".operation-node")).toHaveCount(5);
+  await expect(page.locator(".operation-node")).toHaveCount(4);
   expect(errors).toEqual([]);
 });
 
@@ -60,7 +60,9 @@ test("Upload infers Process type and a Pipe/Download chain executes after changi
   await page.getByRole("button", { name: "Add after Pipe", exact: true }).click();
   await page.getByLabel("Node library", { exact: true }).getByRole("button", { name: "Download", exact: true }).click();
   const upload = page.locator('input[type=file][accept*=".png"]');
-  await upload.setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: sampleImage });
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.locator('.react-flow__node').filter({ hasText: "Upload document" }).locator('.card-icon-ring').click();
+  await (await chooserPromise).setFiles({ name: "photo.png", mimeType: "image/png", buffer: sampleImage });
   const process = page.locator(".react-flow__node").filter({ has: page.locator(".card-selectors") });
   await expect(process.getByLabel("File type", { exact: true })).toHaveValue("Image");
   await expect(process.getByLabel("Operation", { exact: true })).toHaveValue("image.resize");
@@ -69,8 +71,8 @@ test("Upload infers Process type and a Pipe/Download chain executes after changi
   await process.locator(".card-body").click();
   await page.getByLabel("Maximum width (px)").fill("40");
   await page.getByLabel("Maximum height (px)").fill("40");
-  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
-  await expect(page.getByAltText("Resized image", { exact: true })).toBeVisible();
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Run", exact: true }).click();
+  await expect(page.getByAltText("Processed image", { exact: true })).toBeVisible();
   await expect(page.getByText("40 × 20 pixels", { exact: true })).toBeVisible();
   await expect(page.locator(".node-success")).toHaveCount(4);
   await page.screenshot({ path: "test-results/four-stage-image-pipeline.png", fullPage: true });
@@ -80,6 +82,6 @@ test("Upload infers Process type and a Pipe/Download chain executes after changi
   await upload.setInputFiles({ name: "report.html", mimeType: "text/html", buffer: Buffer.from("<h1>Switched to text</h1>") });
   await expect(process.getByLabel("File type", { exact: true })).toHaveValue("Text");
   await expect(process.getByLabel("Operation", { exact: true })).toHaveValue("document.toMarkdown");
-  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Process", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workflow actions" }).getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByLabel("Markdown output", { exact: true })).toContainText("# Switched to text");
 });
