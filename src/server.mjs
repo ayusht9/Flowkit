@@ -5,6 +5,7 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { createWorkflowRegistry } from "./workflow.mjs";
 import { validatePipeline, runPipeline } from "./pipeline.mjs";
 import { catalog } from "./catalog.mjs";
+import { getMediaOutputMiB } from './limits.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const maxBodyBytes = 29 * 1024 * 1024;
@@ -93,7 +94,8 @@ function compact(result) {
   };
 }
 
-export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, dev = false, allowedOrigins = [] } = {}) {
+export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, dev = false, allowedOrigins = [], mediaOutputMiB = getMediaOutputMiB(process.env.FLOWKIT_MEDIA_MAX_OUTPUT_MIB ?? (dev ? 64 : 8)) } = {}) {
+  mediaOutputMiB = getMediaOutputMiB(mediaOutputMiB);
   const origins = new Map();
   for (const value of allowedOrigins) {
     const url = new URL(value);
@@ -106,7 +108,7 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
   const registry = createWorkflowRegistry({
     executable: executable || (await findPandoc()),
     imageExecutable,
-    ffmpeg, ffprobe,
+    ffmpeg, ffprobe, mediaOutputMiB,
   });
   let busy = false;
   let vite;
@@ -127,7 +129,7 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
       if (request.method === "GET" && path === "/api/health")
         return json(response, 200, { status: "ok" });
       if (request.method === "GET" && path === "/api/operations")
-        return json(response, 200, { operations: catalog });
+        return json(response, 200, { operations: catalog, limits: { uploadMiB: 20, mediaOutputMiB } });
       if (request.method === "GET" && path === "/api/sample") {
         const data = await readFile(
           join(root, "examples/fixtures/sample.html"),

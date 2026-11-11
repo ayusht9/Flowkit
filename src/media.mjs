@@ -5,18 +5,18 @@ import { extname, join } from "node:path";
 import { promisify } from "node:util";
 import { assertRecord } from "./operations.mjs";
 import { mediaOperations } from './media-operations.mjs';
+import { getMediaOutputMiB, MiB } from './limits.mjs';
 
 const execute = promisify(execFile);
 const maxBytes = 20 * 1024 * 1024;
-const maxOutput = 8 * 1024 * 1024;
 const formats = { ".wav": "wav", ".mp3": "mp3", ".m4a": "mov", ".mp4": "mov", ".mov": "mov", ".webm": "matroska", ".mkv": "matroska" };
 
-export function validateMedia(value, kind) {
+export function validateMedia(value, kind, { maxBytes: byteLimit = maxBytes } = {}) {
   assertRecord(value, "Media");
   if (typeof value.name !== "string" || !value.name.trim() || value.name.length > 255 || /[/\\\0]/.test(value.name))
     throw new TypeError("Media name must be a filename without directory components");
-  if (!(value.data instanceof Uint8Array) || !value.data.byteLength || value.data.byteLength > maxBytes)
-    throw new TypeError("Media must contain between 1 byte and 20 MiB");
+  if (!(value.data instanceof Uint8Array) || !value.data.byteLength || value.data.byteLength > byteLimit)
+    throw new TypeError(`Media must contain between 1 byte and ${byteLimit / MiB} MiB`);
   const extension = extname(value.name).toLowerCase();
   const allowed = kind === "audio" ? [".wav", ".mp3", ".m4a"] : [".mp4", ".mov", ".webm", ".mkv"];
   const data = Buffer.from(value.data);
@@ -27,7 +27,10 @@ export function validateMedia(value, kind) {
     throw new TypeError(kind === "audio" ? "Choose WAV, MP3, or M4A audio with a matching signature" : "Choose MP4, MOV, WebM, or MKV video with a matching signature");
 }
 
-export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PATH || "ffmpeg", ffprobe = process.env.FFPROBE_PATH || "ffprobe", timeoutMs = 30_000 } = {}) {
+export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PATH || "ffmpeg", ffprobe = process.env.FFPROBE_PATH || "ffprobe", timeoutMs = 30_000, maxOutputMiB = getMediaOutputMiB() } = {}) {
+  maxOutputMiB = getMediaOutputMiB(maxOutputMiB);
+  const maxOutput = maxOutputMiB * MiB;
+  const maxPayloadBytes = Math.max(maxBytes, maxOutput);
   const definition = mediaOperations.find(item => item.type === operation);
   if (!definition) throw new TypeError("Unknown media operation");
   const { inputType, outputType } = definition;
@@ -36,8 +39,8 @@ export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PA
     throw new TypeError("Configure valid FFmpeg/FFprobe executables and a positive timeout");
   return {
     inputType, outputType,
-    validateInput: (value) => validateMedia(value, inputType),
-    validateOutput: (value) => validateMedia(value, outputType),
+    validateInput: (value) => validateMedia(value, inputType, { maxBytes: maxPayloadBytes }),
+    validateOutput: (value) => validateMedia(value, outputType, { maxBytes: maxOutput }),
     validateOptions(options) {
       if (Object.keys(options).some(key => !definition.fields.some(field => field.key === key))) throw new TypeError("Unsupported media settings");
       for (const field of definition.fields) {
@@ -98,7 +101,7 @@ export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PA
           ...sourceArgs, "-i", path, ...(trim ? ["-ss", String(options.startSeconds), "-t", String(options.durationSeconds)] : []),
           ...encoding, "-threads", "1", "-map_metadata", "-1", "-map_chapters", "-1", "-fs", String(maxOutput + 1), outputPath], settings);
         const size = (await stat(outputPath)).size;
-        if (!size || size >= maxOutput) throw new Error("Media output exceeded the 8 MiB limit; use a shorter trim");
+        if (!size || size >= maxOutput) throw new Error(`Media output exceeded the ${maxOutputMiB} MiB limit; ${format === 'wav' ? 'choose MP3 or shorten the audio' : outputType === 'video' ? 'resize the video, use compact conversion quality, or trim it' : 'shorten the audio'}`);
         const data = await readFile(outputPath, { signal });
         const outputProbe = await execute(ffprobe, ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_entries', 'format=duration:stream=codec_type,width,height,r_frame_rate', '-of', 'json', outputPath], settings);
         const outputInfo = JSON.parse(outputProbe.stdout);

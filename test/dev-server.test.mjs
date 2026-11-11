@@ -13,6 +13,9 @@ test('development mode serves the editor and transforms JSX', async () => {
     const module = await fetch(`${url}/web/main.jsx`);
     assert.equal(module.status, 200);
     assert.match(await module.text(), /createRoot/);
+    const { limits } = await (await fetch(`${url}/api/operations`)).json();
+    assert.equal(limits.mediaOutputMiB, 64);
+    assert.equal(limits.uploadMiB, 20);
   } finally {
     await app.close();
   }

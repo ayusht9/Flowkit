@@ -4,9 +4,12 @@ import { createImageOperation, validateImage } from "./image.mjs";
 import { imageOperations } from "./image-operations.mjs";
 import { documentConversions } from './document-formats.mjs';
 import { mediaOperations } from './media-operations.mjs';
+import { getMediaOutputMiB, MiB } from './limits.mjs';
 import { createMediaOperation, validateMedia } from "./media.mjs";
 
-export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe } = {}) {
+export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe, mediaOutputMiB = getMediaOutputMiB() } = {}) {
+  mediaOutputMiB = getMediaOutputMiB(mediaOutputMiB);
+  const mediaPayloadBytes = Math.max(20, mediaOutputMiB) * MiB;
   const convert = createDocumentToMarkdown({ executable });
   const markdown = (value) => {
     assertRecord(value, "Markdown");
@@ -16,10 +19,12 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
   const registry = new OperationRegistry();
   for (const type of ["audio", "video"]) {
     for (const action of ["upload", "pipe", "preview"])
-      registry.register(`${type}.${action}`, { inputType: type, outputType: type, validateInput: (value) => validateMedia(value, type), run: async (input) => input });
+      registry.register(`${type}.${action}`, { inputType: type, outputType: type, validateInput: (value) => validateMedia(value, type, {
+        maxBytes: action === 'upload' ? 20 * MiB : action === 'preview' ? mediaOutputMiB * MiB : mediaPayloadBytes,
+      }), run: async (input) => input });
   }
   for (const operation of mediaOperations)
-    registry.register(operation.type, createMediaOperation(operation.type, { ffmpeg, ffprobe }));
+    registry.register(operation.type, createMediaOperation(operation.type, { ffmpeg, ffprobe, maxOutputMiB: mediaOutputMiB }));
   for (const operation of imageOperations)
     registry.register(operation.type, createImageOperation(operation.type, { executable: imageExecutable }));
   for (const operation of documentConversions)

@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: {
     command: "node server.mjs",
     url: "http://127.0.0.1:4317",
-    env: { PORT: "4317" },
+    env: { PORT: "4317", FLOWKIT_MEDIA_MAX_OUTPUT_MIB: "64" },
     reuseExistingServer: false,
     timeout: 30_000,
   },

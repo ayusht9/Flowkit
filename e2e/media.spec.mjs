@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { sampleAudio, makeVideo } from "../examples/fixtures/media.mjs";
+import { sampleAudio, makeWav, makeVideo } from "../examples/fixtures/media.mjs";
 
 async function create(page, type, name, mimeType, buffer) {
   await page.goto("/");
@@ -44,6 +44,18 @@ test("audio upload, trim, playback and WAV download", async ({ page }) => {
   const preview = await run(page, "Audio");
   expect(await preview.evaluate(media => media.duration)).toBeCloseTo(0.5, 1);
   expect((await download(page, "tone-processed.wav")).toString("ascii", 0, 4)).toBe("RIFF");
+});
+
+test('configured media limit is displayed and a WAV above 8 MiB downloads intact', async ({ page }) => {
+  const process = await create(page, 'audio', 'minute.wav', 'audio/wav', makeWav(60));
+  await process.locator('.card-body').click();
+  await expect(page.getByText('FFmpeg processes your file locally on the server. Maximum output: 64 MiB.', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Audio output format', exact: true }).selectOption('wav');
+  const preview = await run(page, 'Audio');
+  expect(await preview.evaluate(media => media.duration)).toBeCloseTo(60, 1);
+  const bytes = await download(page, 'minute-processed.wav');
+  expect(bytes.length).toBeGreaterThan(8 * 1024 * 1024);
+  expect(bytes.toString('ascii', 0, 4)).toBe('RIFF');
 });
 
 test("video trim, playback, MP4 download and audio extraction", async ({ page }) => {

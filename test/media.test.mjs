@@ -12,6 +12,7 @@ import { adaptNodes } from "../src/node-builder.mjs";
 import { createApp } from "../src/server.mjs";
 import { sampleAudio, makeWav, makeVideo } from "../examples/fixtures/media.mjs";
 import { mediaOperations } from '../src/media-operations.mjs';
+import { getMediaOutputMiB, MiB } from '../src/limits.mjs';
 
 const ffmpeg = process.env.FFMPEG_PATH || "ffmpeg";
 const ffprobe = process.env.FFPROBE_PATH || "ffprobe";
@@ -19,6 +20,54 @@ const installed = [ffmpeg, ffprobe].every((tool) => spawnSync(tool, ["-version"]
 const native = { skip: installed ? false : "Install FFmpeg and FFprobe to run media tests" };
 const registry = createWorkflowRegistry({ ffmpeg, ffprobe });
 const audioInput = { type: "audio", value: { name: "tone.wav", data: sampleAudio } };
+
+test('media output limits accept only bounded trusted configuration', () => {
+  for (const value of [0, -1, 257, 8.5, NaN, 'unlimited']) assert.throws(() => getMediaOutputMiB(value), /between 1 and 256/);
+  assert.equal(getMediaOutputMiB('64'), 64);
+  const capped = createWorkflowRegistry({ mediaOutputMiB: 1 });
+  const source = { name: 'source.wav', data: makeWav(70) };
+  capped.get('audio.upload').validateInput(source);
+  assert.throws(() => capped.get('audio.preview').validateInput(source), /1 MiB/);
+});
+
+test('larger configured outputs remain usable in a complete workflow', native, async () => {
+  const source = { type: 'audio', value: { name: 'long.wav', data: makeWav(125) } };
+  const limited = createWorkflowRegistry({ ffmpeg, ffprobe, mediaOutputMiB: 8 });
+  await assert.rejects(limited.execute('audio.convert', source, { format: 'wav' }), /8 MiB limit; choose MP3/);
+  const expanded = createWorkflowRegistry({ ffmpeg, ffprobe, mediaOutputMiB: 64 });
+  const graph = {
+    nodes: [
+      { id: 'upload', type: 'audio.upload' },
+      { id: 'convert', type: 'audio.convert', options: { format: 'wav' } },
+      { id: 'volume', type: 'audio.volume', options: { gainDb: -6, format: 'wav' } },
+      { id: 'preview', type: 'audio.preview' },
+    ], edges: [{ source: 'upload', target: 'convert' }, { source: 'convert', target: 'volume' }, { source: 'volume', target: 'preview' }],
+  };
+  const { runPipeline } = await import('../src/pipeline.mjs');
+  const result = await runPipeline(graph, expanded, { input: source });
+  assert.equal(result.status, 'succeeded', result.error?.message);
+  assert.ok(result.output.value.data.length > 20 * MiB);
+  assert.ok(result.output.value.data.length < 64 * MiB);
+  assert.equal(Number((await inspect(result.output.value)).format.duration), 125);
+  assert.throws(() => expanded.get('audio.upload').validateInput(result.output.value), /20 MiB/);
+});
+
+test('API advertises and delivers a configured output larger than 8 MiB', native, async () => {
+  const app = await createApp({ ffmpeg, ffprobe, mediaOutputMiB: 64 });
+  await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
+  try {
+    const base = `http://127.0.0.1:${app.server.address().port}`;
+    assert.equal((await (await fetch(`${base}/api/operations`)).json()).limits.mediaOutputMiB, 64);
+    const workflow = mediaWorkflow('audio');
+    workflow.nodes[1].data.options = { format: 'wav' };
+    const response = await fetch(`${base}/api/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pipeline: toPipeline(workflow.nodes, workflow.edges), input: { name: 'minute.wav', data: makeWav(60).toString('base64') } }) });
+    const result = (await response.text()).trim().split('\n').map(JSON.parse).at(-1).result;
+    assert.equal(result.status, 'succeeded', result.error?.message);
+    assert.ok(Buffer.from(result.output.value.data, 'base64').length > 8 * MiB);
+    assert.ok(result.nodes.every(node => !node.output?.value?.data));
+  } finally { await app.close(); }
+});
 async function inspect(value) {
   const directory = await mkdtemp(join(tmpdir(), "flowkit-media-check-"));
   try {

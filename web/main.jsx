@@ -275,6 +275,17 @@ function App() {
   const [events, setEvents] = useState([]);
   const [states, setStates] = useState({});
   const [running, setRunning] = useState(false);
+  const [mediaOutputMiB, setMediaOutputMiB] = useState(8);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/operations', { signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then(body => {
+        const limit = body?.limits?.mediaOutputMiB;
+        if (Number.isSafeInteger(limit) && limit >= 1 && limit <= 256) setMediaOutputMiB(limit);
+      }).catch(() => {});
+    return () => controller.abort();
+  }, []);
   const [history, setHistory] = useState(() => [{ nodes: initial.nodes, edges: initial.edges }]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
@@ -1286,7 +1297,7 @@ function App() {
                 )}
                 {selectedMediaOperation && (
                   <div className="inspector-section resize-settings">
-                    <p>FFmpeg processes your file locally on the server. Maximum output: 8 MiB.</p>
+                    <p>FFmpeg processes your file locally on the server. Maximum output: {mediaOutputMiB} MiB.</p>
                     {selectedMediaOperation.fields.map(field => {
                       const update = event => {
                         const raw = event.target.value;

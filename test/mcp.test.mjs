@@ -12,7 +12,7 @@ import { createFlowkitMcpServer } from "../src/mcp.mjs";
 import { OperationRegistry } from "../src/operations.mjs";
 import { findPandoc } from "../src/server.mjs";
 import { sampleImage } from "../examples/fixtures/image.mjs";
-import { sampleAudio, makeVideo } from "../examples/fixtures/media.mjs";
+import { sampleAudio, makeWav, makeVideo } from "../examples/fixtures/media.mjs";
 
 const project = dirname(dirname(fileURLToPath(import.meta.url)));
 const ffmpeg = process.env.FFMPEG_PATH || "ffmpeg";
@@ -21,7 +21,7 @@ const pandoc = await findPandoc();
 const magick = process.env.IMAGEMAGICK_PATH || (process.platform === "win32" ? "magick" : "convert");
 const native = [ffmpeg, ffprobe, pandoc, magick].every((command, i) => spawnSync(command, [i < 2 ? "-version" : "--version"], { windowsHide: true }).status === 0);
 
-async function session(t, registry) {
+async function session(t, registry, { mediaOutputMiB = 8 } = {}) {
   const workspace = await mkdtemp(join(tmpdir(), "flowkit-mcp-test-"));
   const client = new Client({ name: "flowkit-test", version: "1.0.0" });
   let server;
@@ -29,17 +29,36 @@ async function session(t, registry) {
     command: process.execPath, args: [join(project, "mcp-server.mjs"), "--workspace", workspace], cwd: project,
     env: { ...getDefaultEnvironment(),
       ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("MAGICK_"))),
-      PANDOC_PATH: pandoc, IMAGEMAGICK_PATH: magick, FFMPEG_PATH: ffmpeg, FFPROBE_PATH: ffprobe },
+      PANDOC_PATH: pandoc, IMAGEMAGICK_PATH: magick, FFMPEG_PATH: ffmpeg, FFPROBE_PATH: ffprobe,
+      FLOWKIT_MEDIA_MAX_OUTPUT_MIB: String(mediaOutputMiB) },
     stderr: "pipe",
   });
   t.after(async () => { await client.close(); await server?.close(); await rm(workspace, { recursive: true, force: true }); });
   if (registry) {
-    server = await createFlowkitMcpServer({ workspace, registry });
+    server = await createFlowkitMcpServer({ workspace, registry, mediaOutputMiB });
     await server.connect(transport[1]);
     await client.connect(transport[0]);
   } else await client.connect(transport);
   return { workspace, client, call: (name, args) => client.callTool({ name: `flowkit_${name}`, arguments: args }) };
 }
+
+test('MCP chains configured media artifacts larger than the upload limit', { skip: native ? false : 'Install all native processing tools' }, async t => {
+  const { workspace, client, call } = await session(t, undefined, { mediaOutputMiB: 64 });
+  await writeFile(join(workspace, 'long.wav'), makeWav(125));
+  const tools = (await client.listTools()).tools;
+  assert.match(tools.find(tool => tool.name === 'flowkit_audio_convert').description, /64 MiB/);
+  const converted = await call('audio_convert', { inputPath: 'long.wav', format: 'wav' });
+  assert.ok(!converted.isError, JSON.stringify(converted));
+  assert.ok(converted.structuredContent.sizeBytes > 20 * 1024 * 1024);
+  const processed = await call('audio_volume', { inputPath: converted.structuredContent.path, gainDb: -6, format: 'wav' });
+  assert.ok(!processed.isError, JSON.stringify(processed));
+  assert.ok(processed.structuredContent.sizeBytes > 20 * 1024 * 1024);
+  const large = await open(join(workspace, 'oversized.wav'), 'w');
+  await large.truncate(21 * 1024 * 1024); await large.close();
+  const rejected = await call('audio_convert', { inputPath: 'oversized.wav', format: 'mp3' });
+  assert.equal(rejected.isError, true);
+  assert.match(rejected.content[0].text, /20 MiB/);
+});
 
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {
   const { workspace, client, call } = await session(t);
