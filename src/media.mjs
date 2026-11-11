@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { promisify } from "node:util";
 import { assertRecord } from "./operations.mjs";
+import { mediaOperations } from './media-operations.mjs';
 
 const execute = promisify(execFile);
 const maxBytes = 20 * 1024 * 1024;
@@ -27,10 +28,10 @@ export function validateMedia(value, kind) {
 }
 
 export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PATH || "ffmpeg", ffprobe = process.env.FFPROBE_PATH || "ffprobe", timeoutMs = 30_000 } = {}) {
-  const inputType = operation.startsWith("audio.") ? "audio" : "video";
-  const outputType = operation === "video.extractAudio" ? "audio" : inputType;
+  const definition = mediaOperations.find(item => item.type === operation);
+  if (!definition) throw new TypeError("Unknown media operation");
+  const { inputType, outputType } = definition;
   const trim = operation.endsWith(".trim");
-  if (!["audio.convert", "audio.trim", "video.trim", "video.extractAudio"].includes(operation)) throw new TypeError("Unknown media operation");
   if (![ffmpeg, ffprobe].every((value) => typeof value === "string" && value.trim()) || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1)
     throw new TypeError("Configure valid FFmpeg/FFprobe executables and a positive timeout");
   return {
@@ -38,12 +39,15 @@ export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PA
     validateInput: (value) => validateMedia(value, inputType),
     validateOutput: (value) => validateMedia(value, outputType),
     validateOptions(options) {
-      const keys = [...(outputType === "audio" ? ["format"] : []), ...(trim ? ["startSeconds", "durationSeconds"] : [])];
-      if (Object.keys(options).some((key) => !keys.includes(key))) throw new TypeError("Unsupported media settings");
-      if (outputType === "audio" && options.format !== undefined && !["mp3", "wav"].includes(options.format)) throw new TypeError("Audio output must be MP3 or WAV");
-      if (trim && (!Number.isFinite(options.startSeconds) || options.startSeconds < 0 || options.startSeconds > 300 ||
-        !Number.isFinite(options.durationSeconds) || options.durationSeconds <= 0 || options.durationSeconds > 300))
-        throw new TypeError("Set a start of 0–300 seconds and a duration greater than 0 and at most 300 seconds");
+      if (Object.keys(options).some(key => !definition.fields.some(field => field.key === key))) throw new TypeError("Unsupported media settings");
+      for (const field of definition.fields) {
+        const value = options[field.key];
+        if (value === undefined && !field.required) continue;
+        if (field.choices ? !field.choices.includes(value) : typeof value !== 'number' || !Number.isFinite(value) ||
+          (field.step === 1 && !Number.isSafeInteger(value)) || value < field.min || value > field.max || (field.exclusiveMin && value === field.min))
+          throw new TypeError(`${field.label}: ${field.choices ? `choose ${field.choices.join(', ')}` : `use ${field.step === 1 ? 'an integer' : 'a number'} ${field.exclusiveMin ? 'greater than' : 'between'} ${field.min} and ${field.max}`}`);
+      }
+      if (operation === 'video.resize' && options.width === undefined && options.height === undefined) throw new TypeError('Set a video resize width or height');
     },
     async run(input, options, { signal }) {
       signal?.throwIfAborted();
@@ -71,21 +75,47 @@ export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PA
             throw new Error("Video is limited to 1920 × 1080 pixels and 60 fps");
         }
         if (trim && options.startSeconds >= duration) throw new Error("Trim start must be before the end of the file");
+        const audioFilters = [], videoFilters = [];
+        if (operation === 'audio.volume') audioFilters.push(`volume=${options.gainDb ?? 0}dB`);
+        if (operation === 'audio.fade') {
+          const fadeIn = options.fadeInSeconds ?? 0.25, fadeOut = options.fadeOutSeconds ?? 0.25;
+          if (fadeIn + fadeOut > duration) throw new Error('Fade durations must fit within the audio duration');
+          if (fadeIn) audioFilters.push(`afade=t=in:st=0:d=${fadeIn}`);
+          if (fadeOut) audioFilters.push(`afade=t=out:st=${duration - fadeOut}:d=${fadeOut}`);
+        }
+        if (operation === 'audio.normalize') audioFilters.push('aformat=channel_layouts=stereo:sample_rates=44100', `loudnorm=I=${options.targetLufs ?? -16}:TP=-1.5:LRA=11`);
+        if (operation === 'video.resize') videoFilters.push(`scale=w=min(iw\\,${options.width ?? 1920}):h=min(ih\\,${options.height ?? 1920}):force_original_aspect_ratio=decrease:force_divisible_by=2`);
+        if (operation === 'video.rotate') videoFilters.push((options.degrees ?? 90) === 90 ? 'transpose=clock' : options.degrees === 180 ? 'hflip,vflip' : 'transpose=cclock');
+        if (operation === 'video.flip') videoFilters.push((options.direction ?? 'horizontal') === 'horizontal' ? 'hflip' : options.direction === 'both' ? 'hflip,vflip' : 'vflip');
+        videoFilters.push('pad=ceil(iw/2)*2:ceil(ih/2)*2');
         const format = outputType === "audio" ? options.format || "mp3" : "mp4";
         const outputPath = join(directory, `output.${format}`);
         const encoding = outputType === "audio"
-          ? ["-map", "0:a:0", "-vn", "-ac", "2", "-ar", "44100", "-c:a", format === "wav" ? "pcm_s16le" : "libmp3lame", ...(format === "mp3" ? ["-b:a", "128k"] : [])]
-          : ["-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"];
+          ? ["-map", "0:a:0", "-vn", ...(audioFilters.length ? ['-af', audioFilters.join(',')] : []), "-ac", "2", "-ar", "44100", "-c:a", format === "wav" ? "pcm_s16le" : "libmp3lame", ...(format === "mp3" ? ["-b:a", "128k"] : [])]
+          : ["-map", "0:v:0", ...(operation === 'video.mute' ? ['-an'] : ['-map', '0:a:0?', '-c:a', 'aac', '-b:a', '128k']), "-c:v", "libx264", "-preset", "ultrafast", "-crf",
+            String(operation === 'video.convert' ? ({ compact: 28, balanced: 23, high: 18 }[options.quality ?? 'balanced']) : 28), "-vf", videoFilters.join(','), "-pix_fmt", "yuv420p", "-movflags", "+faststart"];
         await execute(ffmpeg, ["-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-max_alloc", "67108864", "-filter_threads", "1", "-threads", "1",
           ...sourceArgs, "-i", path, ...(trim ? ["-ss", String(options.startSeconds), "-t", String(options.durationSeconds)] : []),
           ...encoding, "-threads", "1", "-map_metadata", "-1", "-map_chapters", "-1", "-fs", String(maxOutput + 1), outputPath], settings);
         const size = (await stat(outputPath)).size;
         if (!size || size >= maxOutput) throw new Error("Media output exceeded the 8 MiB limit; use a shorter trim");
         const data = await readFile(outputPath, { signal });
+        const outputProbe = await execute(ffprobe, ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_entries', 'format=duration:stream=codec_type,width,height,r_frame_rate', '-of', 'json', outputPath], settings);
+        const outputInfo = JSON.parse(outputProbe.stdout);
+        const outputDuration = Number(outputInfo.format?.duration);
+        const outputVideo = outputInfo.streams?.find(stream => stream.codec_type === 'video');
+        if (!Number.isFinite(outputDuration) || outputDuration <= 0 || (outputType === 'video' && !outputVideo) ||
+          (outputType === 'audio' && !outputInfo.streams?.some(stream => stream.codec_type === 'audio'))) throw new Error('FFmpeg produced an invalid media file');
+        if (operation === 'video.mute' && outputInfo.streams?.some(stream => stream.codec_type === 'audio')) throw new Error('FFmpeg did not remove the audio track');
+        const [rateNum, rateDen] = (outputVideo?.r_frame_rate || '0/1').split('/').map(Number);
+        if (outputVideo && (!Number.isSafeInteger(outputVideo.width) || !Number.isSafeInteger(outputVideo.height) || outputVideo.width < 1 || outputVideo.height < 1 ||
+          outputVideo.width * outputVideo.height > 1920 * 1080 || !Number.isFinite(rateNum / rateDen) || rateNum / rateDen <= 0 || rateNum / rateDen > 60))
+          throw new Error('Processed video exceeds the 1080p pixel-area or 60 fps limit; resize to smaller bounds');
         const stem = input.value.name.replace(/\.[^.]+$/, "").slice(0, 200);
         return { type: outputType, value: { name: `${stem}-processed.${format}`, source: input.value.name, data,
           mimeType: outputType === "video" ? "video/mp4" : format === "wav" ? "audio/wav" : "audio/mpeg",
-          durationSeconds: trim ? Math.min(options.durationSeconds, duration - options.startSeconds) : duration } };
+          durationSeconds: outputDuration,
+          ...(outputVideo ? { width: outputVideo.width, height: outputVideo.height, frameRate: rateNum / rateDen } : {}) } };
       } catch (error) {
         if (signal?.aborted) throw error;
         if (error.code === "ENOENT") throw new Error("FFmpeg/FFprobe not found. Install FFmpeg or set FFMPEG_PATH and FFPROBE_PATH.", { cause: error });

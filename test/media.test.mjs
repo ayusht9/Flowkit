@@ -11,6 +11,7 @@ import { mediaWorkflow, toPipeline } from "../src/catalog.mjs";
 import { adaptNodes } from "../src/node-builder.mjs";
 import { createApp } from "../src/server.mjs";
 import { sampleAudio, makeWav, makeVideo } from "../examples/fixtures/media.mjs";
+import { mediaOperations } from '../src/media-operations.mjs';
 
 const ffmpeg = process.env.FFMPEG_PATH || "ffmpeg";
 const ffprobe = process.env.FFPROBE_PATH || "ffprobe";
@@ -36,6 +37,95 @@ test("media validates signatures, filenames, sizes, trim values, output formats,
     await assert.rejects(registry.execute("audio.convert", audioInput, options), TypeError);
   for (const options of [{}, { startSeconds: -1, durationSeconds: 1 }, { startSeconds: 0, durationSeconds: 0 }, { startSeconds: "0", durationSeconds: 1 }, { startSeconds: 0, durationSeconds: 301 }])
     await assert.rejects(registry.execute("audio.trim", audioInput, options), TypeError);
+});
+
+test('media capabilities reject arbitrary flags and invalid effect settings before execution', () => {
+  for (const operation of mediaOperations) assert.throws(() => registry.validateOptions(operation.type, { ...operation.defaults, filter: 'movie=https://example.com' }), TypeError);
+  for (const [type, options] of [
+    ['audio.volume', { gainDb: 13 }], ['audio.volume', { gainDb: '0' }], ['audio.volume', { gainDb: NaN }],
+    ['audio.fade', { fadeInSeconds: -1 }], ['audio.fade', { fadeOutSeconds: 31 }], ['audio.normalize', { targetLufs: -8 }],
+    ['video.convert', { quality: '-f' }], ['video.resize', {}], ['video.resize', { width: 1 }], ['video.resize', { height: 1921 }],
+    ['video.rotate', { degrees: 45 }], ['video.flip', { direction: 'hflip;movie=evil' }], ['video.mute', { format: 'webm' }],
+  ]) assert.throws(() => registry.validateOptions(type, options), TypeError);
+});
+
+async function nativeOutput(value, args) {
+  const directory = await mkdtemp(join(tmpdir(), 'flowkit-native-check-'));
+  try {
+    const path = join(directory, value.name);
+    await writeFile(path, value.data);
+    return await promisify(execFile)(ffmpeg, ['-hide_banner', '-i', path, ...args], { windowsHide: true, maxBuffer: 2 * 1024 * 1024, encoding: 'buffer' });
+  } finally { await rm(directory, { recursive: true, force: true }); }
+}
+
+async function samples(value) {
+  const { stdout } = await nativeOutput(value, ['-loglevel', 'error', '-f', 'f32le', '-ac', '1', '-ar', '8000', 'pipe:1']);
+  return Array.from({ length: stdout.length / 4 }, (_, i) => stdout.readFloatLE(i * 4));
+}
+const rms = values => Math.sqrt(values.reduce((sum, value) => sum + value * value, 0) / values.length);
+
+test('volume and fade effects alter decoded audio samples as requested', native, async () => {
+  const original = await samples((await registry.execute('audio.convert', audioInput, { format: 'wav' })).value);
+  const quieter = await samples((await registry.execute('audio.volume', audioInput, { format: 'wav', gainDb: -6 })).value);
+  assert.ok(Math.abs(rms(quieter) / rms(original) - Math.pow(10, -6 / 20)) < 0.02);
+  const faded = await samples((await registry.execute('audio.fade', audioInput, { format: 'wav', fadeInSeconds: 0.25, fadeOutSeconds: 0.25 })).value);
+  assert.ok(rms(faded.slice(0, 400)) < rms(original.slice(0, 400)) * 0.3);
+  assert.ok(rms(faded.slice(-400)) < rms(original.slice(-400)) * 0.3);
+  assert.ok(rms(faded.slice(6000, 10000)) > rms(original.slice(6000, 10000)) * 0.95);
+  await assert.rejects(registry.execute('audio.fade', audioInput, { fadeInSeconds: 2, fadeOutSeconds: 1 }), /Fade durations must fit/);
+});
+
+test('loudness normalization reaches the requested target on a steady test signal', native, async () => {
+  const output = await registry.execute('audio.normalize', audioInput, { targetLufs: -16, format: 'wav' });
+  const { stderr } = await nativeOutput(output.value, ['-af', 'loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json', '-f', 'null', '-']);
+  const stats = JSON.parse(stderr.toString().match(/\{\s*"input_i"[\s\S]*?\}/)[0]);
+  assert.ok(Math.abs(Number(stats.input_i) + 16) < 1, JSON.stringify(stats));
+});
+
+test('video resize, conversion and mute produce verified dimensions, codecs and tracks', native, async () => {
+  const input = { type: 'video', value: { name: 'clip.mp4', data: await makeVideo({ ffmpeg }) } };
+  const resized = await registry.execute('video.resize', input, { width: 64, height: 64 });
+  assert.deepEqual([resized.value.width, resized.value.height], [64, 36]);
+  const resizedInfo = await inspect(resized.value);
+  assert.deepEqual(resizedInfo.streams.filter(stream => stream.codec_type === 'video').map(stream => [stream.width, stream.height]), [[64, 36]]);
+  const unchanged = await registry.execute('video.resize', input, { width: 1920 });
+  assert.deepEqual([unchanged.value.width, unchanged.value.height], [128, 72]);
+  for (const quality of ['compact', 'balanced', 'high']) {
+    const converted = await registry.execute('video.convert', input, { quality });
+    const info = await inspect(converted.value);
+    assert.ok(info.streams.some(stream => stream.codec_name === 'h264'));
+    assert.ok(info.streams.some(stream => stream.codec_name === 'aac'));
+    assert.equal(converted.value.frameRate, 12);
+  }
+  const muted = await registry.execute('video.mute', input, {});
+  assert.ok((await inspect(muted.value)).streams.every(stream => stream.codec_type === 'video'));
+  await assert.rejects(registry.execute('video.extractAudio', muted, {}), /no audio track/);
+  const silent = { type: 'video', value: { name: 'silent.mp4', data: await makeVideo({ ffmpeg, audio: false }) } };
+  assert.equal((await registry.execute('video.convert', silent, {})).type, 'video');
+});
+
+test('video rotations and mirrors move decoded pixels in the expected directions', native, async () => {
+  const input = { type: 'video', value: { name: 'pattern.mp4', data: await makeVideo({ ffmpeg, pattern: true }) } };
+  const frame = async value => (await nativeOutput(value, ['-loglevel', 'error', '-frames:v', '1', '-pix_fmt', 'rgb24', '-f', 'rawvideo', 'pipe:1'])).stdout;
+  const original = await frame(input.value);
+  for (const [type, options, dimensions, coordinate] of [
+    ['video.rotate', { degrees: 90 }, [72, 128], (x, y) => [y, 71 - x]],
+    ['video.rotate', { degrees: 180 }, [128, 72], (x, y) => [127 - x, 71 - y]],
+    ['video.rotate', { degrees: 270 }, [72, 128], (x, y) => [127 - y, x]],
+    ['video.flip', { direction: 'horizontal' }, [128, 72], (x, y) => [127 - x, y]],
+    ['video.flip', { direction: 'vertical' }, [128, 72], (x, y) => [x, 71 - y]],
+    ['video.flip', { direction: 'both' }, [128, 72], (x, y) => [127 - x, 71 - y]],
+  ]) {
+    const output = await registry.execute(type, input, options);
+    assert.deepEqual([output.value.width, output.value.height], dimensions);
+    const pixels = await frame(output.value);
+    let error = 0;
+    for (let y = 0; y < dimensions[1]; y++) for (let x = 0; x < dimensions[0]; x++) {
+      const [sx, sy] = coordinate(x, y);
+      for (let channel = 0; channel < 3; channel++) error += Math.abs(pixels[(y * dimensions[0] + x) * 3 + channel] - original[(sy * 128 + sx) * 3 + channel]);
+    }
+    assert.ok(error / pixels.length < 15, `${type}: mean pixel difference ${error / pixels.length}`);
+  }
 });
 test("audio converts to real MP3 and trims to a duration-verified WAV", native, async () => {
   const mp3 = await registry.execute("audio.convert", audioInput, { format: "mp3" });

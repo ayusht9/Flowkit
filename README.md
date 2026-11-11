@@ -38,7 +38,7 @@ See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, sa
 - Build a linear drag-and-drop workflow in the browser.
 - Convert DOCX, ODT, HTML, EPUB, Markdown, TXT, RTF, LaTeX, and reStructuredText with Pandoc; also export AsciiDoc and PowerPoint slides.
 - Resize, crop, rotate, mirror, grayscale, blur, sharpen, and convert PNG/JPEG images with ImageMagick.
-- Trim and convert audio/video with FFmpeg.
+- Trim and convert audio/video with FFmpeg; adjust volume, fade and normalize audio, and resize, rotate, mirror or mute video.
 - Run the same operations from an MCP-compatible client.
 - Save workflows locally, or export/import workflow JSON.
 

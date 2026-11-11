@@ -1,5 +1,6 @@
 import { catalog, canConnect } from "./catalog.mjs";
 import { imageOperations } from './image-operations.mjs';
+import { mediaOperations } from './media-operations.mjs';
 
 export const nodeKinds = [
   { kind: "upload", title: "Upload", description: "Start with your input file", icon: "upload", color: "blue" },
@@ -31,9 +32,8 @@ export function processOptions(category, inputType) {
 export function defaultOptions(operation) {
   const image = imageOperations.find(item => item.type === operation);
   if (image) return { ...image.defaults };
-  if (operation === "audio.convert" || operation === "video.extractAudio") return { format: "mp3" };
-  if (operation === "audio.trim") return { startSeconds: 0, durationSeconds: 10, format: "mp3" };
-  if (operation === "video.trim") return { startSeconds: 0, durationSeconds: 10 };
+  const media = mediaOperations.find(item => item.type === operation);
+  if (media) return { ...media.defaults };
   return operation === "context.clean" ? { collapseBlankLines: true } : {};
 }
 

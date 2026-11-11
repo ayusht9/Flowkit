@@ -44,7 +44,9 @@ async function session(t, registry) {
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {
   const { workspace, client, call } = await session(t);
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 28);
+  assert.equal(tools.length, 36);
+  for (const name of ['audio_volume', 'audio_fade', 'audio_normalize', 'video_convert', 'video_resize', 'video_rotate', 'video_flip', 'video_mute'])
+    assert.ok(tools.some(tool => tool.name === `flowkit_${name}`));
   for (const name of ['text', 'rtf', 'latex', 'rst', 'asciidoc', 'pptx'])
     assert.ok(tools.some(tool => tool.name === `flowkit_document_to_${name}`));
   for (const name of ['crop', 'rotate', 'flip', 'grayscale', 'blur', 'sharpen', 'convert'])
@@ -118,6 +120,14 @@ test("MCP uses real Pandoc, ImageMagick and FFmpeg for every native processing t
     ["audio_trim", { inputPath: "tone.wav", startSeconds: 0.25, durationSeconds: 0.5, format: "wav" }, "audio"],
     ["video_trim", { inputPath: "clip.mp4", startSeconds: 0.25, durationSeconds: 0.5 }, "video"],
     ["video_extract_audio", { inputPath: "clip.mp4", format: "wav" }, "audio"],
+    ['audio_volume', { inputPath: 'tone.wav', gainDb: -6, format: 'wav' }, 'audio'],
+    ['audio_fade', { inputPath: 'tone.wav', fadeInSeconds: 0.25, fadeOutSeconds: 0.25, format: 'wav' }, 'audio'],
+    ['audio_normalize', { inputPath: 'tone.wav', targetLufs: -16, format: 'wav' }, 'audio'],
+    ['video_convert', { inputPath: 'clip.mp4', quality: 'balanced' }, 'video'],
+    ['video_resize', { inputPath: 'clip.mp4', width: 64, height: 64 }, 'video'],
+    ['video_rotate', { inputPath: 'clip.mp4', degrees: 90 }, 'video'],
+    ['video_flip', { inputPath: 'clip.mp4', direction: 'horizontal' }, 'video'],
+    ['video_mute', { inputPath: 'clip.mp4' }, 'video'],
   ]) {
     const response = await call(tool, args);
     assert.ok(!response.isError, `${tool}: ${JSON.stringify(response)}`);
@@ -154,6 +164,14 @@ test("MCP uses real Pandoc, ImageMagick and FFmpeg for every native processing t
       const extracted = await call("video_extract_audio", { inputPath: output.path });
       assert.equal(extracted.structuredContent.type, "audio");
     }
+    if (tool === 'video_resize') {
+      assert.deepEqual([output.width, output.height], [64, 36]);
+      assert.equal(output.frameRate, 12);
+      const rotated = await call('video_rotate', { inputPath: output.path, degrees: 90 });
+      assert.ok(!rotated.isError, JSON.stringify(rotated));
+      assert.deepEqual([rotated.structuredContent.width, rotated.structuredContent.height], [36, 64]);
+    }
+    if (tool === 'video_mute') assert.equal((await call('video_extract_audio', { inputPath: output.path })).isError, true);
   }
 });
 
@@ -191,7 +209,7 @@ test("MCP doctor proves the installed CLI can inspect its workspace and dependen
   const response = spawnSync(process.execPath, [join(project, "mcp-server.mjs"), "--doctor", "--workspace", project, "--json"], { encoding: "utf8", windowsHide: true });
   const report = JSON.parse(response.stdout);
   assert.equal(report.installed, true);
-  assert.equal(report.mcpTools, 28);
+  assert.equal(report.mcpTools, 36);
   assert.equal(report.workspace, project);
   assert.deepEqual(Object.keys(report.tools), ["pandoc", "imagemagick", "ffmpeg", "ffprobe"]);
   assert.equal(response.stderr, "");

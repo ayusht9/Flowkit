@@ -160,7 +160,7 @@ async function main() {
   }
 
   // --- Run All Tool Tests ---
-  console.log("\n[4/4] Executing Test Cases on all 28 MCP Tools...");
+  console.log("\n[4/4] Executing Test Cases on all 36 MCP Tools...");
 
   // 1. flowkit_document_to_html
   await testTool("flowkit_document_to_html", { inputPath: "sample.md" }, "Document", "Convert Markdown to standalone HTML", "Pandoc");
@@ -217,6 +217,16 @@ async function main() {
 
   // 15. flowkit_video_extract_audio
   await testTool("flowkit_video_extract_audio", { inputPath: "sample.mp4", format: "mp3" }, "Video", "Extract audio track from video file as MP3", "FFmpeg");
+  for (const [name, inputPath, options] of [
+    ['audio_volume', 'sample.wav', { gainDb: -6 }],
+    ['audio_fade', 'sample.wav', { fadeInSeconds: 0.1, fadeOutSeconds: 0.1 }],
+    ['audio_normalize', 'sample.wav', { targetLufs: -16 }],
+    ['video_convert', 'sample.mp4', { quality: 'balanced' }],
+    ['video_resize', 'sample.mp4', { width: 64, height: 64 }],
+    ['video_rotate', 'sample.mp4', { degrees: 90 }],
+    ['video_flip', 'sample.mp4', { direction: 'horizontal' }],
+    ['video_mute', 'sample.mp4', {}],
+  ]) await testTool(`flowkit_${name}`, { inputPath, ...options }, name.startsWith('audio') ? 'Audio' : 'Video', name.replaceAll('_', ' '), 'FFmpeg');
 
   // --- Security & Sandboxing Edge Case Tests ---
   console.log("\nExecuting Security and Sandboxing Boundary Tests...");

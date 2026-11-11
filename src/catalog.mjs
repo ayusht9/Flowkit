@@ -1,5 +1,6 @@
 import { imageOperations } from './image-operations.mjs';
 import { documentConversions } from './document-formats.mjs';
+import { mediaOperations } from './media-operations.mjs';
 
 export const catalog = [
   ...["audio", "video"].flatMap((type) => [
@@ -7,10 +8,8 @@ export const catalog = [
     { type: `${type}.pipe`, category: type === "audio" ? "Audio" : "Video", title: "Pipe", description: "Pass media through unchanged", inputType: type, outputType: type, icon: "arrow", color: "teal", group: "Pipe" },
     { type: `${type}.preview`, category: type === "audio" ? "Audio" : "Video", title: `Preview & download ${type}`, description: `Play and download the ${type}`, inputType: type, outputType: type, icon: "download", color: "orange", group: "Output" },
   ]),
-  { type: "audio.convert", category: "Audio", title: "Convert audio", description: "Convert to MP3 or WAV with FFmpeg", inputType: "audio", outputType: "audio", icon: "audio", color: "purple", group: "Transform" },
-  { type: "audio.trim", category: "Audio", title: "Trim audio", description: "Choose a start time and duration", inputType: "audio", outputType: "audio", icon: "audio", color: "purple", group: "Transform" },
-  { type: "video.trim", category: "Video", title: "Trim video", description: "Trim and encode a browser-ready MP4", inputType: "video", outputType: "video", icon: "video", color: "purple", group: "Transform" },
-  { type: "video.extractAudio", category: "Video", title: "Extract audio", description: "Save a video's audio track as MP3 or WAV", inputType: "video", outputType: "audio", icon: "audio", color: "purple", group: "Transform" },
+  ...mediaOperations.map(({ type, title, description, inputType, outputType }) => ({ type, title, description, inputType, outputType,
+    category: inputType === 'audio' ? 'Audio' : 'Video', icon: inputType, color: 'purple', group: 'Transform' })),
   ...["document", "markdown", "image"].map((type) => ({
     type: `${type}.pipe`, category: type === "image" ? "Image" : "Text",
     title: "Pipe", description: "Pass the output to the next step unchanged",

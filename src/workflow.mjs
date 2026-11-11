@@ -3,6 +3,7 @@ import { createDocumentConversion, createDocumentMerge, createDocumentToMarkdown
 import { createImageOperation, validateImage } from "./image.mjs";
 import { imageOperations } from "./image-operations.mjs";
 import { documentConversions } from './document-formats.mjs';
+import { mediaOperations } from './media-operations.mjs';
 import { createMediaOperation, validateMedia } from "./media.mjs";
 
 export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe } = {}) {
@@ -17,8 +18,8 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
     for (const action of ["upload", "pipe", "preview"])
       registry.register(`${type}.${action}`, { inputType: type, outputType: type, validateInput: (value) => validateMedia(value, type), run: async (input) => input });
   }
-  for (const operation of ["audio.convert", "audio.trim", "video.trim", "video.extractAudio"])
-    registry.register(operation, createMediaOperation(operation, { ffmpeg, ffprobe }));
+  for (const operation of mediaOperations)
+    registry.register(operation.type, createMediaOperation(operation.type, { ffmpeg, ffprobe }));
   for (const operation of imageOperations)
     registry.register(operation.type, createImageOperation(operation.type, { executable: imageExecutable }));
   for (const operation of documentConversions)

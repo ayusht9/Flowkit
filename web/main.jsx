@@ -30,6 +30,7 @@ import { nodeKinds, fileTypes, fileCategory, outputCategory, nodeKind, nodeItem,
 import { Icon } from "./icons.jsx";
 import { imageOperations } from '../src/image-operations.mjs';
 import { documentReaders, documentInputLabel } from '../src/document-formats.mjs';
+import { mediaOperations } from '../src/media-operations.mjs';
 import "./styles.css";
 
 function readWorkspace() {
@@ -378,6 +379,7 @@ function App() {
   const selected = nodes.find((node) => node.id === selectedId);
   const selectedItem = selected ? nodeItem(selected) : null;
   const selectedImageOperation = imageOperations.find(item => item.type === selectedItem?.type);
+  const selectedMediaOperation = mediaOperations.find(item => item.type === selectedItem?.type);
   const file = files[selectedId] || Object.values(files)[0] || null;
   const output = result?.output?.value;
   const inputCategory = file ? fileCategory(file.name) : nodes.find((node) => isUpload(node.data.operation))?.data.fileType || "Text";
@@ -1282,23 +1284,28 @@ function App() {
                     <small>Output: {selectedItem.type === "image.convert" && selected.data.options?.format === "jpeg" ? "JPEG (transparency becomes white)" : "PNG"}. Maximum 8 MiB.</small>
                   </div>
                 )}
-                {selectedItem?.group === "Transform" && ["Audio", "Video"].includes(selectedItem.category) && (
+                {selectedMediaOperation && (
                   <div className="inspector-section resize-settings">
                     <p>FFmpeg processes your file locally on the server. Maximum output: 8 MiB.</p>
-                    {selectedItem.outputType === "audio" && <label>Output format
-                      <select aria-label="Audio output format" disabled={running} value={selected.data.options?.format || "mp3"}
-                        onChange={(event) => { setNodes((current) => current.map((node) => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, format: event.target.value } } } : node)); invalidate(); }}>
-                        <option value="mp3">MP3</option><option value="wav">WAV</option>
-                      </select>
-                    </label>}
-                    {selectedItem.type.endsWith(".trim") && ["startSeconds", "durationSeconds"].map((key) => (
-                      <label key={key}>{key === "startSeconds" ? "Start (seconds)" : "Duration (seconds)"}
-                        <input type="number" min={key === "startSeconds" ? 0 : 0.01} max="300" step="0.01"
-                          aria-label={key === "startSeconds" ? "Start (seconds)" : "Duration (seconds)"} disabled={running}
-                          value={selected.data.options?.[key] ?? ""}
-                          onChange={(event) => { const value = Number(event.target.value); setNodes((current) => current.map((node) => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, [key]: value } } } : node)); invalidate(); }} />
-                      </label>
-                    ))}
+                    {selectedMediaOperation.fields.map(field => {
+                      const update = event => {
+                        const raw = event.target.value;
+                        const value = raw === "" ? undefined : field.choices && typeof field.choices[0] === "string" ? raw : Number(raw);
+                        setNodes(current => current.map(node => {
+                          if (node.id !== selectedId) return node;
+                          const options = { ...node.data.options };
+                          if (value === undefined) delete options[field.key]; else options[field.key] = value;
+                          return { ...node, data: { ...node.data, options } };
+                        }));
+                        invalidate();
+                      };
+                      return <label key={field.key}>{field.label}
+                        {field.choices ? <select aria-label={field.label} value={selected.data.options?.[field.key] ?? field.default} disabled={running} onChange={update}>
+                          {field.choices.map(choice => <option key={choice} value={choice}>{typeof choice === "number" ? `${choice}°` : choice.toUpperCase()}</option>)}
+                        </select> : <input type="number" aria-label={field.label} min={field.exclusiveMin ? field.min + field.step : field.min} max={field.max} step={field.step}
+                          value={selected.data.options?.[field.key] ?? field.default ?? ""} disabled={running} onChange={update} />}
+                      </label>;
+                    })}
                   </div>
                 )}
                 {selectedItem?.type === "context.clean" && (

@@ -1,6 +1,6 @@
 # FlowKit MCP
 
-FlowKit exposes 28 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
+FlowKit exposes 36 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
 ## Connect an MCP host
 
@@ -98,10 +98,20 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 | `flowkit_audio_trim` | `inputPath`, `startSeconds`, `durationSeconds`, `format` | Trimmed audio file |
 | `flowkit_video_trim` | `inputPath`, `startSeconds`, `durationSeconds` | MP4/MOV/WebM/MKV → trimmed H.264 MP4 |
 | `flowkit_video_extract_audio` | `inputPath`, `format` | Video → MP3/WAV audio track |
+| `flowkit_audio_volume` | `inputPath`, `gainDb` (−60 to +12; default 0), `format` | Adjust volume; positive gain can clip |
+| `flowkit_audio_fade` | `inputPath`, `fadeInSeconds`, `fadeOutSeconds` (0–30; default 0.25 each), `format` | Fade in/out; the combined fades must fit the source duration |
+| `flowkit_audio_normalize` | `inputPath`, `targetLufs` (−24 to −9; default −16), `format` | Single-pass loudness normalization; fixed target peak −1.5 dBTP and LRA 11 |
+| `flowkit_video_convert` | `inputPath`, `quality` (`compact`, `balanced`, `high`; default `balanced`) | H.264/AAC MP4; CRF 28, 23 or 18 respectively |
+| `flowkit_video_resize` | `inputPath`, `width` and/or `height` (2–1920) | Fit without upscaling; preserve aspect ratio and round dimensions down to even pixels |
+| `flowkit_video_rotate` | `inputPath`, `degrees` (90, 180, 270; default 90) | Clockwise rotation into MP4 |
+| `flowkit_video_flip` | `inputPath`, `direction` (`horizontal`, `vertical`, `both`; default `horizontal`) | Mirror/flip into MP4 |
+| `flowkit_video_mute` | `inputPath` | MP4 with the audio track removed |
 
 All input paths are relative to the configured workspace. Unknown options and arbitrary native flags are rejected. One tool call runs at a time per server process; a concurrent request returns a busy error and can be retried after the first completes. Cancellation reaches the native operation and removes its temporary files.
 
 Pandoc inputs include DOCX, ODT, HTML/HTM, EPUB, Markdown (`.md`/`.markdown`), TXT, RTF, LaTeX (`.tex`), and reStructuredText (`.rst`). Markdown and TXT are parsed as CommonMark. PDF, AsciiDoc and PowerPoint are export-only for compatibility with older Pandoc installations. LaTeX output is source text and requires no TeX installation; PDF still requires the configured pdfroff engine. Conversions use fixed options and Pandoc's sandbox; user filters, templates, scripts, include paths and native flags cannot be supplied. Format conversion can lose layout or features that the target cannot represent; PowerPoint maps headings to slides rather than reproducing document page layouts.
+
+FFmpeg effects retain the existing 20 MiB input, five-minute duration, 1080p pixel-area, 60 fps and 8 MiB output limits. Audio outputs are stereo 44.1 kHz MP3 (128 kbit/s) or PCM WAV; `format` defaults to `mp3`. Video outputs are re-encoded H.264 MP4 with optional AAC audio; mute removes audio entirely. Outputs are inspected with FFprobe and include actual duration and video dimensions/frame rate. Normalization is single-pass: exact loudness/peak targets depend on source content; silence remains silence. Encoding is lossy for MP3 and H.264, including video transformations. No user-supplied filtergraphs, codecs, URLs or executable flags are accepted.
 
 Image operations accept PNG/JPEG with matching signatures and at most 16 million pixels. They use the first frame, apply EXIF orientation, and strip metadata. Crop offsets start at the top-left of the oriented image; rectangles extending outside it are rejected. Transform outputs are PNG; use `flowkit_image_convert` last for JPEG. JPEG conversion replaces transparency with white, and `quality` controls JPEG encoding only. The existing 20 MiB input, 8 MiB output and native resource limits apply.
 

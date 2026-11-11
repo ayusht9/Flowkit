@@ -6,12 +6,11 @@ import { createWorkflowRegistry } from "./workflow.mjs";
 import { findPandoc } from "./server.mjs";
 import { imageOperations } from './image-operations.mjs';
 import { documentConversions } from './document-formats.mjs';
+import { mediaOperations } from './media-operations.mjs';
 
 const maxInput = 20 * 1024 * 1024;
 const maxOutput = 8 * 1024 * 1024;
 const inputPath = z.string().min(1).max(1024).describe("Relative path inside the configured workspace; reuse a previous result's path to chain tools.");
-const format = z.enum(["mp3", "wav"]).default("mp3");
-const trim = { startSeconds: z.number().min(0).max(300), durationSeconds: z.number().positive().max(300) };
 const result = (value) => ({ content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value });
 
 export async function createFlowkitMcpServer({ workspace, registry, signal: shutdownSignal } = {}) {
@@ -112,6 +111,7 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
         mimeType: output.type === "markdown" ? "text/markdown" : value.mimeType || "image/png",
         ...(value.width && { width: value.width, height: value.height }),
         ...(value.durationSeconds && { durationSeconds: value.durationSeconds }),
+        ...(value.frameRate && { frameRate: value.frameRate }),
         ...(output.type === "markdown" && { preview: value.text.slice(0, 1000), previewTruncated: value.text.length > 1000 }),
       };
     } catch (error) { await rm(directory, { recursive: true, force: true }); throw error; }
@@ -141,10 +141,18 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
       return [`flowkit_${operation.type.replace('.', '_')}`, operation.type,
         `${operation.description}. Input: PNG/JPEG, at most 16 million pixels. Returns an image artifact path and dimensions. Output: ${operation.type === 'image.convert' ? 'PNG or JPEG; quality applies only to JPEG' : 'PNG'}.${operation.type === 'image.resize' ? ' Specify width or height, or both.' : ''}`, schema];
     }),
-    ["flowkit_audio_convert", "audio.convert", "Convert WAV, MP3 or M4A to MP3/WAV using FFmpeg. Maximum input: 20 MiB and 5 minutes; output: 8 MiB.", { format }],
-    ["flowkit_audio_trim", "audio.trim", "Trim audio by start time and duration in seconds; save as MP3 or WAV. Returns a file path without media bytes.", { ...trim, format }],
-    ["flowkit_video_trim", "video.trim", "Trim MP4, MOV, WebM or MKV to H.264 MP4. Input: at most 20 MiB, 5 minutes, 1080p pixel area and 60 fps. Output: at most 8 MiB.", trim],
-    ["flowkit_video_extract_audio", "video.extractAudio", "Extract a video's audio track to MP3/WAV. Chain after video trim by passing its returned path. Fails clearly if there is no audio track.", { format }],
+    ...mediaOperations.map(operation => {
+      const schema = Object.fromEntries(operation.fields.map(field => {
+        let value = field.choices ? z.union(field.choices.map(choice => z.literal(choice)))
+          : (field.step === 1 ? z.number().int() : z.number()).min(field.min).max(field.max);
+        if (field.exclusiveMin) value = value.gt(field.min);
+        if (field.default !== undefined) value = value.default(field.default);
+        else if (!field.required) value = value.optional();
+        return [field.key, value.describe(field.label)];
+      }));
+      return [`flowkit_${operation.name}`, operation.type,
+        `${operation.description}. Maximum input: 20 MiB, 5 minutes; video: 1080p pixel area and 60 fps. Returns an artifact path, not media bytes. Output: ${operation.outputType === 'audio' ? 'MP3/WAV' : 'H.264 MP4'}, at most 8 MiB.`, schema];
+    }),
   ]) register(name, description, { inputPath, ...options }, (args, signal) => processFile(operation, args, signal));
 
   register("flowkit_merge_documents", "Combine 2–10 same-format documents into one Word DOCX artifact using Pandoc.", {
