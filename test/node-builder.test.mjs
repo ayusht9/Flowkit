@@ -1,11 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { adaptNodes, connectNodes, processOptions, nodeItem } from "../src/node-builder.mjs";
+import { adaptNodes, connectNodes, processOptions, nodeItem, defaultOptions } from "../src/node-builder.mjs";
+import { imageOperations } from '../src/image-operations.mjs';
 import { defaultWorkflow, parseWorkflow, toPipeline } from "../src/catalog.mjs";
 import { createWorkflowRegistry } from "../src/workflow.mjs";
 import { runPipeline } from "../src/pipeline.mjs";
 
 const node = (id, operation, kind) => ({ id, position: { x: 0, y: 0 }, data: { operation, kind, options: {} } });
+
+test('image operation selections and settings survive workflow export/import', () => {
+  assert.equal(processOptions('Image', 'image').length, 8);
+  for (const operation of imageOperations) {
+    const original = node('process', operation.type, 'process');
+    original.data.options = defaultOptions(operation.type);
+    const restored = parseWorkflow({ name: operation.title, nodes: [original], edges: [] });
+    assert.deepEqual(restored.nodes[0].data.options, operation.defaults);
+    const options = defaultOptions(operation.type);
+    options.extra = true;
+    assert.equal(defaultOptions(operation.type).extra, undefined);
+  }
+});
 
 test("a connected upload adapts a previously unconfigured Process and its downstream nodes", () => {
   const nodes = [node("u", "image.upload", "upload"), node("p", "", "process"), node("pipe", "document.pipe", "pipe"), node("d", "artifact.preview", "download")];

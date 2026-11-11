@@ -1,3 +1,5 @@
+import { imageOperations } from './image-operations.mjs';
+
 export const catalog = [
   ...["audio", "video"].flatMap((type) => [
     { type: `${type}.upload`, category: type === "audio" ? "Audio" : "Video", title: `Upload ${type}`, description: `Start with an ${type} file`, inputType: type, outputType: type, icon: "upload", color: "blue", group: "Input" },
@@ -14,8 +16,8 @@ export const catalog = [
     inputType: type, outputType: type, icon: "arrow", color: "teal", group: "Pipe",
   })),
   { type: "image.upload", category: "Image", title: "Upload image", description: "Start with a PNG or JPEG", inputType: "image", outputType: "image", icon: "upload", color: "blue", group: "Input" },
-  { type: "image.resize", category: "Image", title: "Resize image", description: "Fit within dimensions, preserving aspect ratio", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" },
-  { type: "image.preview", category: "Image", title: "Preview & download image", description: "Inspect and download the resized PNG", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
+  ...imageOperations.map(({ type, title, description }) => ({ type, title, description, category: "Image", inputType: "image", outputType: "image", icon: "settings", color: "purple", group: "Transform" })),
+  { type: "image.preview", category: "Image", title: "Preview & download image", description: "Inspect and download the processed image", inputType: "image", outputType: "image", icon: "download", color: "orange", group: "Output" },
   {
     type: "document.merge",
     category: "Text",

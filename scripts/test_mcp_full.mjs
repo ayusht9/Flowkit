@@ -159,8 +159,8 @@ async function main() {
     }
   }
 
-  // --- Run All 15 Tool Tests ---
-  console.log("\n[4/4] Executing Test Cases on all 15 MCP Tools...");
+  // --- Run All Tool Tests ---
+  console.log("\n[4/4] Executing Test Cases on all 22 MCP Tools...");
 
   // 1. flowkit_document_to_html
   await testTool("flowkit_document_to_html", { inputPath: "sample.md" }, "Document", "Convert Markdown to standalone HTML", "Pandoc");
@@ -194,6 +194,15 @@ async function main() {
 
   // 11. flowkit_image_resize
   await testTool("flowkit_image_resize", { inputPath: "sample.png", width: 64, height: 64 }, "Image", "Resize PNG image maintaining aspect ratio", "ImageMagick");
+  for (const [name, options, description] of [
+    ['crop', { width: 20, height: 10 }, 'Crop a bounded rectangle'],
+    ['rotate', { degrees: 90 }, 'Rotate clockwise'],
+    ['flip', { direction: 'horizontal' }, 'Mirror horizontally'],
+    ['grayscale', {}, 'Convert colors to grayscale'],
+    ['blur', { sigma: 1 }, 'Apply Gaussian blur'],
+    ['sharpen', { sigma: 1 }, 'Sharpen image details'],
+    ['convert', { format: 'jpeg', quality: 85 }, 'Convert PNG to JPEG'],
+  ]) await testTool(`flowkit_image_${name}`, { inputPath: 'sample.png', ...options }, 'Image', description, 'ImageMagick');
 
   // 12. flowkit_audio_convert
   await testTool("flowkit_audio_convert", { inputPath: "sample.wav", format: "mp3" }, "Audio", "Convert WAV audio track to MP3", "FFmpeg");

@@ -4,7 +4,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createImageResize, defaultImageExecutable } from '../src/image.mjs';
+import { createImageResize, createImageOperation, defaultImageExecutable } from '../src/image.mjs';
+import { imageOperations } from '../src/image-operations.mjs';
 import { OperationRegistry } from '../src/operations.mjs';
 import { createWorkflowRegistry } from '../src/workflow.mjs';
 import { imageWorkflow, defaultWorkflow, toPipeline, parseWorkflow, canConnect } from '../src/catalog.mjs';
@@ -33,6 +34,97 @@ test('rejects unsafe filenames, signatures, oversized files, dimensions, and nat
   for (const options of [{}, { width: 0 }, { width: 4097 }, { width: 1.5 }, { height: -1 }, { width: '40' }, { width: NaN }, { width: 40, executable: 'evil' }])
     await assert.rejects(registry.execute('resize', input(), options), TypeError);
   assert.throws(() => createImageResize({ timeoutMs: 0 }), /Timeout/);
+});
+
+test('all image operations reject unknown flags, invalid ranges and malformed input', async () => {
+  const workflows = createWorkflowRegistry({ imageExecutable: executable });
+  for (const operation of imageOperations) {
+    await assert.rejects(workflows.execute(operation.type, input(), { ...operation.defaults, executable: 'evil' }), TypeError);
+    await assert.rejects(workflows.execute(operation.type, input('bad.svg'), operation.defaults), TypeError);
+    await assert.rejects(workflows.execute(operation.type, input(), operation.defaults, { signal: AbortSignal.abort() }), { name: 'AbortError' });
+  }
+  for (const [type, options] of [
+    ['image.crop', {}], ['image.crop', { width: 1, height: 1, x: -1 }], ['image.crop', { width: 1.5, height: 1 }],
+    ['image.rotate', { degrees: 45 }], ['image.rotate', { degrees: '90' }], ['image.flip', { direction: '-write evil.png' }],
+    ['image.blur', { sigma: 0 }], ['image.blur', { sigma: Infinity }], ['image.sharpen', { sigma: 5.1 }],
+    ['image.convert', { format: 'svg' }], ['image.convert', { quality: 101 }], ['image.grayscale', { colorspace: 'RGB' }],
+  ]) await assert.rejects(workflows.execute(type, input(), options), TypeError);
+  assert.throws(() => createImageOperation('image.unknown'), /Unknown image/);
+});
+
+const rgba = value => execFileSync(executable, ['-depth', '8', '-', 'RGBA:-'], { input: value, windowsHide: true });
+const pixel = (bytes, width, x, y) => [...bytes.subarray((y * width + x) * 4, (y * width + x + 1) * 4)];
+
+test('native crop, rotation and mirrors move the expected pixels', native, async () => {
+  await checkCleanup(async () => {
+    const workflows = createWorkflowRegistry({ imageExecutable: executable });
+    const original = rgba(sampleImage);
+    const cropped = await workflows.execute('image.crop', input(), { width: 40, height: 20, x: 10, y: 5 });
+    assert.deepEqual([cropped.value.width, cropped.value.height], [40, 20]);
+    assert.deepEqual(pixel(rgba(cropped.value.data), 40, 0, 0), pixel(original, 120, 10, 5));
+    for (const [degrees, dimensions, target] of [[90, [60, 120], [59, 0]], [180, [120, 60], [119, 59]], [270, [60, 120], [0, 119]]]) {
+      const rotated = await workflows.execute('image.rotate', input(), { degrees });
+      assert.deepEqual([rotated.value.width, rotated.value.height], dimensions);
+      assert.deepEqual(pixel(rgba(rotated.value.data), dimensions[0], ...target), pixel(original, 120, 0, 0));
+    }
+    for (const [direction, source] of [['horizontal', [119, 0]], ['vertical', [0, 59]], ['both', [119, 59]]]) {
+      const flipped = await workflows.execute('image.flip', input(), { direction });
+      assert.deepEqual(pixel(rgba(flipped.value.data), 120, 0, 0), pixel(original, 120, ...source));
+    }
+    await assert.rejects(workflows.execute('image.crop', input(), { width: 120, height: 60, x: 1 }), /Crop rectangle must fit/);
+  });
+});
+
+test('native grayscale, blur and sharpen change pixels while preserving dimensions', native, async () => {
+  const workflows = createWorkflowRegistry({ imageExecutable: executable });
+  const original = rgba(sampleImage);
+  for (const type of ['image.grayscale', 'image.blur', 'image.sharpen']) {
+    const output = await workflows.execute(type, input(), type === 'image.grayscale' ? {} : { sigma: 2 });
+    assert.deepEqual([output.value.width, output.value.height], [120, 60]);
+    const pixels = rgba(output.value.data);
+    assert.notDeepEqual(pixels, original);
+    if (type === 'image.grayscale') for (let i = 0; i < pixels.length; i += 4)
+      assert.ok(pixels[i] === pixels[i + 1] && pixels[i + 1] === pixels[i + 2]);
+  }
+});
+
+test('JPEG conversion flattens transparency to white and chains through PNG operations', native, async () => {
+  await checkCleanup(async () => {
+    const workflows = createWorkflowRegistry({ imageExecutable: executable });
+    const transparent = execFileSync(executable, ['-size', '2x1', 'xc:none', 'PNG:-'], { windowsHide: true });
+    const jpeg = await workflows.execute('image.convert', input('transparent.png', transparent), { format: 'jpeg', quality: 90 });
+    assert.equal(jpeg.value.mimeType, 'image/jpeg');
+    assert.equal(jpeg.value.name, 'transparent-converted.jpg');
+    assert.ok([...rgba(jpeg.value.data)].every(value => value >= 250));
+    const png = await workflows.execute('image.convert', jpeg, { format: 'png' });
+    assert.equal(png.value.mimeType, 'image/png');
+    assert.deepEqual([png.value.data.readUInt32BE(16), png.value.data.readUInt32BE(20)], [2, 1]);
+    const steps = [
+      { type: 'image.crop', options: { width: 40, height: 20 } },
+      { type: 'image.rotate', options: { degrees: 90 } },
+      { type: 'image.grayscale', options: {} },
+      { type: 'image.convert', options: { format: 'jpeg' } },
+    ];
+    const nodes = steps.map((step, i) => ({ id: String(i), ...step }));
+    const result = await runPipeline({ nodes, edges: nodes.slice(1).map((node, i) => ({ source: String(i), target: node.id })) }, workflows, { input: input() });
+    assert.equal(result.status, 'succeeded', result.error?.message);
+    assert.deepEqual([result.output.value.width, result.output.value.height], [20, 40]);
+    assert.equal(result.output.value.mimeType, 'image/jpeg');
+    assert.equal(rgba(result.output.value.data).length, 20 * 40 * 4);
+  });
+});
+
+test('crop bounds use EXIF-oriented JPEG dimensions', native, async () => {
+  const jpeg = execFileSync(executable, ['PNG:-', 'JPEG:-'], { input: sampleImage, windowsHide: true });
+  // Minimal EXIF TIFF profile: orientation 6 means rotate 90 degrees clockwise.
+  const profile = Buffer.from('45786966000049492a0008000000010012010300010000000600000000000000', 'hex');
+  const marker = Buffer.alloc(4);
+  marker.writeUInt16BE(0xffe1, 0); marker.writeUInt16BE(profile.length + 2, 2);
+  const oriented = Buffer.concat([jpeg.subarray(0, 2), marker, profile, jpeg.subarray(2)]);
+  const workflows = createWorkflowRegistry({ imageExecutable: executable });
+  const output = await workflows.execute('image.crop', input('oriented.jpg', oriented), { width: 50, height: 100 });
+  assert.deepEqual([output.value.width, output.value.height], [50, 100]);
+  await assert.rejects(workflows.execute('image.crop', input('oriented.jpg', oriented), { width: 100, height: 50 }), /Crop rectangle must fit/);
 });
 
 test('image workflow survives export/import and rejects document connections and upload targets', () => {

@@ -37,7 +37,7 @@ See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, sa
 
 - Build a linear drag-and-drop workflow in the browser.
 - Convert DOCX, ODT, HTML, EPUB, and Markdown with Pandoc.
-- Resize PNG and JPEG images with ImageMagick.
+- Resize, crop, rotate, mirror, grayscale, blur, sharpen, and convert PNG/JPEG images with ImageMagick.
 - Trim and convert audio/video with FFmpeg.
 - Run the same operations from an MCP-compatible client.
 - Save workflows locally, or export/import workflow JSON.

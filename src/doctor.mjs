@@ -3,6 +3,7 @@ import { realpath, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { findPandoc } from "./server.mjs";
 import { findImageMagick } from "./image.mjs";
+import { imageOperations } from './image-operations.mjs';
 
 function check(command, argument = "--version") {
   const run = spawnSync(command, [argument], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
@@ -26,7 +27,7 @@ export async function diagnoseMcp(workspace) {
     version: "0.1.0",
     node: process.version,
     workspace: root,
-    mcpTools: 15,
+    mcpTools: 14 + imageOperations.length,
     processingReady: Object.values(tools).every((tool) => tool.available),
     tools,
   };

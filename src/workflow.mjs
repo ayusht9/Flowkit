@@ -1,6 +1,7 @@
 import { OperationRegistry, assertRecord } from "./operations.mjs";
 import { createDocumentConversion, createDocumentMerge, createDocumentToMarkdown } from "./document.mjs";
-import { createImageResize, validateImage } from "./image.mjs";
+import { createImageOperation, validateImage } from "./image.mjs";
+import { imageOperations } from "./image-operations.mjs";
 import { createMediaOperation, validateMedia } from "./media.mjs";
 
 export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe } = {}) {
@@ -17,6 +18,8 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
   }
   for (const operation of ["audio.convert", "audio.trim", "video.trim", "video.extractAudio"])
     registry.register(operation, createMediaOperation(operation, { ffmpeg, ffprobe }));
+  for (const operation of imageOperations)
+    registry.register(operation.type, createImageOperation(operation.type, { executable: imageExecutable }));
   return registry
     .register("document.pipe", { inputType: "document", outputType: "document", validateInput: convert.validateInput, run: async (input) => input })
     .register("markdown.pipe", { inputType: "markdown", outputType: "markdown", validateInput: markdown, run: async (input) => input })
@@ -25,7 +28,6 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
       inputType: "image", outputType: "image", validateInput: validateImage,
       run: async (input) => input,
     })
-    .register("image.resize", createImageResize({ executable: imageExecutable }))
     .register("image.preview", {
       inputType: "image", outputType: "image", validateInput: validateImage,
       run: async (input) => input,

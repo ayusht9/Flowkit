@@ -28,6 +28,7 @@ import {
 } from "../src/catalog.mjs";
 import { nodeKinds, fileTypes, fileCategory, outputCategory, nodeKind, nodeItem, processOptions, defaultOptions, adaptNodes, connectNodes } from "../src/node-builder.mjs";
 import { Icon } from "./icons.jsx";
+import { imageOperations } from '../src/image-operations.mjs';
 import "./styles.css";
 
 function readWorkspace() {
@@ -93,7 +94,8 @@ function NodeSubtitle({ item, data }) {
   if (item.type === "context.clean") return "Normalize spacing";
   if (item.type === "artifact.preview") return "Preview & download .md";
   if (item.type === "image.preview") return "Preview & download image";
-  if (item.type.startsWith("image.") && item.type !== "image.upload") return "ImageMagick · PNG";
+  if (item.type.startsWith("image.") && item.type !== "image.upload")
+    return `ImageMagick · ${item.type === "image.convert" && data.options?.format === "jpeg" ? "JPEG" : "PNG"}`;
   return item.description || "";
 }
 
@@ -374,6 +376,7 @@ function App() {
   const flow = useReactFlow();
   const selected = nodes.find((node) => node.id === selectedId);
   const selectedItem = selected ? nodeItem(selected) : null;
+  const selectedImageOperation = imageOperations.find(item => item.type === selectedItem?.type);
   const file = files[selectedId] || Object.values(files)[0] || null;
   const output = result?.output?.value;
   const inputCategory = file ? fileCategory(file.name) : nodes.find((node) => isUpload(node.data.operation))?.data.fileType || "Text";
@@ -1248,28 +1251,30 @@ function App() {
                     {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: "DOCX, ODT, HTML, EPUB, Markdown" })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
-                {selectedItem?.type === "image.resize" && (
+                {selectedImageOperation && (
                   <div className="inspector-section resize-settings">
-                    <p>Fit within these bounds while preserving aspect ratio. Leave one dimension blank to scale by the other.</p>
-                    {["width", "height"].map((dimension) => (
-                      <label key={dimension}>
-                        {dimension === "width" ? "Maximum width (px)" : "Maximum height (px)"}
-                        <input type="number" min="1" max="4096" step="1"
-                          value={selected.data.options?.[dimension] ?? ""} disabled={running}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setNodes((current) => current.map((node) => {
-                              if (node.id !== selectedId) return node;
-                              const options = { ...node.data.options };
-                              if (value === "") delete options[dimension];
-                              else options[dimension] = Number(value);
-                              return { ...node, data: { ...node.data, options } };
-                            }));
-                            invalidate();
-                          }} />
-                      </label>
-                    ))}
-                    <small>1–4096 pixels per dimension. Output: PNG.</small>
+                    <p>{selectedImageOperation.description}.{selectedItem.type === "image.resize" ? " Leave one dimension blank to scale by the other." : ""}</p>
+                    {selectedImageOperation.fields.filter(field => field.key !== "quality" || selected.data.options?.format === "jpeg").map(field => {
+                      const update = event => {
+                        const raw = event.target.value;
+                        const value = raw === "" ? undefined : field.choices && typeof field.choices[0] === "string" ? raw : Number(raw);
+                        setNodes((current) => current.map((node) => {
+                          if (node.id !== selectedId) return node;
+                          const options = { ...node.data.options };
+                          if (value === undefined) delete options[field.key];
+                          else options[field.key] = value;
+                          return { ...node, data: { ...node.data, options } };
+                        }));
+                        invalidate();
+                      };
+                      return <label key={field.key}>{field.label}
+                        {field.choices ? <select disabled={running} value={selected.data.options?.[field.key] ?? field.default} onChange={update}>
+                          {field.choices.map(choice => <option key={choice} value={choice}>{typeof choice === "number" ? `${choice}°` : choice.toUpperCase()}</option>)}
+                        </select> : <input type="number" min={field.min} max={field.max} step={field.step} required={field.required}
+                          value={selected.data.options?.[field.key] ?? field.default ?? ""} disabled={running} onChange={update} />}
+                      </label>;
+                    })}
+                    <small>Output: {selectedItem.type === "image.convert" && selected.data.options?.format === "jpeg" ? "JPEG (transparency becomes white)" : "PNG"}. Maximum 8 MiB.</small>
                   </div>
                 )}
                 {selectedItem?.group === "Transform" && ["Audio", "Video"].includes(selectedItem.category) && (
@@ -1419,7 +1424,7 @@ function App() {
                   </div>
                 ) : imageOutput ? (
                   <>
-                    <img className="image-preview" alt="Resized image" src={`data:${imageOutput.mimeType || (/\.jpe?g$/i.test(imageOutput.name) ? "image/jpeg" : "image/png")};base64,${imageOutput.data}`} />
+                    <img className="image-preview" alt="Processed image" src={`data:${imageOutput.mimeType || (/\.jpe?g$/i.test(imageOutput.name) ? "image/jpeg" : "image/png")};base64,${imageOutput.data}`} />
                     {imageOutput.width && <p>{imageOutput.width} × {imageOutput.height} pixels</p>}
                     <button className="button primary download-result" onClick={() => exportResult()}>
                       <Icon name="download" size={16} /> Download image

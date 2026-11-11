@@ -4,6 +4,7 @@ import { open, realpath, readdir, mkdir, mkdtemp, writeFile, rm, stat } from "no
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createWorkflowRegistry } from "./workflow.mjs";
 import { findPandoc } from "./server.mjs";
+import { imageOperations } from './image-operations.mjs';
 
 const maxInput = 20 * 1024 * 1024;
 const maxOutput = 8 * 1024 * 1024;
@@ -129,7 +130,18 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
       ["epub", "EPUB 3"], ["pdf", "PDF"],
     ].map(([formatName, label]) => [`flowkit_document_to_${formatName}`, `document.to${formatName[0].toUpperCase()}${formatName.slice(1)}`, `Convert a supported document to ${label} using Pandoc. Returns an artifact path without file bytes.`, {}]),
     ["flowkit_clean_markdown", "context.clean", "Normalize Markdown line endings and blank lines while preserving code spacing. Writes a new artifact.", { collapseBlankLines: z.boolean().default(true) }],
-    ["flowkit_image_resize", "image.resize", "Resize PNG/JPEG within a bounding box, preserving aspect ratio. Returns a PNG file path and dimensions. Specify width or height, or both.", { width: z.number().int().min(1).max(4096).optional(), height: z.number().int().min(1).max(4096).optional() }],
+    ...imageOperations.map(operation => {
+      const schema = Object.fromEntries(operation.fields.map(field => {
+        let value = field.choices
+          ? z.union(field.choices.map(choice => z.literal(choice)))
+          : (field.step === 1 ? z.number().int() : z.number()).min(field.min).max(field.max);
+        if (field.default !== undefined) value = value.default(field.default);
+        else if (!field.required) value = value.optional();
+        return [field.key, value.describe(field.label)];
+      }));
+      return [`flowkit_${operation.type.replace('.', '_')}`, operation.type,
+        `${operation.description}. Input: PNG/JPEG, at most 16 million pixels. Returns an image artifact path and dimensions. Output: ${operation.type === 'image.convert' ? 'PNG or JPEG; quality applies only to JPEG' : 'PNG'}.${operation.type === 'image.resize' ? ' Specify width or height, or both.' : ''}`, schema];
+    }),
     ["flowkit_audio_convert", "audio.convert", "Convert WAV, MP3 or M4A to MP3/WAV using FFmpeg. Maximum input: 20 MiB and 5 minutes; output: 8 MiB.", { format }],
     ["flowkit_audio_trim", "audio.trim", "Trim audio by start time and duration in seconds; save as MP3 or WAV. Returns a file path without media bytes.", { ...trim, format }],
     ["flowkit_video_trim", "video.trim", "Trim MP4, MOV, WebM or MKV to H.264 MP4. Input: at most 20 MiB, 5 minutes, 1080p pixel area and 60 fps. Output: at most 8 MiB.", trim],

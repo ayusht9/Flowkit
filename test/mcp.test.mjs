@@ -44,7 +44,9 @@ async function session(t, registry) {
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {
   const { workspace, client, call } = await session(t);
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 15);
+  assert.equal(tools.length, 22);
+  for (const name of ['crop', 'rotate', 'flip', 'grayscale', 'blur', 'sharpen', 'convert'])
+    assert.ok(tools.some(tool => tool.name === `flowkit_image_${name}`));
   assert.ok(tools.some((tool) => tool.name === "flowkit_merge_documents"));
   assert.ok(tools.some((tool) => tool.name === "flowkit_document_to_pdf"));
   assert.ok(tools.some((tool) => tool.name === "flowkit_video_extract_audio"));
@@ -81,6 +83,8 @@ test("MCP rejects path escapes, symlinks outside the workspace, invalid options,
   assert.equal((await call("audio_trim", { inputPath: "a.wav", startSeconds: -1, durationSeconds: 0 })).isError, true);
   assert.equal((await call("read_text", { inputPath: "a.md", limit: 12001 })).isError, true);
   assert.equal((await call("image_resize", { inputPath: "a.png" })).isError, true);
+  assert.equal((await call("image_rotate", { inputPath: "a.png", degrees: 45 })).isError, true);
+  assert.equal((await call("image_crop", { inputPath: "a.png", width: 1, height: 1, flags: "-write" })).isError, true);
   const large = await open(join(workspace, "large.md"), "w");
   await large.truncate(20 * 1024 * 1024 + 1); await large.close();
   assert.match((await call("clean_markdown", { inputPath: "large.md" })).content[0].text, /20 MiB/);
@@ -100,6 +104,13 @@ test("MCP uses real Pandoc, ImageMagick and FFmpeg for every native processing t
   for (const [tool, args, expectedType] of [
     ["document_to_markdown", { inputPath: "report.html" }, "markdown"],
     ["image_resize", { inputPath: "photo.png", width: 40, height: 40 }, "image"],
+    ["image_crop", { inputPath: "photo.png", width: 40, height: 20, x: 10, y: 5 }, "image"],
+    ["image_rotate", { inputPath: "photo.png", degrees: 90 }, "image"],
+    ["image_flip", { inputPath: "photo.png", direction: "horizontal" }, "image"],
+    ["image_grayscale", { inputPath: "photo.png" }, "image"],
+    ["image_blur", { inputPath: "photo.png", sigma: 1 }, "image"],
+    ["image_sharpen", { inputPath: "photo.png", sigma: 1 }, "image"],
+    ["image_convert", { inputPath: "photo.png", format: "jpeg", quality: 85 }, "image"],
     ["audio_convert", { inputPath: "tone.wav", format: "mp3" }, "audio"],
     ["audio_trim", { inputPath: "tone.wav", startSeconds: 0.25, durationSeconds: 0.5, format: "wav" }, "audio"],
     ["video_trim", { inputPath: "clip.mp4", startSeconds: 0.25, durationSeconds: 0.5 }, "video"],
@@ -114,6 +125,17 @@ test("MCP uses real Pandoc, ImageMagick and FFmpeg for every native processing t
     const bytes = await readFile(join(workspace, output.path));
     assert.equal(bytes.length, output.sizeBytes);
     if (tool === "image_resize") assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [40, 20]);
+    if (tool === "image_crop") assert.deepEqual([output.width, output.height], [40, 20]);
+    if (tool === "image_rotate") assert.deepEqual([output.width, output.height], [60, 120]);
+    if (tool === "image_convert") {
+      assert.equal(output.mimeType, "image/jpeg");
+      assert.match(output.path, /\.jpg$/);
+      assert.equal(bytes[0], 255);
+      const chained = await call("image_crop", { inputPath: output.path, width: 20, height: 10 });
+      assert.ok(!chained.isError, JSON.stringify(chained));
+      assert.deepEqual([chained.structuredContent.width, chained.structuredContent.height], [20, 10]);
+      assert.deepEqual(await readFile(join(workspace, "photo.png")), sampleImage);
+    }
     if (tool === "document_to_markdown") assert.match(bytes.toString(), /# MCP document/);
     if (tool === "video_trim") {
       const extracted = await call("video_extract_audio", { inputPath: output.path });
@@ -156,7 +178,7 @@ test("MCP doctor proves the installed CLI can inspect its workspace and dependen
   const response = spawnSync(process.execPath, [join(project, "mcp-server.mjs"), "--doctor", "--workspace", project, "--json"], { encoding: "utf8", windowsHide: true });
   const report = JSON.parse(response.stdout);
   assert.equal(report.installed, true);
-  assert.equal(report.mcpTools, 15);
+  assert.equal(report.mcpTools, 22);
   assert.equal(report.workspace, project);
   assert.deepEqual(Object.keys(report.tools), ["pandoc", "imagemagick", "ffmpeg", "ffprobe"]);
   assert.equal(response.stderr, "");

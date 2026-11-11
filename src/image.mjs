@@ -5,6 +5,7 @@ import { extname, join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { assertRecord } from './operations.mjs';
+import { imageOperations } from './image-operations.mjs';
 
 const execute = promisify(execFile);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -38,6 +39,12 @@ export function validateImage(value) {
 
 /** Executable and limits are trusted server settings, never workflow options. */
 export function createImageResize({ executable = findImageMagick(), timeoutMs = 30_000 } = {}) {
+  return createImageOperation('image.resize', { executable, timeoutMs });
+}
+
+export function createImageOperation(operation, { executable = findImageMagick(), timeoutMs = 30_000 } = {}) {
+  const definition = imageOperations.find(item => item.type === operation);
+  if (!definition) throw new TypeError('Unknown image operation');
   if (typeof executable !== 'string' || !executable.trim()) throw new TypeError('Expected an ImageMagick executable');
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('Timeout must be a positive integer');
   return {
@@ -45,13 +52,16 @@ export function createImageResize({ executable = findImageMagick(), timeoutMs = 
     validateInput: validateImage,
     validateOutput: validateImage,
     validateOptions(options) {
-      if (Object.keys(options).some(key => !['width', 'height'].includes(key)))
-        throw new TypeError('Resize accepts only width and height');
-      if (options.width === undefined && options.height === undefined)
+      if (Object.keys(options).some(key => !definition.fields.some(field => field.key === key)))
+        throw new TypeError(`${definition.title} accepts only its documented options`);
+      if (operation === 'image.resize' && options.width === undefined && options.height === undefined)
         throw new TypeError('Set a resize width or height');
-      for (const key of ['width', 'height']) {
-        if (options[key] !== undefined && (!Number.isSafeInteger(options[key]) || options[key] < 1 || options[key] > 4096))
-          throw new TypeError('Resize dimensions must be integers between 1 and 4096 pixels');
+      for (const field of definition.fields) {
+        const value = options[field.key];
+        if (value === undefined && !field.required) continue;
+        if (field.choices ? !field.choices.includes(value) :
+          typeof value !== 'number' || !Number.isFinite(value) || (field.step === 1 && !Number.isSafeInteger(value)) || value < field.min || value > field.max)
+          throw new TypeError(`${field.label}: ${field.choices ? `choose ${field.choices.join(', ')}` : `use ${field.step === 1 ? 'an integer' : 'a number'} between ${field.min} and ${field.max}`}`);
       }
     },
     async run(input, options, { signal }) {
@@ -67,22 +77,45 @@ export function createImageResize({ executable = findImageMagick(), timeoutMs = 
         const settings = { cwd: directory, signal, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, encoding: 'buffer', windowsHide: true };
         // Force the decoder and select a single frame; uploaded filenames never become arguments.
         const source = `${format}:${path}[0]`;
-        const metadata = await execute(executable, [...limits, '-ping', source, '-format', '%w %h', 'info:'], settings);
-        const [width, height] = metadata.stdout.toString().trim().split(/\s+/).map(Number);
+        const metadata = await execute(executable, [...limits, '-ping', source, '-format', '%w %h %[orientation]', 'info:'], settings);
+        const [rawWidth, rawHeight, orientation] = metadata.stdout.toString().trim().split(/\s+/);
+        let width = Number(rawWidth), height = Number(rawHeight);
         if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 || width * height > 16_000_000)
           throw new Error('Images must contain at most 16 million pixels');
+        if (['LeftTop', 'RightTop', 'RightBottom', 'LeftBottom'].includes(orientation)) [width, height] = [height, width];
         signal?.throwIfAborted();
-        const { stdout } = await execute(executable, [...limits, source, '-auto-orient', '-resize',
-          `${options.width ?? ''}x${options.height ?? ''}`, '-strip', 'PNG:-'], settings);
-        if (!stdout.subarray(0, 8).equals(pngSignature) || stdout.length < 24) throw new Error('Invalid image output');
-        return { type: 'image', value: { name: `${name.replace(/\.[^.]+$/, '')}-resized.png`, source: name,
-          data: stdout, mimeType: 'image/png', width: stdout.readUInt32BE(16), height: stdout.readUInt32BE(20) } };
+        let args;
+        switch (operation) {
+          case 'image.resize': args = ['-resize', `${options.width ?? ''}x${options.height ?? ''}`]; break;
+          case 'image.crop': {
+            const { x = 0, y = 0 } = options;
+            if (x + options.width > width || y + options.height > height)
+              throw new RangeError('Crop rectangle must fit inside the oriented image');
+            args = ['+repage', '-crop', `${options.width}x${options.height}+${x}+${y}`, '+repage']; break;
+          }
+          case 'image.rotate': args = ['-rotate', String(options.degrees ?? 90), '+repage']; break;
+          case 'image.flip': args = (options.direction ?? 'horizontal') === 'horizontal' ? ['-flop'] : options.direction === 'both' ? ['-flip', '-flop'] : ['-flip']; break;
+          case 'image.grayscale': args = ['-colorspace', 'Gray']; break;
+          case 'image.blur': args = ['-blur', `0x${options.sigma ?? 1}`]; break;
+          case 'image.sharpen': args = ['-sharpen', `0x${options.sigma ?? 1}`]; break;
+          case 'image.convert': args = []; break;
+        }
+        const jpeg = operation === 'image.convert' && options.format === 'jpeg';
+        const encoding = jpeg ? ['-background', 'white', '-alpha', 'remove', '-alpha', 'off', '-quality', String(options.quality ?? 85), 'JPEG:-'] : ['PNG:-'];
+        const { stdout: output } = await execute(executable, [...limits, source, '-auto-orient', ...args, '-strip', ...encoding], settings);
+        if (jpeg ? output[0] !== 255 || output[1] !== 216 || output[2] !== 255 :
+          !output.subarray(0, 8).equals(pngSignature) || output.length < 24) throw new Error('Invalid image output');
+        const outputWidth = jpeg ? width : output.readUInt32BE(16), outputHeight = jpeg ? height : output.readUInt32BE(20);
+        if (!outputWidth || !outputHeight || outputWidth * outputHeight > 16_000_000) throw new Error('Invalid output dimensions');
+        return { type: 'image', value: { name: `${name.replace(/\.[^.]+$/, '').slice(0, 200)}-${definition.suffix}.${jpeg ? 'jpg' : 'png'}`, source: name,
+          data: output, mimeType: jpeg ? 'image/jpeg' : 'image/png', width: outputWidth, height: outputHeight } };
       } catch (error) {
         if (signal?.aborted) throw error;
         if (error.code === 'ENOENT') throw new Error('ImageMagick was not found. Install it or set IMAGEMAGICK_PATH to magick (v7) or convert (v6).', { cause: error });
         if (error.killed) throw new Error(`ImageMagick exceeded its ${timeoutMs} ms execution limit`, { cause: error });
         if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') throw new Error('Image output exceeded the 8 MiB limit', { cause: error });
-        throw new Error('Image resize failed; check image content and the 16 million pixel limit', { cause: error });
+        if (error instanceof RangeError) throw error;
+        throw new Error(`Image ${operation.slice(6)} failed; check image content and the 16 million pixel limit`, { cause: error });
       } finally {
         await rm(directory, { recursive: true, force: true });
       }

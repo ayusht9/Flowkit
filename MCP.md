@@ -1,6 +1,6 @@
 # FlowKit MCP
 
-FlowKit exposes 15 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
+FlowKit exposes 22 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
 ## Connect an MCP host
 
@@ -81,12 +81,21 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 | `flowkit_document_to_markdown` | `inputPath` | DOCX/HTML/EPUB/Markdown → Markdown |
 | `flowkit_clean_markdown` | `inputPath`, `collapseBlankLines` (default true) | New normalized Markdown file |
 | `flowkit_image_resize` | `inputPath`, `width` and/or `height` (1–4096) | PNG/JPEG → resized PNG |
+| `flowkit_image_crop` | `inputPath`, `width`, `height` (1–4096), `x`, `y` (0–8191; default 0) | Crop inside the auto-oriented image; output PNG |
+| `flowkit_image_rotate` | `inputPath`, `degrees` (90, 180, 270; default 90) | Clockwise rotation; output PNG |
+| `flowkit_image_flip` | `inputPath`, `direction` (`horizontal`, `vertical`, `both`; default `horizontal`) | Mirror/flip; output PNG |
+| `flowkit_image_grayscale` | `inputPath` | Grayscale PNG |
+| `flowkit_image_blur` | `inputPath`, `sigma` (0.1–10; default 1) | Gaussian blur; output PNG |
+| `flowkit_image_sharpen` | `inputPath`, `sigma` (0.1–5; default 1) | Sharpen details; output PNG |
+| `flowkit_image_convert` | `inputPath`, `format` (`png` or `jpeg`; default `png`), `quality` (1–100; default 85, JPEG only) | PNG/JPEG conversion; JPEG flattens transparency onto white |
 | `flowkit_audio_convert` | `inputPath`, `format` (`mp3` or `wav`, default `mp3`) | WAV/MP3/M4A → audio file |
 | `flowkit_audio_trim` | `inputPath`, `startSeconds`, `durationSeconds`, `format` | Trimmed audio file |
 | `flowkit_video_trim` | `inputPath`, `startSeconds`, `durationSeconds` | MP4/MOV/WebM/MKV → trimmed H.264 MP4 |
 | `flowkit_video_extract_audio` | `inputPath`, `format` | Video → MP3/WAV audio track |
 
 All input paths are relative to the configured workspace. Unknown options and arbitrary native flags are rejected. One tool call runs at a time per server process; a concurrent request returns a busy error and can be retried after the first completes. Cancellation reaches the native operation and removes its temporary files.
+
+Image operations accept PNG/JPEG with matching signatures and at most 16 million pixels. They use the first frame, apply EXIF orientation, and strip metadata. Crop offsets start at the top-left of the oriented image; rectangles extending outside it are rejected. Transform outputs are PNG; use `flowkit_image_convert` last for JPEG. JPEG conversion replaces transparency with white, and `quality` controls JPEG encoding only. The existing 20 MiB input, 8 MiB output and native resource limits apply.
 
 ## Example agent flow
 
