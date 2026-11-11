@@ -88,6 +88,18 @@ test('native grayscale, blur and sharpen change pixels while preserving dimensio
   }
 });
 
+test('4K color JPEG blur and sharpen can spill pixel caches and clean up', native, async () => {
+  await checkCleanup(async () => {
+    const data = execFileSync(executable, ['-size', '3840x2160', 'gradient:red-blue', 'JPEG:-'], { windowsHide: true });
+    const workflows = createWorkflowRegistry({ imageExecutable: executable });
+    for (const type of ['image.blur', 'image.sharpen']) {
+      const output = await workflows.execute(type, input('4k.jpg', data), { sigma: 1 });
+      assert.deepEqual([output.value.width, output.value.height], [3840, 2160]);
+      assert.deepEqual([output.value.data.readUInt32BE(16), output.value.data.readUInt32BE(20)], [3840, 2160]);
+    }
+  });
+});
+
 test('JPEG conversion flattens transparency to white and chains through PNG operations', native, async () => {
   await checkCleanup(async () => {
     const workflows = createWorkflowRegistry({ imageExecutable: executable });

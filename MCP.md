@@ -97,6 +97,8 @@ All input paths are relative to the configured workspace. Unknown options and ar
 
 Image operations accept PNG/JPEG with matching signatures and at most 16 million pixels. They use the first frame, apply EXIF orientation, and strip metadata. Crop offsets start at the top-left of the oriented image; rectangles extending outside it are rejected. Transform outputs are PNG; use `flowkit_image_convert` last for JPEG. JPEG conversion replaces transparency with white, and `quality` controls JPEG encoding only. The existing 20 MiB input, 8 MiB output and native resource limits apply.
 
+Image processing limits pixel-cache heap memory to 128 MiB, memory mapping to 256 MiB, and disk caching to 1 GiB per native invocation. Cache files are directed to the operation's private temporary folder and removed with it on completion, failure, or cancellation. High-resolution effects can still hit processor policy or execution limits; resize first or reduce effect strength if a resource-limit error occurs.
+
 ## Example agent flow
 
 Ask the connected model: “Convert report.docx to Markdown, clean it, and show me the first 2000 characters.” It can then call:

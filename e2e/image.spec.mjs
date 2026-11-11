@@ -3,6 +3,8 @@ import { sampleImage } from '../examples/fixtures/image.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { imageWorkflow } from '../src/catalog.mjs';
+import { execFileSync } from 'node:child_process';
+import { findImageMagick } from '../src/image.mjs';
 
 const fixture = process.env.FLOWKIT_TEST_FILES
   ? await readFile(join(process.env.FLOWKIT_TEST_FILES, 'Images', 'PNG', 'sample.png')) : sampleImage;
@@ -17,6 +19,28 @@ async function uploadImage(page, name, buffer) {
   await chooser.setFiles({ name, mimeType: 'image/png', buffer });
   await expect(page.locator('.react-flow__node[data-id="upload-image"]')).toContainText(name);
 }
+
+test('selecting Blur opens its strength controls and processes a 4K JPEG', async ({ page }) => {
+  const data = execFileSync(findImageMagick(), ['-size', '3840x2160', 'gradient:red-blue', 'JPEG:-'], { windowsHide: true });
+  await page.goto('/');
+  await page.locator('input[type=file][accept=".json"]').setInputFiles({ name: 'image.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imageWorkflow())) });
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.locator('.react-flow__node[data-id="upload-image"] .card-icon-ring').click();
+  await (await chooserPromise).setFiles({ name: '4k.jpg', mimeType: 'image/jpeg', buffer: data });
+  await expect(page.locator('.react-flow__node[data-id="upload-image"]')).toContainText('4k.jpg');
+  await page.locator('.react-flow__node[data-id="upload-image"] .card-body').click();
+  const selector = page.locator('.react-flow__node[data-id="resize"]').getByRole('combobox', { name: 'Operation', exact: true });
+  await selector.click();
+  await page.keyboard.press('Escape');
+  await selector.selectOption('image.blur');
+  const strength = page.getByRole('spinbutton', { name: 'Blur strength (sigma)', exact: true });
+  await expect(strength).toBeVisible();
+  await expect(strength).toHaveValue('1');
+  await page.getByRole('navigation', { name: 'Workflow actions' }).getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.locator('.node-success')).toHaveCount(3, { timeout: 20_000 });
+  const preview = page.getByAltText('Processed image', { exact: true });
+  await expect.poll(() => preview.evaluate(image => [image.naturalWidth, image.naturalHeight])).toEqual([3840, 2160]);
+});
 
 test('crop, rotate and JPEG conversion run through editable visual nodes and download', async ({ page }) => {
   const errors = [];

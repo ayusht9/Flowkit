@@ -72,16 +72,19 @@ export function createImageOperation(operation, { executable = findImageMagick()
         const format = extname(name).toLowerCase() === '.png' ? 'png' : 'jpeg';
         const path = join(directory, `input.${format}`);
         await writeFile(path, data, { signal, mode: 0o600 });
-        const limits = ['-limit', 'memory', '128MiB', '-limit', 'map', '256MiB', '-limit', 'disk', '0',
+        // Blur/sharpen need several pixel caches, even when the uploaded JPEG is tiny.
+        // Keep heap usage bounded and spill into this operation's private directory.
+        const limits = ['-limit', 'memory', '128MiB', '-limit', 'map', '256MiB', '-limit', 'disk', '1GiB',
           '-limit', 'thread', '1', '-limit', 'time', '30', '-limit', 'width', '8192', '-limit', 'height', '8192'];
-        const settings = { cwd: directory, signal, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, encoding: 'buffer', windowsHide: true };
+        const settings = { cwd: directory, signal, timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, encoding: 'buffer', windowsHide: true,
+          env: { ...process.env, MAGICK_TEMPORARY_PATH: directory } };
         // Force the decoder and select a single frame; uploaded filenames never become arguments.
         const source = `${format}:${path}[0]`;
         const metadata = await execute(executable, [...limits, '-ping', source, '-format', '%w %h %[orientation]', 'info:'], settings);
         const [rawWidth, rawHeight, orientation] = metadata.stdout.toString().trim().split(/\s+/);
         let width = Number(rawWidth), height = Number(rawHeight);
         if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 || width * height > 16_000_000)
-          throw new Error('Images must contain at most 16 million pixels');
+          throw new RangeError('Images must contain at most 16 million pixels');
         if (['LeftTop', 'RightTop', 'RightBottom', 'LeftBottom'].includes(orientation)) [width, height] = [height, width];
         signal?.throwIfAborted();
         let args;
@@ -112,8 +115,11 @@ export function createImageOperation(operation, { executable = findImageMagick()
       } catch (error) {
         if (signal?.aborted) throw error;
         if (error.code === 'ENOENT') throw new Error('ImageMagick was not found. Install it or set IMAGEMAGICK_PATH to magick (v7) or convert (v6).', { cause: error });
-        if (error.killed) throw new Error(`ImageMagick exceeded its ${timeoutMs} ms execution limit`, { cause: error });
         if (error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') throw new Error('Image output exceeded the 8 MiB limit', { cause: error });
+        if (error.killed || /time limit exceeded/i.test(error.stderr?.toString() || ''))
+          throw new Error(`ImageMagick exceeded its ${timeoutMs} ms execution limit; try a smaller image or lower effect strength`, { cause: error });
+        if (/cache resources exhausted|memory allocation failed|unable to extend cache|disk allocation failed|width or height exceeds limit/i.test(error.stderr?.toString() || ''))
+          throw new Error('ImageMagick reached its memory or temporary-cache limit; resize the image first or lower the effect strength', { cause: error });
         if (error instanceof RangeError) throw error;
         throw new Error(`Image ${operation.slice(6)} failed; check image content and the 16 million pixel limit`, { cause: error });
       } finally {

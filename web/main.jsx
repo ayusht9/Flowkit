@@ -529,6 +529,10 @@ function App() {
     if (running) return;
     setNodes((current) => adaptNodes(current.map((node) => node.id === id
       ? { ...node, data: { ...node.data, ...changes, options: defaultOptions(changes.operation) } } : node), edges));
+    setSelectedId(id);
+    setInspectorTab("settings");
+    setInspectorOpen(true);
+    setShowLibrary(false);
     invalidate();
   }
   const reconnectingEdge = useRef(null);
