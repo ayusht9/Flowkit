@@ -510,7 +510,8 @@ svg { flex-shrink: 0; }
 }
 
 .card-body,
-.card-file-type {
+.card-file-type,
+.card-selectors {
   position: relative;
   z-index: 1;
 }
