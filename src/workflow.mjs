@@ -2,6 +2,7 @@ import { OperationRegistry, assertRecord } from "./operations.mjs";
 import { createDocumentConversion, createDocumentMerge, createDocumentToMarkdown } from "./document.mjs";
 import { createImageOperation, validateImage } from "./image.mjs";
 import { imageOperations } from "./image-operations.mjs";
+import { documentConversions } from './document-formats.mjs';
 import { createMediaOperation, validateMedia } from "./media.mjs";
 
 export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe } = {}) {
@@ -20,6 +21,8 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
     registry.register(operation, createMediaOperation(operation, { ffmpeg, ffprobe }));
   for (const operation of imageOperations)
     registry.register(operation.type, createImageOperation(operation.type, { executable: imageExecutable }));
+  for (const operation of documentConversions)
+    registry.register(operation.type, createDocumentConversion(operation.target, { executable }));
   return registry
     .register("document.pipe", { inputType: "document", outputType: "document", validateInput: convert.validateInput, run: async (input) => input })
     .register("markdown.pipe", { inputType: "markdown", outputType: "markdown", validateInput: markdown, run: async (input) => input })
@@ -39,11 +42,6 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
       run: async (input) => input,
     })
     .register("document.toMarkdown", convert)
-    .register("document.toHtml", createDocumentConversion("html", { executable }))
-    .register("document.toDocx", createDocumentConversion("docx", { executable }))
-    .register("document.toOdt", createDocumentConversion("odt", { executable }))
-    .register("document.toEpub", createDocumentConversion("epub", { executable }))
-    .register("document.toPdf", createDocumentConversion("pdf", { executable }))
     .register("document.merge", createDocumentMerge({ executable }))
     .register("document.preview", { inputType: "document", outputType: "document", run: async (input) => input })
     .register("context.clean", {

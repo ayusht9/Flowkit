@@ -5,6 +5,7 @@ import { basename, extname, isAbsolute, join, relative, resolve, sep } from "nod
 import { createWorkflowRegistry } from "./workflow.mjs";
 import { findPandoc } from "./server.mjs";
 import { imageOperations } from './image-operations.mjs';
+import { documentConversions } from './document-formats.mjs';
 
 const maxInput = 20 * 1024 * 1024;
 const maxOutput = 8 * 1024 * 1024;
@@ -124,11 +125,9 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
   }
 
   for (const [name, operation, description, options] of [
-    ["flowkit_document_to_markdown", "document.toMarkdown", "Convert DOCX, HTML, EPUB or Markdown to a Markdown artifact using Pandoc. Returns a path and at most 1000 preview characters, not the full document.", {}],
-    ...[
-      ["html", "HTML"], ["docx", "Word DOCX"], ["odt", "OpenDocument ODT"],
-      ["epub", "EPUB 3"], ["pdf", "PDF"],
-    ].map(([formatName, label]) => [`flowkit_document_to_${formatName}`, `document.to${formatName[0].toUpperCase()}${formatName.slice(1)}`, `Convert a supported document to ${label} using Pandoc. Returns an artifact path without file bytes.`, {}]),
+    ["flowkit_document_to_markdown", "document.toMarkdown", "Convert a supported document to Markdown using Pandoc. Returns a path and at most 1000 preview characters, not the full document.", {}],
+    ...documentConversions.map(operation => [`flowkit_document_to_${operation.target}`, operation.type,
+      `${operation.description} using Pandoc. Returns an artifact path without file bytes.`, {}]),
     ["flowkit_clean_markdown", "context.clean", "Normalize Markdown line endings and blank lines while preserving code spacing. Writes a new artifact.", { collapseBlankLines: z.boolean().default(true) }],
     ...imageOperations.map(operation => {
       const schema = Object.fromEntries(operation.fields.map(field => {

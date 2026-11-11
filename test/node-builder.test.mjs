@@ -38,8 +38,9 @@ test("operation options follow upstream payload types and survive metadata expor
   const nodes = adaptNodes(workflow.nodes, workflow.edges);
   assert.deepEqual(processOptions("Text", "document").map((item) => item.type), [
     "document.toMarkdown", "document.toHtml", "document.toDocx", "document.toOdt", "document.toEpub", "document.toPdf",
+    "document.toText", "document.toRtf", "document.toLatex", "document.toRst", "document.toAsciiDoc", "document.toPptx",
   ]);
-  assert.deepEqual(processOptions("Text", "document").map((item) => item.section), ["Text", "Office", "Office", "Office", "Office", "PDF"]);
+  assert.deepEqual(processOptions("Text", "document").map((item) => item.section), ["Text", "Office", "Office", "Office", "Office", "PDF", "Text", "Office", "Markup", "Markup", "Markup", "Slides"]);
   assert.deepEqual(processOptions("Text", "markdown").map((item) => item.type), ["context.clean"]);
   const restored = parseWorkflow({ ...workflow, nodes });
   assert.deepEqual(restored.nodes.map((item) => item.data), nodes.map((item) => item.data));

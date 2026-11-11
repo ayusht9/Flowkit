@@ -44,7 +44,9 @@ async function session(t, registry) {
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {
   const { workspace, client, call } = await session(t);
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 22);
+  assert.equal(tools.length, 28);
+  for (const name of ['text', 'rtf', 'latex', 'rst', 'asciidoc', 'pptx'])
+    assert.ok(tools.some(tool => tool.name === `flowkit_document_to_${name}`));
   for (const name of ['crop', 'rotate', 'flip', 'grayscale', 'blur', 'sharpen', 'convert'])
     assert.ok(tools.some(tool => tool.name === `flowkit_image_${name}`));
   assert.ok(tools.some((tool) => tool.name === "flowkit_merge_documents"));
@@ -103,6 +105,7 @@ test("MCP uses real Pandoc, ImageMagick and FFmpeg for every native processing t
   await writeFile(join(workspace, "clip.mp4"), await makeVideo({ ffmpeg }));
   for (const [tool, args, expectedType] of [
     ["document_to_markdown", { inputPath: "report.html" }, "markdown"],
+    ...['text', 'rtf', 'latex', 'rst', 'asciidoc', 'pptx'].map(format => [`document_to_${format}`, { inputPath: 'report.html' }, 'document']),
     ["image_resize", { inputPath: "photo.png", width: 40, height: 40 }, "image"],
     ["image_crop", { inputPath: "photo.png", width: 40, height: 20, x: 10, y: 5 }, "image"],
     ["image_rotate", { inputPath: "photo.png", degrees: 90 }, "image"],
@@ -137,6 +140,16 @@ test("MCP uses real Pandoc, ImageMagick and FFmpeg for every native processing t
       assert.deepEqual(await readFile(join(workspace, "photo.png")), sampleImage);
     }
     if (tool === "document_to_markdown") assert.match(bytes.toString(), /# MCP document/);
+    if (['document_to_text', 'document_to_rtf', 'document_to_latex', 'document_to_rst'].includes(tool)) {
+      const converted = await call('document_to_markdown', { inputPath: output.path });
+      assert.ok(!converted.isError, JSON.stringify(converted));
+      assert.match(converted.structuredContent.preview, /MCP document/);
+      if (tool === 'document_to_text') {
+        const excerpt = await call('read_text', { inputPath: output.path, limit: 3 });
+        assert.equal(excerpt.structuredContent.text.length, 3);
+        assert.equal(output.mimeType, 'text/plain');
+      }
+    }
     if (tool === "video_trim") {
       const extracted = await call("video_extract_audio", { inputPath: output.path });
       assert.equal(extracted.structuredContent.type, "audio");
@@ -178,7 +191,7 @@ test("MCP doctor proves the installed CLI can inspect its workspace and dependen
   const response = spawnSync(process.execPath, [join(project, "mcp-server.mjs"), "--doctor", "--workspace", project, "--json"], { encoding: "utf8", windowsHide: true });
   const report = JSON.parse(response.stdout);
   assert.equal(report.installed, true);
-  assert.equal(report.mcpTools, 22);
+  assert.equal(report.mcpTools, 28);
   assert.equal(report.workspace, project);
   assert.deepEqual(Object.keys(report.tools), ["pandoc", "imagemagick", "ffmpeg", "ffprobe"]);
   assert.equal(response.stderr, "");

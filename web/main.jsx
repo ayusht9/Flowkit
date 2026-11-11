@@ -29,6 +29,7 @@ import {
 import { nodeKinds, fileTypes, fileCategory, outputCategory, nodeKind, nodeItem, processOptions, defaultOptions, adaptNodes, connectNodes } from "../src/node-builder.mjs";
 import { Icon } from "./icons.jsx";
 import { imageOperations } from '../src/image-operations.mjs';
+import { documentReaders, documentInputLabel } from '../src/document-formats.mjs';
 import "./styles.css";
 
 function readWorkspace() {
@@ -444,7 +445,7 @@ function App() {
   async function chooseFile(candidate, uploadId) {
     if (!candidate || running) return;
     if (!uploadId) return setMessage("Select an Upload node before choosing a file.");
-    if (!/\.(png|jpe?g|docx|odt|html?|epub|md|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
+    if (!documentReaders[candidate.name.slice(candidate.name.lastIndexOf('.')).toLowerCase()] && !/\.(png|jpe?g|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
       setMessage("Choose a supported document, image, audio (WAV/MP3/M4A), or video (MP4/MOV/WebM/MKV) file.");
       return;
     }
@@ -1252,7 +1253,7 @@ function App() {
                     </div>
                   </div>
                   <p className="file-types">
-                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: "DOCX, ODT, HTML, EPUB, Markdown" })[inputCategory]} · Up to 20 MiB
+                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
                 {selectedImageOperation && (
@@ -1599,7 +1600,7 @@ function App() {
       <input
         ref={fileRef}
         type="file"
-        accept=".png,.jpg,.jpeg,.docx,.odt,.html,.htm,.epub,.md,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
+        accept={[...Object.keys(documentReaders), '.png', '.jpg', '.jpeg', '.wav', '.mp3', '.m4a', '.mp4', '.mov', '.webm', '.mkv'].join(',')}
         hidden
         onChange={(event) => {
           chooseFile(event.target.files[0], pendingUploadId.current);

@@ -4,19 +4,14 @@ import { tmpdir } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { assertRecord } from './operations.mjs';
+import { documentReaders, documentInputLabel, documentConversions } from './document-formats.mjs';
 
 const execute = promisify(execFile);
-const formats = new Map([['.docx', 'docx'], ['.odt', 'odt'], ['.html', 'html'], ['.htm', 'html'], ['.epub', 'epub'], ['.md', 'commonmark']]);
+const formats = new Map(Object.entries(documentReaders));
 const archiveFormats = new Set(['.docx', '.odt', '.epub']);
 const maxInputBytes = 20 * 1024 * 1024;
 const maxOutputBytes = 20 * 1024 * 1024;
-const targets = Object.freeze({
-  html: { format: 'html5', extension: '.html', mimeType: 'text/html', arguments: ['--standalone'] },
-  docx: { format: 'docx', extension: '.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
-  odt: { format: 'odt', extension: '.odt', mimeType: 'application/vnd.oasis.opendocument.text' },
-  epub: { format: 'epub3', extension: '.epub', mimeType: 'application/epub+zip' },
-  pdf: { format: 'pdf', extension: '.pdf', mimeType: 'application/pdf', arguments: ['--pdf-engine=pdfroff'] },
-});
+const targets = Object.freeze(Object.fromEntries(documentConversions.map(item => [item.target, item])));
 
 function validateDocument(value) {
   assertRecord(value, 'Document');
@@ -24,7 +19,8 @@ function validateDocument(value) {
     throw new TypeError('Document name must be a filename without directory components');
   }
   const extension = extname(value.name).toLowerCase();
-  if (!formats.has(extension)) throw new TypeError('Supported documents: DOCX, ODT, HTML, EPUB, and Markdown');
+  if (['.adoc', '.pptx'].includes(extension)) throw new TypeError('AsciiDoc and PowerPoint are export-only formats; use a supported source document');
+  if (!formats.has(extension)) throw new TypeError(`Supported documents: ${documentInputLabel}`);
   if (!(value.data instanceof Uint8Array) || value.data.byteLength === 0 || value.data.byteLength > maxInputBytes) {
     throw new TypeError('Document data must contain between 1 byte and 20 MiB');
   }
@@ -101,7 +97,7 @@ export function createDocumentConversion(target, { executable = 'pandoc', timeou
       try {
         const sourceExtension = extname(input.value.name).toLowerCase();
         const source = join(directory, `input${sourceExtension}`);
-        const name = `${basename(input.value.name, sourceExtension)}${output.extension}`;
+        const name = `${basename(input.value.name, extname(input.value.name)).slice(0, 200)}${output.extension}`;
         const destination = join(directory, `output${output.extension}`);
         await writeFile(source, input.value.data, { signal, mode: 0o600 });
         await execute(executable, ['--sandbox', '--from', formats.get(sourceExtension), '--to', output.format, ...(output.arguments || []), '--output', destination, source, '+RTS', '-M512M', '-RTS'], {

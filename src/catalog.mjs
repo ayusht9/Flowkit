@@ -1,4 +1,5 @@
 import { imageOperations } from './image-operations.mjs';
+import { documentConversions } from './document-formats.mjs';
 
 export const catalog = [
   ...["audio", "video"].flatMap((type) => [
@@ -53,13 +54,7 @@ export const catalog = [
     group: "Transform",
     section: "Text",
   },
-  ...[
-    ["document.toHtml", "Convert to HTML", "Create a standalone web document", "Office"],
-    ["document.toDocx", "Convert to Word", "Create a Microsoft Word .docx file", "Office"],
-    ["document.toOdt", "Convert to OpenDocument", "Create an editable .odt file", "Office"],
-    ["document.toEpub", "Convert to EPUB", "Create an EPUB 3 ebook", "Office"],
-    ["document.toPdf", "Create PDF", "Create a PDF using Pandoc's installed PDF engine", "PDF"],
-  ].map(([type, title, description, section]) => ({
+  ...documentConversions.map(({ type, title, description, section }) => ({
     type, category: "Text", title, description, section,
     inputType: "document", outputType: "document", icon: "document", color: "purple", group: "Transform",
   })),
@@ -78,7 +73,7 @@ export const catalog = [
     type: "document.preview",
     category: "Text",
     title: "Download document",
-    description: "Download the converted office or PDF file",
+    description: "Download the converted document or source file",
     inputType: "document",
     outputType: "document",
     icon: "download",

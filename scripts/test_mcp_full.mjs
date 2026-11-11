@@ -160,7 +160,7 @@ async function main() {
   }
 
   // --- Run All Tool Tests ---
-  console.log("\n[4/4] Executing Test Cases on all 22 MCP Tools...");
+  console.log("\n[4/4] Executing Test Cases on all 28 MCP Tools...");
 
   // 1. flowkit_document_to_html
   await testTool("flowkit_document_to_html", { inputPath: "sample.md" }, "Document", "Convert Markdown to standalone HTML", "Pandoc");
@@ -176,6 +176,8 @@ async function main() {
 
   // 5. flowkit_document_to_pdf
   await testTool("flowkit_document_to_pdf", { inputPath: "sample.html" }, "Document", "Convert document to PDF artifact", "Pandoc / pdfroff");
+  for (const format of ['text', 'rtf', 'latex', 'rst', 'asciidoc', 'pptx'])
+    await testTool(`flowkit_document_to_${format}`, { inputPath: 'sample.html' }, 'Document', `Export document to ${format}`, 'Pandoc');
 
   // 6. flowkit_merge_documents
   await testTool("flowkit_merge_documents", { inputPaths: ["sample.docx", "sample2.docx"] }, "Document", "Merge 2 DOCX documents into combined DOCX", "Pandoc");

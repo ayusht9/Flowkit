@@ -1,6 +1,6 @@
 # FlowKit MCP
 
-FlowKit exposes 22 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
+FlowKit exposes 28 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
 ## Connect an MCP host
 
@@ -75,10 +75,16 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 | `flowkit_document_to_odt` | `inputPath` | Supported document to OpenDocument ODT |
 | `flowkit_document_to_epub` | `inputPath` | Supported document to EPUB 3 |
 | `flowkit_document_to_pdf` | `inputPath` | Supported document to PDF |
+| `flowkit_document_to_text` | `inputPath` | Readable plain text (`.txt`); read bounded excerpts with `flowkit_read_text` |
+| `flowkit_document_to_rtf` | `inputPath` | Rich Text Format (`.rtf`) |
+| `flowkit_document_to_latex` | `inputPath` | Standalone LaTeX source (`.tex`); no compilation |
+| `flowkit_document_to_rst` | `inputPath` | reStructuredText source (`.rst`) |
+| `flowkit_document_to_asciidoc` | `inputPath` | AsciiDoc source (`.adoc`), export only |
+| `flowkit_document_to_pptx` | `inputPath` | PowerPoint (`.pptx`), export only; level-2 headings begin slides |
 | `flowkit_merge_documents` | `inputPaths` (2-10 same-format files) | Combined Word DOCX |
 | `flowkit_list_files` | `directory` (default `.`) | Up to 100 non-hidden entries; no recursion or symlink following |
 | `flowkit_read_text` | `inputPath`, `offset` (default 0), `limit` (default 2000, max 12000) | Text excerpt, total characters, next offset |
-| `flowkit_document_to_markdown` | `inputPath` | DOCX/HTML/EPUB/Markdown → Markdown |
+| `flowkit_document_to_markdown` | `inputPath` | Supported document → Markdown |
 | `flowkit_clean_markdown` | `inputPath`, `collapseBlankLines` (default true) | New normalized Markdown file |
 | `flowkit_image_resize` | `inputPath`, `width` and/or `height` (1–4096) | PNG/JPEG → resized PNG |
 | `flowkit_image_crop` | `inputPath`, `width`, `height` (1–4096), `x`, `y` (0–8191; default 0) | Crop inside the auto-oriented image; output PNG |
@@ -94,6 +100,8 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 | `flowkit_video_extract_audio` | `inputPath`, `format` | Video → MP3/WAV audio track |
 
 All input paths are relative to the configured workspace. Unknown options and arbitrary native flags are rejected. One tool call runs at a time per server process; a concurrent request returns a busy error and can be retried after the first completes. Cancellation reaches the native operation and removes its temporary files.
+
+Pandoc inputs include DOCX, ODT, HTML/HTM, EPUB, Markdown (`.md`/`.markdown`), TXT, RTF, LaTeX (`.tex`), and reStructuredText (`.rst`). Markdown and TXT are parsed as CommonMark. PDF, AsciiDoc and PowerPoint are export-only for compatibility with older Pandoc installations. LaTeX output is source text and requires no TeX installation; PDF still requires the configured pdfroff engine. Conversions use fixed options and Pandoc's sandbox; user filters, templates, scripts, include paths and native flags cannot be supplied. Format conversion can lose layout or features that the target cannot represent; PowerPoint maps headings to slides rather than reproducing document page layouts.
 
 Image operations accept PNG/JPEG with matching signatures and at most 16 million pixels. They use the first frame, apply EXIF orientation, and strip metadata. Crop offsets start at the top-left of the oriented image; rectangles extending outside it are rejected. Transform outputs are PNG; use `flowkit_image_convert` last for JPEG. JPEG conversion replaces transparency with white, and `quality` controls JPEG encoding only. The existing 20 MiB input, 8 MiB output and native resource limits apply.
 

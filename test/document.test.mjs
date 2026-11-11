@@ -8,6 +8,8 @@ import { promisify } from 'node:util';
 import { OperationRegistry } from '../src/operations.mjs';
 import { createDocumentConversion, createDocumentToMarkdown } from '../src/document.mjs';
 import { runPipeline } from '../src/pipeline.mjs';
+import { documentConversions } from '../src/document-formats.mjs';
+import { inflateRawSync } from 'node:zlib';
 
 const execute = promisify(execFile);
 const executable = process.env.PANDOC_PATH || 'pandoc';
@@ -19,6 +21,72 @@ const pdfNative = { skip: installed && spawnSync('pdfroff', ['--version'], { win
   ? false : 'Install Pandoc, Groff, and Ghostscript to run PDF integration tests' };
 const registry = new OperationRegistry().register('document.toMarkdown', createDocumentToMarkdown({ executable }));
 const payload = (name, text) => ({ type: 'document', value: { name, data: Buffer.from(text) } });
+
+const addedFormats = documentConversions.filter(item => ['text', 'rtf', 'latex', 'rst', 'asciidoc', 'pptx'].includes(item.target));
+
+function zipText(data, name) {
+  const bytes = Buffer.from(data);
+  let offset = bytes.indexOf(Buffer.from('504b0102', 'hex'));
+  while (offset >= 0 && bytes.readUInt32LE(offset) === 0x02014b50) {
+    const nameLength = bytes.readUInt16LE(offset + 28);
+    const extraLength = bytes.readUInt16LE(offset + 30);
+    const commentLength = bytes.readUInt16LE(offset + 32);
+    if (bytes.subarray(offset + 46, offset + 46 + nameLength).toString() === name) {
+      const local = bytes.readUInt32LE(offset + 42);
+      const start = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
+      const compressed = bytes.subarray(start, start + bytes.readUInt32LE(offset + 20));
+      const method = bytes.readUInt16LE(offset + 10);
+      assert.ok([0, 8].includes(method));
+      return (method === 8 ? inflateRawSync(compressed) : compressed).toString('utf8');
+    }
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  throw new Error(`Missing ZIP entry: ${name}`);
+}
+
+for (const format of addedFormats) {
+  test(`exports real ${format.target} content and verifies its document structure`, native, async () => {
+    const before = new Set(await readdir(tmpdir()));
+    const conversion = new OperationRegistry().register('export', createDocumentConversion(format.target, pandocSettings));
+    const source = payload('REPORT.MD', '# Quarterly report\n\n## First slide\n\nRevenue increased. Café report.');
+    const result = await conversion.execute('export', source);
+    assert.equal(result.value.name, `REPORT${format.extension}`);
+    assert.equal(result.value.mimeType, format.mimeType);
+    if (format.target === 'pptx') assert.equal(Buffer.from(result.value.data).subarray(0, 4).toString('hex'), '504b0304');
+    if (format.target === 'rtf') assert.match(Buffer.from(result.value.data).toString(), /^\{\\rtf/);
+    if (format.target === 'latex') assert.match(Buffer.from(result.value.data).toString(), /\\documentclass/);
+    if (format.target === 'pptx') {
+      assert.match(zipText(result.value.data, 'ppt/presentation.xml'), /<p:sldIdLst>/);
+      assert.match(zipText(result.value.data, 'ppt/slides/slide1.xml'), /Quarterly report/);
+      assert.match(zipText(result.value.data, 'ppt/slides/slide2.xml'), /Revenue increased/);
+    } else {
+      const text = format.target === 'asciidoc' ? Buffer.from(result.value.data).toString('utf8') : (await registry.execute('document.toMarkdown', result)).value.text;
+      for (const expected of ['Quarterly report', 'First slide', 'Revenue increased', 'Café report']) assert.ok(text.includes(expected), text);
+    }
+    await assert.rejects(conversion.execute('export', source, { filter: 'untrusted.lua' }), /does not accept options/);
+    await assert.rejects(conversion.execute('export', source, {}, { signal: AbortSignal.abort() }), { name: 'AbortError' });
+    assert.deepEqual((await readdir(tmpdir())).filter(name => name.startsWith('flowkit-pandoc-') && !before.has(name)), []);
+  });
+}
+
+test('new document readers retain ZIP validation and block local includes', native, async () => {
+  await assert.rejects(registry.execute('document.toMarkdown', payload('slides.pptx', 'not ZIP')), /export-only/);
+  await assert.rejects(registry.execute('document.toMarkdown', payload('source.adoc', '= Title')), /export-only/);
+  const directory = await mkdtemp(join(tmpdir(), 'flowkit-reader-test-'));
+  try {
+    const secret = join(directory, 'secret.txt').replaceAll('\\', '/');
+    await writeFile(secret, 'FLOWKIT_PRIVATE_CANARY');
+    for (const [name, text] of [
+      ['hostile.tex', `\\input{${secret}}`],
+      ['hostile.rst', `.. include:: ${secret}\n`],
+    ]) {
+      let result;
+      try { result = await registry.execute('document.toMarkdown', payload(name, text)); }
+      catch (error) { assert.match(error.message, /Pandoc conversion failed/); continue; }
+      assert.doesNotMatch(result.value.text, /FLOWKIT_PRIVATE_CANARY/);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
 
 test('explicit PANDOC_PATH points to a working Pandoc installation', { skip: !process.env.PANDOC_PATH }, () => {
   assert.equal(installed, true, probe.error?.message || probe.stderr?.toString());
