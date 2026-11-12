@@ -118,6 +118,7 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
         ...(value.width && { width: value.width, height: value.height }),
         ...(value.durationSeconds && { durationSeconds: value.durationSeconds }),
         ...(value.frameRate && { frameRate: value.frameRate }),
+        ...(value.pageCount && { pageCount: value.pageCount }),
         ...(output.type === "markdown" && { preview: value.text.slice(0, 1000), previewTruncated: value.text.length > 1000 }),
       };
     } catch (error) { await rm(directory, { recursive: true, force: true }); throw error; }
@@ -164,6 +165,18 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
   register("flowkit_merge_documents", "Combine 2–10 same-format documents into one Word DOCX artifact using Pandoc.", {
     inputPaths: z.array(inputPath).min(2).max(10),
   }, mergeDocuments);
+
+  register('flowkit_pdf_merge', 'Merge 2-10 unencrypted PDFs in inputPaths order. Inputs total at most 20 MiB; output at most 8 MiB and 1000 pages. Returns a PDF artifact path and page count. Uses qpdf.', {
+    inputPaths: z.array(inputPath).min(2).max(10),
+  }, async ({ inputPaths }, signal) => {
+    const files = [];
+    for (const path of inputPaths) files.push(await readInput(path, signal));
+    return saveOutput(await registry.execute('pdf.merge', { type: 'pdf', value: files }, {}, { signal }), signal);
+  });
+  for (const action of ['extract', 'rotate']) register(`flowkit_pdf_${action}`,
+    `${action === 'extract' ? 'Extract selected pages into one new PDF' : 'Rotate selected pages clockwise relative to their existing rotation'}. Pages: all or 1-based numbers/ranges such as 1-3,5, without spaces. Requires an unencrypted PDF and qpdf. Input at most 20 MiB/1000 pages; output at most 8 MiB. Returns an artifact path and page count.`,
+    { inputPath, pages: z.string().min(1).max(1024).default('all'), ...(action === 'rotate' ? { degrees: z.union([z.literal(90), z.literal(180), z.literal(270)]).default(90) } : {}) },
+    (args, signal) => processFile(`pdf.${action}`, args, signal));
 
   return server;
 }

@@ -6,8 +6,9 @@ import { documentConversions } from './document-formats.mjs';
 import { mediaOperations } from './media-operations.mjs';
 import { getMediaOutputMiB, MiB } from './limits.mjs';
 import { createMediaOperation, validateMedia } from "./media.mjs";
+import { createPdfOperation, validatePdf } from './pdf.mjs';
 
-export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe, mediaOutputMiB = getMediaOutputMiB() } = {}) {
+export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe, qpdf, mediaOutputMiB = getMediaOutputMiB() } = {}) {
   mediaOutputMiB = getMediaOutputMiB(mediaOutputMiB);
   const mediaPayloadBytes = Math.max(20, mediaOutputMiB) * MiB;
   const convert = createDocumentToMarkdown({ executable });
@@ -17,6 +18,10 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
       throw new TypeError("Expected Markdown text and source");
   };
   const registry = new OperationRegistry();
+  for (const operation of ['pdf.merge', 'pdf.extract', 'pdf.rotate'])
+    registry.register(operation, createPdfOperation(operation, { executable: qpdf }));
+  for (const action of ['upload', 'pipe', 'preview'])
+    registry.register(`pdf.${action}`, { inputType: 'pdf', outputType: 'pdf', validateInput: validatePdf, run: async input => input });
   for (const type of ["audio", "video"]) {
     for (const action of ["upload", "pipe", "preview"])
       registry.register(`${type}.${action}`, { inputType: type, outputType: type, validateInput: (value) => validateMedia(value, type, {

@@ -1,10 +1,12 @@
 # FlowKit MCP
 
-FlowKit exposes 36 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
+FlowKit exposes 39 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
 ## Connect an MCP host
 
 Install dependencies with `npm install`. Install Pandoc, ImageMagick and FFmpeg/FFprobe for the operations you want to use. No LLM API key is required by this server; your MCP host provides the model.
+
+PDF merging, page extraction, and rotation require [qpdf](https://github.com/qpdf/qpdf/releases), available for Windows, macOS, and Linux. FlowKit's native PDF tests use qpdf 12.2.0 locally; the container and CI use their distribution's qpdf package. Add qpdf to PATH or set `QPDF_PATH` to its executable in your MCP host environment. The npm package does not bundle native tools.
 
 To install the CLI from npm and verify both the package and native processors:
 
@@ -77,6 +79,9 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 
 | Tool | Arguments | Result |
 | --- | --- | --- |
+| `flowkit_pdf_merge` | `inputPaths` (2-10 PDFs, ordered) | One PDF in the specified input order, with page count |
+| `flowkit_pdf_extract` | `inputPath`, `pages` (default `all`) | One PDF containing selected pages, in selection order |
+| `flowkit_pdf_rotate` | `inputPath`, `pages` (default `all`), `degrees` (90, 180, 270; default 90) | PDF with selected pages rotated clockwise relative to their existing rotation |
 | `flowkit_document_to_html` | `inputPath` | Supported document to standalone HTML |
 | `flowkit_document_to_docx` | `inputPath` | Supported document to Word DOCX |
 | `flowkit_document_to_odt` | `inputPath` | Supported document to OpenDocument ODT |
@@ -116,6 +121,10 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 
 All input paths are relative to the configured workspace. Unknown options and arbitrary native flags are rejected. One tool call runs at a time per server process; a concurrent request returns a busy error and can be retried after the first completes. Cancellation reaches the native operation and removes its temporary files.
 
+Native PDF tools accept unencrypted `.pdf` files with a matching signature. Pages use 1-based numbers or ascending ranges, for example `1-3,5` or `3,1-2`, without spaces. `all` selects the whole file. Out-of-range pages and arbitrary qpdf flags are rejected. Extraction writes a single new PDF; to split into multiple files, make a separate extraction call for each desired range. Rotation retains unselected pages and rotates selected pages without rasterizing. Merge order follows `inputPaths` in MCP and incoming connection order in the editor; the merge inspector lists that order.
+
+PDF inputs must total at most 20 MiB per operation and contain at most 1000 pages per file; merged or extracted results are limited to 1000 pages and 8 MiB. qpdf invocations have a 30-second timeout. Files are processed in private temporary directories and cleaned on success, error, timeout, and cancellation. Native outputs are checked with qpdf and verified for expected page count. Results include `pageCount`, MIME type, byte size, and the reusable artifact path. Encrypted/password-protected PDFs are unsupported, including PDFs that open with an empty password. Source files remain unchanged. Page operations can change bookmarks, forms, and other document-level features, and invalidate digital signatures; these tools do not sanitize PDF active content. PDF input remains unsupported by Pandoc document conversions; use the dedicated PDF tools for existing PDFs.
+
 Pandoc inputs include DOCX, ODT, HTML/HTM, EPUB, Markdown (`.md`/`.markdown`), TXT, RTF, LaTeX (`.tex`), and reStructuredText (`.rst`). Markdown and TXT are parsed as CommonMark. PDF, AsciiDoc and PowerPoint are export-only for compatibility with older Pandoc installations. LaTeX output is source text and requires no TeX installation; PDF still requires the configured pdfroff engine. Conversions use fixed options and Pandoc's sandbox; user filters, templates, scripts, include paths and native flags cannot be supplied. Format conversion can lose layout or features that the target cannot represent; PowerPoint maps headings to slides rather than reproducing document page layouts.
 
 FFmpeg effects retain the existing 20 MiB upload/source-file, five-minute duration, 1080p pixel-area and 60 fps limits. Audio outputs are stereo 44.1 kHz MP3 (128 kbit/s) or PCM WAV; `format` defaults to `mp3`. Video outputs are re-encoded H.264 MP4 with optional AAC audio; mute removes audio entirely. Outputs are inspected with FFprobe and include actual duration and video dimensions/frame rate. Normalization is single-pass: exact loudness/peak targets depend on source content; silence remains silence. Encoding is lossy for MP3 and H.264, including video transformations. No user-supplied filtergraphs, codecs, URLs or executable flags are accepted.
@@ -154,6 +163,6 @@ This is a local stdio server, not an authenticated remote endpoint. The existing
 
 ## Verification
 
-`flowkit-mcp --doctor --workspace <path>` verifies the installed CLI, workspace and four native processors. `node --test test/mcp.test.mjs` exercises official-client stdio discovery, chained file results, bounded text, path/symlink rejection, input limits, cancellation, concurrent calls, and all native processing tools.
+`flowkit-mcp --doctor --workspace <path>` verifies the installed CLI, workspace and five native executables. `node --test test/mcp.test.mjs test/pdf.test.mjs` exercises official-client stdio discovery, chained file results, bounded text, path/symlink rejection, input limits, cancellation, concurrent calls, and native PDF operations. `npm run test:e2e -- e2e/pdf.spec.mjs` checks PDF upload inference, page controls, merge order, and downloaded PDF contents.
 
 Run `npm run benchmark:mcp` for a reproducible JSON comparison between fixed MCP calls and explicit generated-script instructions. It measures actual UTF-8 payload bytes and reports a transparent `bytes / 4` token estimate, including the one-time MCP tool-schema cost. It is not provider billing data; use your model host's usage fields for exact billed input/output tokens.

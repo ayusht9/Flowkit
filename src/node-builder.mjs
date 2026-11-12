@@ -1,6 +1,7 @@
 import { catalog, canConnect } from "./catalog.mjs";
 import { imageOperations } from './image-operations.mjs';
 import { mediaOperations } from './media-operations.mjs';
+import { pdfOperations } from './pdf-operations.mjs';
 
 export const nodeKinds = [
   { kind: "upload", title: "Upload", description: "Start with your input file", icon: "upload", color: "blue" },
@@ -8,12 +9,12 @@ export const nodeKinds = [
   { kind: "pipe", title: "Pipe", description: "Merge documents or pass one file through", icon: "arrow", color: "teal" },
   { kind: "download", title: "Download", description: "Preview and download the result", icon: "download", color: "orange" },
 ];
-export const fileTypes = ["Image", "Text", "Audio", "Video"];
+export const fileTypes = ["Image", "Text", "Audio", "Video", "PDF"];
 export function fileCategory(name = "") {
-  return /\.(png|jpe?g)$/i.test(name) ? "Image" : /\.(mp3|wav|m4a)$/i.test(name) ? "Audio" : /\.(mp4|mov|webm|mkv)$/i.test(name) ? "Video" : "Text";
+  return /\.pdf$/i.test(name) ? 'PDF' : /\.(png|jpe?g)$/i.test(name) ? "Image" : /\.(mp3|wav|m4a)$/i.test(name) ? "Audio" : /\.(mp4|mov|webm|mkv)$/i.test(name) ? "Video" : "Text";
 }
 export function outputCategory(item) {
-  return ({ image: "Image", audio: "Audio", video: "Video", document: "Text", markdown: "Text" })[item?.outputType] || item?.category;
+  return ({ pdf: 'PDF', image: "Image", audio: "Audio", video: "Video", document: "Text", markdown: "Text" })[item?.outputType] || item?.category;
 }
 export function nodeKind(node) {
   const group = catalog.find((item) => item.type === node?.data?.operation)?.group;
@@ -30,6 +31,8 @@ export function processOptions(category, inputType) {
     (!inputType || item.inputType === inputType));
 }
 export function defaultOptions(operation) {
+  const pdf = pdfOperations.find(item => item.type === operation);
+  if (pdf) return { ...pdf.defaults };
   const image = imageOperations.find(item => item.type === operation);
   if (image) return { ...image.defaults };
   const media = mediaOperations.find(item => item.type === operation);
@@ -59,7 +62,9 @@ export function adaptNodes(nodes, edges, filename) {
       const options = processOptions(category, input?.outputType);
       if (!options.some((item) => item.type === operation)) operation = options[0]?.type || "";
     } else if (kind === "pipe") {
-      operation = node.data.operation === "document.merge" ? "document.merge" : `${input?.outputType || nodeItem(node).inputType || (category === "Text" ? "document" : category.toLowerCase())}.pipe`;
+      operation = ['document.merge', 'pdf.merge'].includes(node.data.operation) && ['PDF', 'Text'].includes(category)
+        ? (category === 'PDF' ? 'pdf.merge' : 'document.merge')
+        : `${input?.outputType || nodeItem(node).inputType || (category === "Text" ? "document" : category.toLowerCase())}.pipe`;
     } else if (kind === "download") {
       operation = category === "Text" ? (input?.outputType === "document" ? "document.preview" : "artifact.preview") : `${category.toLowerCase()}.preview`;
     }

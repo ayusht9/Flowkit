@@ -1,6 +1,6 @@
 {
   "name": "flowkit-mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Local document, image, audio, and video tools exposed through MCP",
   "keywords": ["mcp", "model-context-protocol", "documents", "images", "audio", "video"],
   "repository": { "type": "git", "url": "git+https://github.com/ayusht9/Flowkit.git" },

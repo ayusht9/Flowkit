@@ -1,8 +1,16 @@
 import { imageOperations } from './image-operations.mjs';
 import { documentConversions } from './document-formats.mjs';
 import { mediaOperations } from './media-operations.mjs';
+import { pdfOperations } from './pdf-operations.mjs';
 
 export const catalog = [
+  ...['upload', 'pipe', 'preview'].map(action => ({ type: `pdf.${action}`, category: 'PDF',
+    title: ({ upload: 'Upload PDF', pipe: 'Pipe', preview: 'Download PDF' })[action],
+    description: ({ upload: 'Start with an unencrypted PDF', pipe: 'Pass the PDF through unchanged', preview: 'Download the processed PDF' })[action],
+    inputType: 'pdf', outputType: 'pdf', icon: action === 'upload' ? 'upload' : action === 'preview' ? 'download' : 'arrow',
+    color: action === 'upload' ? 'blue' : action === 'preview' ? 'orange' : 'teal', group: action === 'upload' ? 'Input' : action === 'preview' ? 'Output' : 'Pipe' })),
+  { type: 'pdf.merge', category: 'PDF', title: 'Merge PDFs', description: 'Combine 2-10 PDFs in incoming connection order', inputType: 'pdf', outputType: 'pdf', icon: 'arrow', color: 'teal', group: 'Pipe', acceptsMany: true },
+  ...pdfOperations.map(operation => ({ ...operation, category: 'PDF', inputType: 'pdf', outputType: 'pdf', icon: 'document', color: 'purple', group: 'Transform' })),
   ...["audio", "video"].flatMap((type) => [
     { type: `${type}.upload`, category: type === "audio" ? "Audio" : "Video", title: `Upload ${type}`, description: `Start with an ${type} file`, inputType: type, outputType: type, icon: "upload", color: "blue", group: "Input" },
     { type: `${type}.pipe`, category: type === "audio" ? "Audio" : "Video", title: "Pipe", description: "Pass media through unchanged", inputType: type, outputType: type, icon: "arrow", color: "teal", group: "Pipe" },
@@ -228,7 +236,7 @@ export function parseWorkflow(value) {
         operation: node.data.operation,
         options,
         ...(["upload", "process", "pipe", "download"].includes(node.data.kind) ? { kind: node.data.kind } : {}),
-        ...(["Image", "Text", "Audio", "Video"].includes(node.data.fileType) ? { fileType: node.data.fileType } : {}),
+        ...(["Image", "Text", "Audio", "Video", "PDF"].includes(node.data.fileType) ? { fileType: node.data.fileType } : {}),
         ...(node.data.reverse === true ? { reverse: true } : {}),
       },
     };

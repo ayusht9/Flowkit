@@ -69,7 +69,7 @@ function json(response, status, body) {
 }
 
 function compact(result) {
-  const serialize = (output) => ["document", "image", "audio", "video"].includes(output?.type) ? {
+  const serialize = (output) => ["document", "image", "audio", "video", "pdf"].includes(output?.type) ? {
     type: output.type, value: { ...output.value, data: Buffer.from(output.value.data).toString("base64") },
   } : output;
   return {
@@ -87,14 +87,14 @@ function compact(result) {
               },
             },
           }
-        : ["image", "audio", "video"].includes(output?.type)
+        : ["image", "audio", "video", "pdf"].includes(output?.type)
           ? { output: { type: output.type, value: { ...output.value, data: undefined, size: output.value.data.byteLength } } }
           : { output }),
     })),
   };
 }
 
-export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, dev = false, allowedOrigins = [], mediaOutputMiB = getMediaOutputMiB(process.env.FLOWKIT_MEDIA_MAX_OUTPUT_MIB ?? (dev ? 64 : 8)) } = {}) {
+export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, qpdf, dev = false, allowedOrigins = [], mediaOutputMiB = getMediaOutputMiB(process.env.FLOWKIT_MEDIA_MAX_OUTPUT_MIB ?? (dev ? 64 : 8)) } = {}) {
   mediaOutputMiB = getMediaOutputMiB(mediaOutputMiB);
   const origins = new Map();
   for (const value of allowedOrigins) {
@@ -108,7 +108,7 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
   const registry = createWorkflowRegistry({
     executable: executable || (await findPandoc()),
     imageExecutable,
-    ffmpeg, ffprobe, mediaOutputMiB,
+    ffmpeg, ffprobe, qpdf, mediaOutputMiB,
   });
   let busy = false;
   let vite;

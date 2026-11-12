@@ -24,6 +24,7 @@ export async function diagnoseMcp(workspace) {
     imagemagick: check(findImageMagick()),
     ffmpeg: check(process.env.FFMPEG_PATH || "ffmpeg", "-version"),
     ffprobe: check(process.env.FFPROBE_PATH || "ffprobe", "-version"),
+    qpdf: check(process.env.QPDF_PATH || 'qpdf'),
   };
   for (const [name, tool] of Object.entries(tools)) {
     tool.recommendation = nativeToolRecommendations[name];
@@ -34,7 +35,7 @@ export async function diagnoseMcp(workspace) {
     version: packageInfo.version,
     node: process.version,
     workspace: root,
-    mcpTools: 5 + mediaOperations.length + imageOperations.length + documentConversions.length,
+    mcpTools: 8 + mediaOperations.length + imageOperations.length + documentConversions.length,
     processingReady: Object.values(tools).every((tool) => tool.available),
     tools,
   };

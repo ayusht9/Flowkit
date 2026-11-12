@@ -2,7 +2,7 @@ FROM node:24-bookworm-slim AS base
 ARG PANDOC_VERSION=3.13
 ARG PANDOC_SHA256=38aa33b325a2bc96a4c39409631212db55702f564250bcdbead180b3bf646389
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl groff ghostscript imagemagick ffmpeg ca-certificates \
+    && apt-get install -y --no-install-recommends curl groff ghostscript imagemagick ffmpeg qpdf ca-certificates \
     && curl -fsSL "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz" -o /tmp/pandoc.tar.gz \
     && echo "${PANDOC_SHA256}  /tmp/pandoc.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/pandoc.tar.gz --strip-components=1 -C /usr/local \

@@ -31,6 +31,7 @@ import { Icon } from "./icons.jsx";
 import { imageOperations } from '../src/image-operations.mjs';
 import { documentReaders, documentInputLabel } from '../src/document-formats.mjs';
 import { mediaOperations } from '../src/media-operations.mjs';
+import { pdfOperations, selectPdfPages } from '../src/pdf-operations.mjs';
 import "./styles.css";
 
 function readWorkspace() {
@@ -88,6 +89,7 @@ function NodeGroupBadge({ group }) {
 
 // Subtitle helper
 function NodeSubtitle({ item, data }) {
+  if (item.type === 'pdf.merge') return 'Combine 2-10 PDFs in connection order';
   if (item.type === "document.merge") return "Combine 2–10 documents into DOCX";
   if (item.group === "Pipe") return "Pass through unchanged";
   if (isUpload(item.type)) return data.filename || "Drop or upload a file";
@@ -391,12 +393,17 @@ function App() {
   const selectedItem = selected ? nodeItem(selected) : null;
   const selectedImageOperation = imageOperations.find(item => item.type === selectedItem?.type);
   const selectedMediaOperation = mediaOperations.find(item => item.type === selectedItem?.type);
+  const selectedPdfOperation = pdfOperations.find(item => item.type === selectedItem?.type);
+  let pdfPagesError = '';
+  if (selectedPdfOperation) {
+    try { selectPdfPages(selected.data.options?.pages); } catch (error) { pdfPagesError = error.message; }
+  }
   const file = files[selectedId] || Object.values(files)[0] || null;
   const output = result?.output?.value;
   const inputCategory = file ? fileCategory(file.name) : nodes.find((node) => isUpload(node.data.operation))?.data.fileType || "Text";
   const mediaOutput = isPreview(selected?.data.operation) && ["audio", "video"].includes(result?.output?.type) ? output : null;
   const imageOutput = selectedItem?.type === "image.preview" && result?.output?.type === "image" ? output : null;
-  const documentOutput = selectedItem?.type === "document.preview" && result?.output?.type === "document" ? output : null;
+  const documentOutput = ['document.preview', 'pdf.preview'].includes(selectedItem?.type) && ['document', 'pdf'].includes(result?.output?.type) ? output : null;
   const nodeOutput = result?.nodes?.find(
     (node) => node.id === selectedId,
   )?.output;
@@ -458,8 +465,8 @@ function App() {
   async function chooseFile(candidate, uploadId) {
     if (!candidate || running) return;
     if (!uploadId) return setMessage("Select an Upload node before choosing a file.");
-    if (!documentReaders[candidate.name.slice(candidate.name.lastIndexOf('.')).toLowerCase()] && !/\.(png|jpe?g|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
-      setMessage("Choose a supported document, image, audio (WAV/MP3/M4A), or video (MP4/MOV/WebM/MKV) file.");
+    if (!documentReaders[candidate.name.slice(candidate.name.lastIndexOf('.')).toLowerCase()] && !/\.(pdf|png|jpe?g|mp3|wav|m4a|mp4|mov|webm|mkv)$/i.test(candidate.name)) {
+      setMessage("Choose a supported document, PDF, image, audio (WAV/MP3/M4A), or video (MP4/MOV/WebM/MKV) file.");
       return;
     }
     if (candidate.size === 0 || candidate.size > 20 * 1024 * 1024) {
@@ -524,7 +531,7 @@ function App() {
     const category = (anchor && outputCategory(nodeItem(anchor))) || spec.fileType || (file ? fileCategory(file.name) : "Text");
     const operation = spec.operation || (catalog.some((item) => item.type === spec.kind) ? spec.kind : {
       upload: category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`, process: processOptions(category)[0]?.type || "",
-      pipe: category === "Text" ? (anchor && nodeItem(anchor).outputType === "markdown" ? "markdown.pipe" : "document.merge") : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
+      pipe: category === 'PDF' ? 'pdf.merge' : category === "Text" ? (anchor && nodeItem(anchor).outputType === "markdown" ? "markdown.pipe" : "document.merge") : `${category.toLowerCase()}.pipe`, download: category === "Text" ? "artifact.preview" : `${category.toLowerCase()}.preview`,
     }[kind]);
     const location = position || (anchor ? { x: anchor.position.x + 300, y: anchor.position.y }
       : flow.screenToFlowPosition({ x: innerWidth / 2, y: innerHeight / 2 }));
@@ -647,7 +654,7 @@ function App() {
 
   function exportResult(payload = result?.output) {
     if (!payload) return;
-    if (["document", "image", "audio", "video"].includes(payload.type)) {
+    if (["document", "image", "audio", "video", "pdf"].includes(payload.type)) {
       download(Uint8Array.from(atob(payload.value.data), (character) => character.charCodeAt(0)), payload.value.name,
         binaryMime(payload.value));
     } else {
@@ -1260,15 +1267,44 @@ function App() {
                 <div className="inspector-section">
                   <label className="field-label">Source {inputCategory === "Text" ? "document" : inputCategory.toLowerCase()}</label>
                   <div className="source-summary" onClick={() => { pendingUploadId.current = selectedId; fileRef.current?.click(); }} style={{ cursor: "pointer" }} title="Click to choose a file">
-                    <Icon name={({ Image: "image", Audio: "audio", Video: "video", Text: "document" })[inputCategory]} size={20} />
+                    <Icon name={({ Image: "image", Audio: "audio", Video: "video", Text: "document", PDF: 'document' })[inputCategory]} size={20} />
                     <div><strong>{file?.name || "No file uploaded"}</strong>
                       <small>{file ? formatBytes(file.size) : "Click here to choose a file, or drop a file on the canvas."}</small>
                     </div>
                   </div>
                   <p className="file-types">
-                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel })[inputCategory]} · Up to 20 MiB
+                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel, PDF: 'Unencrypted PDF · Up to 1000 pages' })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
+                {selectedPdfOperation && (
+                  <div className="inspector-section resize-settings">
+                    <label>Pages
+                      <input aria-label="Pages" aria-invalid={Boolean(pdfPagesError)} aria-describedby="pdf-pages-help"
+                        value={selected.data.options?.pages ?? 'all'} disabled={running} placeholder="all or 1-3,5"
+                        onChange={event => {
+                          const pages = event.target.value;
+                          setNodes(current => current.map(node => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, pages } } } : node));
+                          invalidate();
+                        }} />
+                    </label>
+                    <small id="pdf-pages-help" role={pdfPagesError ? 'alert' : undefined}>{pdfPagesError || 'Use all or page numbers/ranges such as 1-3,5, without spaces. Extracting produces one PDF in the listed order.'}</small>
+                    {selectedItem.type === 'pdf.rotate' && <label>Clockwise rotation
+                      <select aria-label="Clockwise rotation" value={selected.data.options?.degrees ?? 90} disabled={running}
+                        onChange={event => {
+                          const degrees = Number(event.target.value);
+                          setNodes(current => current.map(node => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, degrees } } } : node));
+                          invalidate();
+                        }}>
+                        {[90, 180, 270].map(degrees => <option key={degrees} value={degrees}>{degrees}°</option>)}
+                      </select>
+                    </label>}
+                    <p>PDF output: up to 8 MiB. Originals are preserved.</p>
+                  </div>
+                )}
+                {selectedItem?.type === 'pdf.merge' && <div className="inspector-section">
+                  <p>Connect 2-10 PDF Upload nodes to this Pipe. Pages are merged in incoming connection order, shown below. Inputs must total at most 20 MiB; output is limited to 8 MiB and 1000 pages.</p>
+                  <ol>{edges.filter(edge => edge.target === selectedId).map(edge => <li key={edge.id}>{files[edge.source]?.name || nodes.find(node => node.id === edge.source)?.data.filename || edge.source}</li>)}</ol>
+                </div>}
                 {selectedImageOperation && (
                   <div className="inspector-section resize-settings">
                     <p>{selectedImageOperation.description}.{selectedItem.type === "image.resize" ? " Leave one dimension blank to scale by the other." : ""}</p>
@@ -1457,12 +1493,13 @@ function App() {
                   <div className="output-document">
                     <Icon name="document" size={25} />
                     <strong>{documentOutput.name}</strong>
+                    {documentOutput.pageCount && <p>{documentOutput.pageCount} pages</p>}
                     <p>{formatBytes(Uint8Array.from(atob(documentOutput.data), (character) => character.charCodeAt(0)).byteLength)} converted locally</p>
                     <button className="button primary download-result" onClick={() => exportResult()}>
-                      <Icon name="download" size={16} /> Download document
+                      <Icon name="download" size={16} /> {result.output.type === 'pdf' ? 'Download PDF' : 'Download document'}
                     </button>
                   </div>
-                ) : ["image", "audio", "video"].includes(nodeOutput?.type) ? (
+                ) : ["image", "audio", "video", "pdf"].includes(nodeOutput?.type) ? (
                   <div className="output-document">
                     <strong>{nodeOutput.value.name}</strong>
                     <p>{formatBytes(nodeOutput.value.size)} · {nodeOutput.value.width ? `${nodeOutput.value.width} × ${nodeOutput.value.height} pixels` : `${nodeOutput.type} file`}</p>
@@ -1618,7 +1655,7 @@ function App() {
       <input
         ref={fileRef}
         type="file"
-        accept={[...Object.keys(documentReaders), '.png', '.jpg', '.jpeg', '.wav', '.mp3', '.m4a', '.mp4', '.mov', '.webm', '.mkv'].join(',')}
+        accept={[...Object.keys(documentReaders), '.pdf', '.png', '.jpg', '.jpeg', '.wav', '.mp3', '.m4a', '.mp4', '.mov', '.webm', '.mkv'].join(',')}
         hidden
         onChange={(event) => {
           chooseFile(event.target.files[0], pendingUploadId.current);

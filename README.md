@@ -24,6 +24,8 @@ flowkit-mcp --doctor --workspace /absolute/path/to/files
 
 The notice recommends the versions used in FlowKit verification: Pandoc 3.13, ImageMagick 7.1.1-47, and FFmpeg/FFprobe 9.0.2. These are tested versions, not enforced minimums. Only install the processors needed for your operations; PDF export also needs pdfroff (GNU groff) and Ghostscript. The package does not install native software automatically.
 
+Existing PDF files use [qpdf](https://github.com/qpdf/qpdf/releases) for merge, page extraction, and rotation (tested locally with 12.2.0). qpdf is cross-platform; add it to PATH or set `QPDF_PATH`. `--setup` includes its download link and configuration. PDFs must be unencrypted; inputs total at most 20 MiB, outputs at most 8 MiB, and results at most 1000 pages.
+
 npm may hide lifecycle-script output, or skip it when scripts are disabled. `--setup` always displays the guide without checking or changing your system. `--doctor` reports the detected versions and setup recommendations. On Windows, use `npm.cmd` and `flowkit-mcp.cmd` if PowerShell blocks the `.ps1` shims.
 
 npm 12 blocks dependency install scripts by default. To allow just FlowKit's text-only notice, add `--allow-scripts=flowkit-mcp` to the install command, or simply run `flowkit-mcp --setup` after installation.
@@ -53,6 +55,7 @@ See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, sa
 
 - Build a linear drag-and-drop workflow in the browser.
 - Convert DOCX, ODT, HTML, EPUB, Markdown, TXT, RTF, LaTeX, and reStructuredText with Pandoc; also export AsciiDoc and PowerPoint slides.
+- Merge 2-10 PDFs, extract page selections such as `1-3,5`, and rotate selected pages by 90, 180, or 270 degrees. Uploading a PDF selects PDF operations automatically. For merging, connect PDF Upload nodes to a PDF Pipe; the inspector shows the incoming file order.
 - Resize, crop, rotate, mirror, grayscale, blur, sharpen, and convert PNG/JPEG images with ImageMagick.
 - Trim and convert audio/video with FFmpeg; adjust volume, fade and normalize audio, and resize, rotate, mirror or mute video.
 - Run the same operations from an MCP-compatible client.
