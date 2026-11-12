@@ -9,11 +9,18 @@ Install dependencies with `npm install`. Install Pandoc, ImageMagick and FFmpeg/
 To install the CLI from npm and verify both the package and native processors:
 
 ```sh
-npm install --global flowkit-mcp
+npm install --global flowkit-mcp --foreground-scripts
+flowkit-mcp --setup
 flowkit-mcp --doctor --workspace /absolute/path/to/workspace
 ```
 
 Use `flowkit-mcp.cmd` on Windows if PowerShell resolves a blocked `.ps1` shim. Add `--json` for a machine-readable report. The command exits unsuccessfully when a required native processor is missing.
+
+Installation prints a native-tool setup notice when npm allows lifecycle scripts and displays their output. `--foreground-scripts` makes that output visible; if scripts are disabled or hidden, run `flowkit-mcp --setup` afterwards. The setup command requires no workspace or installed processors and does not download or change anything. Normal MCP stdio startup does not print the notice to stdout.
+
+npm 12 blocks dependency install scripts by default. Add `--allow-scripts=flowkit-mcp` to the install command to allow only FlowKit's text-only notice, or use `flowkit-mcp --setup` after installing without scripts.
+
+Tested setup recommendations are Pandoc 3.13, ImageMagick 7.1.1-47, and FFmpeg/FFprobe 9.0.2. They are not enforced minimum versions or compatibility guarantees for newer releases. The container also uses ImageMagick 6 through `convert`. PDF export additionally requires pdfroff (GNU groff) and Ghostscript. Install the processors for your intended operations and put them on PATH or configure the executable variables below. Human-readable `--doctor` output shows detected versions and the setup guide; JSON output includes a `recommendation` object for each processor.
 
 ### Connect Codex
 

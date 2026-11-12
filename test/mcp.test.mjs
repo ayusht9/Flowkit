@@ -231,5 +231,10 @@ test("MCP doctor proves the installed CLI can inspect its workspace and dependen
   assert.equal(report.mcpTools, 36);
   assert.equal(report.workspace, project);
   assert.deepEqual(Object.keys(report.tools), ["pandoc", "imagemagick", "ffmpeg", "ffprobe"]);
+  for (const tool of Object.values(report.tools)) {
+    assert.ok(tool.recommendation.testedVersion);
+    assert.match(tool.recommendation.url, /^https:\/\//);
+    if (tool.available) assert.ok(tool.version);
+  }
   assert.equal(response.stderr, "");
 });

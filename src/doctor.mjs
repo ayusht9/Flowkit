@@ -7,6 +7,7 @@ import { imageOperations } from './image-operations.mjs';
 import { documentConversions } from './document-formats.mjs';
 import { mediaOperations } from './media-operations.mjs';
 import packageInfo from '../package.json' with { type: 'json' };
+import { nativeToolRecommendations } from './setup.mjs';
 
 function check(command, argument = "--version") {
   const run = spawnSync(command, [argument], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
@@ -24,6 +25,9 @@ export async function diagnoseMcp(workspace) {
     ffmpeg: check(process.env.FFMPEG_PATH || "ffmpeg", "-version"),
     ffprobe: check(process.env.FFPROBE_PATH || "ffprobe", "-version"),
   };
+  for (const [name, tool] of Object.entries(tools)) {
+    tool.recommendation = nativeToolRecommendations[name];
+  }
   return {
     installed: true,
     package: "flowkit-mcp",

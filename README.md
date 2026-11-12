@@ -14,6 +14,22 @@ FlowKit exposes local document, image, audio, and video operations over MCP stdi
 
 ### Install and check
 
+Install the published MCP CLI and show its native-tool setup notice:
+
+```sh
+npm install --global flowkit-mcp --foreground-scripts
+flowkit-mcp --setup
+flowkit-mcp --doctor --workspace /absolute/path/to/files
+```
+
+The notice recommends the versions used in FlowKit verification: Pandoc 3.13, ImageMagick 7.1.1-47, and FFmpeg/FFprobe 9.0.2. These are tested versions, not enforced minimums. Only install the processors needed for your operations; PDF export also needs pdfroff (GNU groff) and Ghostscript. The package does not install native software automatically.
+
+npm may hide lifecycle-script output, or skip it when scripts are disabled. `--setup` always displays the guide without checking or changing your system. `--doctor` reports the detected versions and setup recommendations. On Windows, use `npm.cmd` and `flowkit-mcp.cmd` if PowerShell blocks the `.ps1` shims.
+
+npm 12 blocks dependency install scripts by default. To allow just FlowKit's text-only notice, add `--allow-scripts=flowkit-mcp` to the install command, or simply run `flowkit-mcp --setup` after installation.
+
+For a source checkout:
+
 ```sh
 git clone https://github.com/ayusht9/Flowkit.git
 cd FlowKit
