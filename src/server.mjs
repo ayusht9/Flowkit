@@ -6,9 +6,19 @@ import { createWorkflowRegistry } from "./workflow.mjs";
 import { validatePipeline, runPipeline } from "./pipeline.mjs";
 import { catalog } from "./catalog.mjs";
 import { getMediaOutputMiB } from './limits.mjs';
+import { inspectFile } from './metadata.mjs';
+import { decodeRuntimeInputs } from './runtime-inputs.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const maxBodyBytes = 29 * 1024 * 1024;
+const maxBodyBytes = 35 * 1024 * 1024;
+
+function decodeUpload(input) {
+  if (!input || typeof input.name !== 'string' || typeof input.data !== 'string' || !input.data.length || input.data.length > 28 * 1024 * 1024 ||
+      Buffer.from(input.data, 'base64').toString('base64') !== input.data) throw new TypeError('Choose a valid file up to 20 MiB');
+  const value = { name: input.name, data: Buffer.from(input.data, 'base64') };
+  if (!value.data.length || value.data.length > 20 * 1024 * 1024) throw new TypeError('Choose a file up to 20 MiB');
+  return value;
+}
 
 export async function findPandoc() {
   if (process.env.PANDOC_PATH) return process.env.PANDOC_PATH;
@@ -94,7 +104,7 @@ function compact(result) {
   };
 }
 
-export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, qpdf, dev = false, allowedOrigins = [], mediaOutputMiB = getMediaOutputMiB(process.env.FLOWKIT_MEDIA_MAX_OUTPUT_MIB ?? (dev ? 64 : 8)) } = {}) {
+export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, qpdf, ghostscript, dev = false, allowedOrigins = [], mediaOutputMiB = getMediaOutputMiB(process.env.FLOWKIT_MEDIA_MAX_OUTPUT_MIB ?? (dev ? 64 : 8)) } = {}) {
   mediaOutputMiB = getMediaOutputMiB(mediaOutputMiB);
   const origins = new Map();
   for (const value of allowedOrigins) {
@@ -108,9 +118,10 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
   const registry = createWorkflowRegistry({
     executable: executable || (await findPandoc()),
     imageExecutable,
-    ffmpeg, ffprobe, qpdf, mediaOutputMiB,
+    ffmpeg, ffprobe, qpdf, ghostscript, mediaOutputMiB,
   });
   let busy = false;
+  let metadataActive = 0;
   let vite;
   const server = createServer(async (request, response) => {
     const host = request.headers.host || "";
@@ -140,6 +151,17 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
           size: data.length,
         });
       }
+      if (request.method === 'POST' && path === '/api/metadata') {
+        if (metadataActive >= 2) return json(response, 429, { error: 'Metadata inspection is busy; try again shortly' });
+        metadataActive++;
+        const controller = new AbortController();
+        response.on('close', () => controller.abort());
+        try {
+          const body = await readJson(request);
+          const metadata = await inspectFile(decodeUpload(body.file), { signal: controller.signal, qpdf, imageExecutable, ffprobe });
+          return json(response, 200, { metadata });
+        } finally { metadataActive--; }
+      }
       if (request.method === "POST" && path === "/api/run") {
         if (busy)
           return json(response, 429, {
@@ -160,6 +182,7 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
             throw new TypeError("Provide a workflow with 1–20 nodes.");
           }
           const ordered = validatePipeline(body.pipeline, registry);
+          const runtimeInputs = decodeRuntimeInputs(body.runtimeInputs, body.pipeline.nodes);
           const roots = ordered.filter((node) => !body.pipeline.edges.some((edge) => edge.target === node.id));
           if (
             roots.some((node) => catalog.find((item) => item.type === node.type)?.group !== "Input") ||
@@ -197,6 +220,7 @@ export async function createApp({ executable, imageExecutable, ffmpeg, ffprobe, 
           };
           const result = await runPipeline(body.pipeline, registry, {
             inputs,
+            runtimeInputs,
             signal: controller.signal,
             onEvent: send,
           });

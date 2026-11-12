@@ -9,6 +9,8 @@ import { documentConversions } from './document-formats.mjs';
 import packageInfo from '../package.json' with { type: 'json' };
 import { mediaOperations } from './media-operations.mjs';
 import { getMediaOutputMiB, MiB } from './limits.mjs';
+import { inspectFile } from './metadata.mjs';
+import { validatePassword, validateAttachment } from './runtime-inputs.mjs';
 
 const maxInput = 20 * 1024 * 1024;
 const maxOutput = 8 * 1024 * 1024;
@@ -88,14 +90,14 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
     return { path: inputPath, text: text.slice(offset, offset + limit), offset, totalCharacters: text.length, nextOffset: offset + limit < text.length ? offset + limit : null };
   }, true);
 
-  async function processFile(operation, args, signal) {
+  async function processFile(operation, args, signal, runtime = {}) {
     const { inputPath, ...options } = args;
     const definition = registry.get(operation);
     registry.validateOptions(operation, options);
     const file = await readInput(inputPath, signal, ['audio', 'video'].includes(definition.inputType));
     const input = definition.inputType === "markdown" ? { text: file.data.toString("utf8"), source: file.name } : file;
     if (definition.inputType === "markdown" && extname(file.name).toLowerCase() !== ".md") throw new Error("Clean Markdown accepts .md files");
-    const output = await registry.execute(operation, { type: definition.inputType, value: input }, options, { signal });
+    const output = await registry.execute(operation, { type: definition.inputType, value: input }, options, { ...runtime, signal });
     return saveOutput(output, signal);
   }
 
@@ -120,7 +122,8 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
         ...(value.frameRate && { frameRate: value.frameRate }),
         ...(value.pageCount && { pageCount: value.pageCount }),
         ...(typeof value.encrypted === 'boolean' && { encrypted: value.encrypted }),
-        ...(value.originalSizeBytes !== undefined && { originalSizeBytes: value.originalSizeBytes, sizeChangeBytes: value.sizeChangeBytes }),
+        ...Object.fromEntries(['originalSizeBytes', 'sizeChangeBytes', 'requestedFactor', 'achievedFactor', 'targetMet', 'autoQuality', 'qualityUsed', 'resolutionDpi', 'compressionMethod', 'signatureType']
+          .filter(key => value[key] !== undefined).map(key => [key, value[key]])),
         ...(output.type === "markdown" && { preview: value.text.slice(0, 1000), previewTruncated: value.text.length > 1000 }),
       };
     } catch (error) { await rm(directory, { recursive: true, force: true }); throw error; }
@@ -175,22 +178,48 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
     for (const path of inputPaths) files.push(await readInput(path, signal));
     return saveOutput(await registry.execute('pdf.merge', { type: 'pdf', value: files }, {}, { signal }), signal);
   });
-  for (const action of ['extract', 'rotate', 'remove', 'reverse', 'optimize']) register(`flowkit_pdf_${action}`,
+  for (const action of ['extract', 'rotate', 'remove', 'reverse']) register(`flowkit_pdf_${action}`,
     `${({ extract: 'Extract selected pages into one new PDF', rotate: 'Rotate selected pages clockwise relative to their existing rotation',
       remove: 'Remove selected pages, preserving the order of remaining pages; at least one page must remain',
-      reverse: 'Reverse the order of all PDF pages', optimize: 'Optimize PDF streams and object structure losslessly; images are not downsampled or recompressed as JPEG and size reduction is not guaranteed. Includes originalSizeBytes and sizeChangeBytes (positive means larger)' })[action]}. ${['extract', 'rotate', 'remove'].includes(action) ? 'Pages: all or 1-based numbers/ranges such as 1-3,5, without spaces.' : ''} Requires an unencrypted PDF and qpdf. Input at most 20 MiB/1000 pages; output at most 8 MiB. Returns an artifact path and page count.`,
+      reverse: 'Reverse the order of all PDF pages' })[action]}. ${['extract', 'rotate', 'remove'].includes(action) ? 'Pages: all or 1-based numbers/ranges such as 1-3,5, without spaces.' : ''} Requires an unencrypted PDF and qpdf. Input at most 20 MiB/1000 pages; output at most 8 MiB. Returns an artifact path and page count.`,
     { inputPath, ...(['extract', 'rotate', 'remove'].includes(action) ? { pages: action === 'remove' ? z.string().min(1).max(1024) : z.string().min(1).max(1024).default('all') } : {}),
       ...(action === 'rotate' ? { degrees: z.union([z.literal(90), z.literal(180), z.literal(270)]).default(90) } : {}) },
     (args, signal) => processFile(`pdf.${action}`, args, signal));
 
-  register('flowkit_pdf_inspect', 'Inspect PDF page count, byte size, and encryption status without creating an artifact or changing the source. Requires qpdf. Input at most 20 MiB; unencrypted PDFs at most 1000 pages. Encrypted files report pageCount=null because their pages cannot be inspected without a password. Returns metadata only.',
+  register('flowkit_file_metadata', 'Read bounded metadata for a local file: detected format, size, PDF properties/pages/encryption, image dimensions, media duration/codecs, or text counts. Does not modify files or create artifacts. Missing processors produce partial metadata with warnings. Input at most 20 MiB.',
     { inputPath }, async ({ inputPath }, signal) => {
       const file = await readInput(inputPath, signal);
-      const { value } = await registry.execute('pdf.inspect', { type: 'pdf', value: file }, {}, { signal });
-      return { path: inputPath, name: value.name, type: 'pdf', mimeType: value.mimeType, sizeBytes: file.data.length,
-        encrypted: value.encrypted, pageCount: value.pageCount,
-        ...(value.pageCountUnavailableReason && { pageCountUnavailableReason: value.pageCountUnavailableReason }) };
+      return { path: inputPath, ...await inspectFile(file, { signal }) };
     }, true);
+
+  async function readSecret(path, signal, optional = false) {
+    if (!path && optional) return '';
+    const file = await readInput(path, signal);
+    if (file.data.length > 1026) throw new TypeError('Password files must be at most 1024 bytes plus a final newline');
+    let password;
+    try { password = new TextDecoder('utf-8', { fatal: true }).decode(file.data).replace(/\r?\n$/, ''); }
+    catch { throw new TypeError('Password files must contain UTF-8 text'); }
+    return validatePassword(password, 'Password', { optional });
+  }
+  register('flowkit_pdf_reduce', 'Reduce PDF file size toward factor (1-10; 2 requests half the input size). Auto quality tries lossless compression first, then image quality/resolution profiles. Manual quality is 20-95. Image recompression can lose quality and PDF features; exact size is not guaranteed. Original bytes are retained if no candidate is smaller. Requires qpdf and Ghostscript. Returns actual savings and targetMet; output at most 8 MiB.',
+    { inputPath, factor: z.number().min(1).max(10).default(2), autoQuality: z.boolean().default(true), quality: z.number().int().min(20).max(95).default(80) },
+    (args, signal) => processFile('pdf.reduce', args, signal));
+  for (const action of ['encrypt', 'decrypt']) register(`flowkit_pdf_${action}`,
+    `${action === 'encrypt' ? 'Encrypt a PDF using AES-256 and an opening password' : 'Decrypt a PDF using a supplied opening or owner password'}. Read credentials from workspace UTF-8 password files instead of passing secrets in tool arguments. Password files are never included in the result. Input at most 20 MiB/1000 pages; output at most 8 MiB.`,
+    { inputPath, passwordFilePath: inputPath, ...(action === 'encrypt' ? { ownerPasswordFilePath: inputPath.optional() } : {}) },
+    async ({ inputPath: path, passwordFilePath, ownerPasswordFilePath }, signal) => processFile(`pdf.${action}`, { inputPath: path }, signal,
+      { secrets: { password: await readSecret(passwordFilePath, signal), ...(action === 'encrypt' ? { ownerPassword: await readSecret(ownerPasswordFilePath, signal, true) } : {}) } }));
+  register('flowkit_pdf_sign', 'Sign an unencrypted PDF with a visible PNG/JPEG image or a PKCS#12 (.p12/.pfx) certificate. Certificate signing creates an invisible detached digital signature; trust depends on the supplied certificate. Existing digital signatures are rejected to prevent invalidation; sign last. Image coordinates are PDF points from the crop-box lower-left before page rotation. Attachments at most 2 MiB; PDF at most 20 MiB/1000 pages; output at most 8 MiB.',
+    { inputPath, mode: z.enum(['image', 'certificate']).default('image'), signatureImagePath: inputPath.optional(), certificatePath: inputPath.optional(), certificatePasswordFilePath: inputPath.optional(),
+      page: z.number().int().min(1).max(1000).default(1), x: z.number().min(0).max(14400).default(36), y: z.number().min(0).max(14400).default(36), width: z.number().min(1).max(2000).default(160), height: z.number().min(1).max(2000).default(60),
+      name: z.string().max(200).optional(), reason: z.string().max(200).optional() },
+    async ({ signatureImagePath, certificatePath, certificatePasswordFilePath, ...args }, signal) => {
+      const path = args.mode === 'certificate' ? certificatePath : signatureImagePath;
+      if (!path || (args.mode === 'image' && (certificatePath || certificatePasswordFilePath)) || (args.mode === 'certificate' && signatureImagePath)) throw new TypeError('Supply only the attachment appropriate for the signing method');
+      const attachment = await readInput(path, signal);
+      validateAttachment(attachment, args.mode === 'certificate' ? 'certificate' : 'image');
+      return processFile('pdf.sign', args, signal, { attachment, secrets: { certificatePassword: await readSecret(certificatePasswordFilePath, signal, true) } });
+    });
 
   return server;
 }

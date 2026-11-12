@@ -1363,3 +1363,12 @@ svg { flex-shrink: 0; }
   border-color: #5d282e !important;
   color: #f76657 !important;
 }
+/* Upload metadata and runtime-only PDF controls follow the existing inspector layout. */
+.file-metadata dl { display: grid; grid-template-columns: minmax(75px, .8fr) minmax(0, 1.2fr); gap: 7px 12px; font-size: 12px; }
+.file-metadata dt { opacity: .7; }
+.file-metadata dd { margin: 0; overflow-wrap: anywhere; }
+.file-metadata p, .pdf-controls p, .pdf-controls small { font-size: 12px; line-height: 1.5; }
+.upload-metadata-summary { display: block; margin-top: 5px; opacity: .7; font-size: 11px; }
+.pdf-controls input[type="checkbox"] { width: auto; }
+.pdf-controls input[type="range"] { padding: 0; }
+.pdf-controls input[type="file"] { max-width: 100%; font-size: 12px; }

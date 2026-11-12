@@ -24,7 +24,7 @@ flowkit-mcp --doctor --workspace /absolute/path/to/files
 
 The notice recommends the versions used in FlowKit verification: Pandoc 3.13, ImageMagick 7.1.1-47, and FFmpeg/FFprobe 9.0.2. These are tested versions, not enforced minimums. Only install the processors needed for your operations; PDF export also needs pdfroff (GNU groff) and Ghostscript. The package does not install native software automatically.
 
-Existing PDF files use [qpdf](https://github.com/qpdf/qpdf/releases) for merge, page extraction/removal, rotation, reversal, lossless structural optimization, and inspection (tested locally with 12.2.0). qpdf is cross-platform; add it to PATH or set `QPDF_PATH`. `--setup` includes its download link and configuration. Transformations require unencrypted PDFs; inputs total at most 20 MiB, outputs at most 8 MiB, and results at most 1000 pages. Inspection preserves original bytes and reports encryption status; encrypted page counts are unavailable.
+Existing PDF files use [qpdf](https://github.com/qpdf/qpdf/releases) for page operations, encryption/decryption, and metadata (tested locally with 12.2.0). PDF Size Reducer also uses [Ghostscript](https://ghostscript.com/releases/gsdnld.html), tested locally with 10.08.0, for image recompression. Configure `QPDF_PATH` / `GHOSTSCRIPT_PATH` if they are not on PATH. PDF inputs total at most 20 MiB, outputs at most 8 MiB, and results at most 1000 pages. Decrypt protected PDFs before other operations. `--setup` includes download links and configuration.
 
 npm may hide lifecycle-script output, or skip it when scripts are disabled. `--setup` always displays the guide without checking or changing your system. `--doctor` reports the detected versions and setup recommendations. On Windows, use `npm.cmd` and `flowkit-mcp.cmd` if PowerShell blocks the `.ps1` shims.
 
@@ -56,7 +56,9 @@ See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, sa
 - Build a linear drag-and-drop workflow in the browser.
 - Convert DOCX, ODT, HTML, EPUB, Markdown, TXT, RTF, LaTeX, and reStructuredText with Pandoc; also export AsciiDoc and PowerPoint slides.
 - Merge 2-10 PDFs, extract page selections such as `1-3,5`, and rotate selected pages by 90, 180, or 270 degrees. Uploading a PDF selects PDF operations automatically. For merging, connect PDF Upload nodes to a PDF Pipe; the inspector shows the incoming file order.
-- Remove PDF pages, reverse page order, optimize stream/object compression without changing image quality, or inspect page count and encryption status. Optimization reports actual size changes and does not guarantee a smaller file.
+- Remove PDF pages or reverse their order. PDF Size Reducer accepts a compression factor and Auto/manual quality; Auto preserves lossless results when possible and reports actual savings and whether the target was reached.
+- Place a visible signature image or create a certificate digital signature from a `.p12`/`.pfx` file. Encrypt with AES-256 or decrypt with a supplied password. Passwords and signature attachments remain separate from saved/exported workflows.
+- Upload nodes automatically display metadata across documents, PDFs, images, audio, and video. Standalone Inspect PDF is replaced by the shared metadata engine and the read-only `flowkit_file_metadata` MCP tool.
 - Resize, crop, rotate, mirror, grayscale, blur, sharpen, and convert PNG/JPEG images with ImageMagick.
 - Trim and convert audio/video with FFmpeg; adjust volume, fade and normalize audio, and resize, rotate, mirror or mute video.
 - Run the same operations from an MCP-compatible client.

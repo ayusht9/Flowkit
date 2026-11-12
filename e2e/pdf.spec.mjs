@@ -80,7 +80,7 @@ test('PDF merge shows incoming file order and downloads all pages from multiple 
   expect((await downloadAndInspect(page)).map(page => page['/MediaBox'][2])).toEqual([300, 300, 310, 320]);
 });
 
-test('remove, reverse, optimize and inspect PDF tools expose the right controls and preserve content', async ({ page }) => {
+test('remove, reverse and Size Reducer expose controls while metadata belongs to Upload', async ({ page }) => {
   await importWorkflow(page, defaultWorkflow());
   await upload(page, 'upload', 'source.pdf');
   const process = page.locator('.react-flow__node[data-id="convert"]');
@@ -101,24 +101,22 @@ test('remove, reverse, optimize and inspect PDF tools expose the right controls 
   await expect(page.getByRole('textbox', { name: 'Pages', exact: true })).toHaveCount(0);
   await run();
   expect((await downloadAndInspect(page)).map(page => page['/MediaBox'][2])).toEqual([320, 310, 300]);
-  await select('pdf.optimize', 'Optimize PDF');
+  await select('pdf.reduce', 'PDF Size Reducer');
+  await expect(page.getByRole('checkbox', { name: 'Auto quality', exact: true })).toBeChecked();
+  await page.getByRole('spinbutton', { name: 'Compression factor', exact: true }).fill('1');
   await run();
   await expect(page.getByText(/Original:.*Size change:/)).toBeVisible();
   expect((await downloadAndInspect(page)).map(page => page['/MediaBox'][2])).toEqual([300, 310, 320]);
-  await select('pdf.inspect', 'Inspect PDF');
-  await expect(page.getByRole('textbox', { name: 'Pages', exact: true })).toHaveCount(0);
-  await run();
-  await expect(page.getByText('3 pages', { exact: true })).toBeVisible();
-  await expect(page.getByText('Encryption: not encrypted', { exact: true })).toBeVisible();
-  const pending = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download PDF', exact: true }).click();
-  const download = await pending;
-  const chunks = [];
-  for await (const chunk of await download.createReadStream()) chunks.push(chunk);
-  expect(Buffer.concat(chunks)).toEqual(makePdf());
+  await expect(process.getByLabel('Operation', { exact: true }).locator('option[value="pdf.inspect"]')).toHaveCount(0);
+  await expect(process.getByLabel('Operation', { exact: true }).locator('option[value="pdf.optimize"]')).toHaveCount(0);
+  const uploadNode = page.locator('.react-flow__node[data-id="upload"]');
+  await uploadNode.hover(); await uploadNode.getByRole('button', { name: 'Configure Upload PDF', exact: true }).click();
+  const metadata = page.getByRole('region', { name: 'File metadata' });
+  await expect(metadata.getByText('Not encrypted', { exact: true })).toBeVisible();
+  await expect(metadata.getByText('Pages', { exact: true })).toBeVisible();
 });
 
-test('encrypted PDF inspection reports unavailable page count and downloads the unchanged original', async ({ page }) => {
+test('encrypted Upload metadata reports unavailable pages and Decrypt uses a session password', async ({ page }) => {
   const directory = await mkdtemp(join(tmpdir(), 'flowkit-encrypted-browser-'));
   let locked;
   try {
@@ -130,15 +128,15 @@ test('encrypted PDF inspection reports unavailable page count and downloads the 
   } finally { await rm(directory, { recursive: true, force: true }); }
   await importWorkflow(page, defaultWorkflow());
   await upload(page, 'upload', 'locked.pdf', locked);
-  await page.locator('.react-flow__node[data-id="convert"]').getByLabel('Operation', { exact: true }).selectOption('pdf.inspect');
+  const uploadNode = page.locator('.react-flow__node[data-id="upload"]');
+  await uploadNode.hover(); await uploadNode.getByRole('button', { name: 'Configure Upload PDF', exact: true }).click();
+  const metadata = page.getByRole('region', { name: 'File metadata' });
+  await expect(metadata.getByText('Encrypted', { exact: true })).toBeVisible();
+  await expect(metadata.getByText(/unavailable while the PDF is encrypted/)).toBeVisible();
+  await page.locator('.react-flow__node[data-id="convert"]').getByLabel('Operation', { exact: true }).selectOption('pdf.decrypt');
+  await page.getByLabel('PDF password', { exact: true }).fill('test-user');
   await page.getByRole('navigation', { name: 'Workflow actions' }).getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.locator('.node-success')).toHaveCount(3);
-  await expect(page.getByText('Encryption: encrypted', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Page count is unavailable for encrypted PDFs/)).toBeVisible();
-  const pending = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download PDF', exact: true }).click();
-  const download = await pending;
-  const chunks = [];
-  for await (const chunk of await download.createReadStream()) chunks.push(chunk);
-  expect(Buffer.concat(chunks)).toEqual(locked);
+  await expect(page.getByText('Encryption: not encrypted', { exact: true })).toBeVisible();
+  expect((await downloadAndInspect(page)).length).toBe(3);
 });

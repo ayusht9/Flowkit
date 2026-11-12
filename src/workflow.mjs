@@ -9,7 +9,7 @@ import { createMediaOperation, validateMedia } from "./media.mjs";
 import { createPdfOperation, validatePdf } from './pdf.mjs';
 import { pdfOperations } from './pdf-operations.mjs';
 
-export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe, qpdf, mediaOutputMiB = getMediaOutputMiB() } = {}) {
+export function createWorkflowRegistry({ executable = "pandoc", imageExecutable, ffmpeg, ffprobe, qpdf, ghostscript, mediaOutputMiB = getMediaOutputMiB() } = {}) {
   mediaOutputMiB = getMediaOutputMiB(mediaOutputMiB);
   const mediaPayloadBytes = Math.max(20, mediaOutputMiB) * MiB;
   const convert = createDocumentToMarkdown({ executable });
@@ -20,7 +20,7 @@ export function createWorkflowRegistry({ executable = "pandoc", imageExecutable,
   };
   const registry = new OperationRegistry();
   for (const operation of ['pdf.merge', ...pdfOperations.map(item => item.type)])
-    registry.register(operation, createPdfOperation(operation, { executable: qpdf }));
+    registry.register(operation, createPdfOperation(operation, { executable: qpdf, ghostscript }));
   for (const action of ['upload', 'pipe', 'preview'])
     registry.register(`pdf.${action}`, { inputType: 'pdf', outputType: 'pdf', validateInput: validatePdf, run: async input => input });
   for (const type of ["audio", "video"]) {

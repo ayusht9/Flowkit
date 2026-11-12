@@ -15,6 +15,7 @@ import { selectPdfPages } from '../src/pdf-operations.mjs';
 import { adaptNodes } from '../src/node-builder.mjs';
 import { parseWorkflow, toPipeline } from '../src/catalog.mjs';
 import { makePdf } from '../examples/fixtures/pdf.mjs';
+import { inspectFile } from '../src/metadata.mjs';
 
 const execute = promisify(execFile);
 const qpdf = process.env.QPDF_PATH || 'qpdf';
@@ -50,7 +51,7 @@ test('PDF inputs and page selections reject malformed files, flags, and excessiv
   assert.throws(() => selectPdfPages('4', 3), /within/);
   await assert.rejects(registry.execute('pdf.rotate', payload(source), { degrees: 45 }));
   await assert.rejects(registry.execute('pdf.extract', payload(source), { command: 'untrusted' }));
-  for (const operation of ['pdf.reverse', 'pdf.optimize', 'pdf.inspect'])
+  for (const operation of ['pdf.reverse', 'pdf.reduce'])
     await assert.rejects(registry.execute(operation, payload(source), { pages: '1' }), /Unsupported/);
   await assert.rejects(registry.execute('pdf.remove', payload(source), {}), /Choose pages/);
   await assert.rejects(registry.execute('pdf.merge', payload([source]), {}), /2-10/);
@@ -86,13 +87,12 @@ test('PDF failures, encrypted files, missing qpdf, timeout and cancellation clea
   await execute(qpdf, [join(directory, 'source.pdf'), '--encrypt', 'test-user', 'test-owner', '256', '--', join(directory, 'locked.pdf')], { windowsHide: true });
   const locked = { name: 'locked.pdf', data: await readFile(join(directory, 'locked.pdf')) };
   await assert.rejects(registry.execute('pdf.extract', payload(locked), {}), /Encrypted PDFs/);
-  for (const operation of ['pdf.remove', 'pdf.reverse', 'pdf.optimize'])
+  for (const operation of ['pdf.remove', 'pdf.reverse', 'pdf.reduce'])
     await assert.rejects(registry.execute(operation, payload(locked), operation === 'pdf.remove' ? { pages: '1' } : {}), /Encrypted PDFs/);
-  const inspected = await registry.execute('pdf.inspect', payload(locked), {});
-  assert.equal(inspected.value.encrypted, true);
-  assert.equal(inspected.value.pageCount, null);
-  assert.match(inspected.value.pageCountUnavailableReason, /encrypted PDFs/);
-  assert.deepEqual(inspected.value.data, locked.data);
+  const inspected = await inspectFile(locked);
+  assert.equal(inspected.details.encrypted, true);
+  assert.equal(inspected.details.pageCount, null);
+  assert.ok(inspected.warnings.some(warning => warning.includes('encrypted')));
   await assert.rejects(createPdfOperation('pdf.extract', { executable: qpdf, timeoutMs: 1 }).run(payload(source), {}, {}), /execution limit/);
   const controller = new AbortController();
   const task = registry.execute('pdf.extract', payload(source), {}, { signal: controller.signal });
@@ -120,20 +120,20 @@ test('PDF removal and reversal preserve remaining page content and reject empty 
   assert.deepEqual(source.data, makePdf());
 });
 
-test('PDF optimization retains decoded contents and reports actual size changes; inspection preserves bytes', native, async t => {
+test('lossless size reduction retains decoded contents and reports actual size changes; metadata is bounded', native, async t => {
   const directory = await workspace(t);
   const compressible = { name: 'repeated.pdf', data: makePdf(['Repeated content. '.repeat(10000)]) };
-  const optimized = await registry.execute('pdf.optimize', payload(compressible), {});
+  const optimized = await registry.execute('pdf.reduce', payload(compressible), { factor: 1 });
   assert.equal(optimized.value.pageCount, 1);
   assert.equal(optimized.value.originalSizeBytes, compressible.data.length);
   assert.equal(optimized.value.sizeChangeBytes, optimized.value.data.length - compressible.data.length);
   assert.ok(optimized.value.data.length < compressible.data.length);
   const before = await inspect(compressible.data, directory);
   assert.deepEqual(await inspect(optimized.value.data, directory), before);
-  const inspected = await registry.execute('pdf.inspect', payload(source), {});
-  assert.equal(inspected.value.pageCount, 3);
-  assert.equal(inspected.value.encrypted, false);
-  assert.deepEqual(inspected.value.data, source.data);
+  const inspected = await inspectFile(source);
+  assert.equal(inspected.details.pageCount, 3);
+  assert.equal(inspected.details.encrypted, false);
+  assert.equal(inspected.data, undefined);
 });
 
 test('PDF workflows preserve merge inputs and options through visual import and adaptation', () => {
@@ -182,8 +182,9 @@ test('MCP discovers PDF tools and chains extract, rotation, and merge artifact p
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve('mcp-server.mjs'), '--workspace', directory],
     env: { ...getDefaultEnvironment(), QPDF_PATH: qpdf }, stderr: 'pipe' }));
   const tools = (await client.listTools()).tools;
-  for (const action of ['merge', 'extract', 'rotate', 'remove', 'reverse', 'optimize', 'inspect']) assert.ok(tools.some(tool => tool.name === `flowkit_pdf_${action}`));
-  assert.equal(tools.find(tool => tool.name === 'flowkit_pdf_inspect').annotations.readOnlyHint, true);
+  for (const action of ['merge', 'extract', 'rotate', 'remove', 'reverse', 'reduce', 'sign', 'encrypt', 'decrypt']) assert.ok(tools.some(tool => tool.name === `flowkit_pdf_${action}`));
+  assert.equal(tools.find(tool => tool.name === 'flowkit_file_metadata').annotations.readOnlyHint, true);
+  assert.ok(!tools.some(tool => ['flowkit_pdf_inspect', 'flowkit_pdf_optimize'].includes(tool.name)));
   const call = async (action, args) => {
     const response = await client.callTool({ name: `flowkit_pdf_${action}`, arguments: args });
     assert.ok(!response.isError, JSON.stringify(response));
@@ -198,14 +199,14 @@ test('MCP discovers PDF tools and chains extract, rotation, and merge artifact p
   const removed = await call('remove', { inputPath: merged.path, pages: '2' });
   assert.equal(removed.pageCount, 4);
   const reversed = await call('reverse', { inputPath: removed.path });
-  const optimized = await call('optimize', { inputPath: reversed.path });
+  const optimized = await call('reduce', { inputPath: reversed.path, factor: 1 });
   assert.equal(optimized.pageCount, 4);
   assert.equal(typeof optimized.sizeChangeBytes, 'number');
   const beforeInspection = await readdir(directory);
-  const inspected = await call('inspect', { inputPath: optimized.path });
+  const inspected = (await client.callTool({ name: 'flowkit_file_metadata', arguments: { inputPath: optimized.path } })).structuredContent;
   assert.equal(inspected.path, optimized.path);
-  assert.equal(inspected.pageCount, 4);
-  assert.equal(inspected.encrypted, false);
+  assert.equal(inspected.details.pageCount, 4);
+  assert.equal(inspected.details.encrypted, false);
   assert.deepEqual(await readdir(directory), beforeInspection);
   assert.equal((await readFile(join(directory, merged.path))).length, merged.sizeBytes);
   assert.deepEqual(await readFile(join(directory, 'source.pdf')), source.data);

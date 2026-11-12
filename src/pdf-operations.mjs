@@ -3,8 +3,10 @@ export const pdfOperations = [
   { type: 'pdf.rotate', title: 'Rotate PDF pages', description: 'Rotate selected pages clockwise without rasterizing', hasPages: true, defaults: { pages: 'all', degrees: 90 } },
   { type: 'pdf.remove', title: 'Remove PDF pages', description: 'Remove selected pages and keep the remaining pages in order', hasPages: true, defaults: { pages: '1' } },
   { type: 'pdf.reverse', title: 'Reverse PDF pages', description: 'Reverse the order of all pages', defaults: {} },
-  { type: 'pdf.optimize', title: 'Optimize PDF', description: 'Compress streams and file structure losslessly; size reduction varies', defaults: {} },
-  { type: 'pdf.inspect', title: 'Inspect PDF', description: 'Read page count and encryption status without changing the file', defaults: {} },
+  { type: 'pdf.reduce', title: 'PDF Size Reducer', description: 'Reduce PDF size toward a requested factor with automatic or manual quality', defaults: { factor: 2, autoQuality: true, quality: 80 } },
+  { type: 'pdf.sign', title: 'Sign PDF', description: 'Place a signature image or sign with a PKCS#12 certificate', defaults: { mode: 'image', page: 1, x: 36, y: 36, width: 160, height: 60 } },
+  { type: 'pdf.encrypt', title: 'Encrypt PDF', description: 'Protect a PDF with an opening password using AES-256', defaults: {} },
+  { type: 'pdf.decrypt', title: 'Decrypt PDF', description: 'Remove PDF encryption using a supplied password', defaults: {} },
 ];
 
 export function selectPdfPages(pages = 'all', pageCount = 1000) {

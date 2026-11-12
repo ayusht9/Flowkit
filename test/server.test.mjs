@@ -19,8 +19,8 @@ async function withServer(callback) {
 test("API exposes only the implemented node catalog and a real sample document", async () => {
   await withServer(async (url) => {
     const operations = await (await fetch(`${url}/api/operations`)).json();
-    assert.equal(operations.operations.length, 58);
-    assert.deepEqual(operations.operations.filter(item => item.category === 'PDF').map(item => item.type), ['pdf.upload', 'pdf.pipe', 'pdf.preview', 'pdf.merge', 'pdf.extract', 'pdf.rotate', 'pdf.remove', 'pdf.reverse', 'pdf.optimize', 'pdf.inspect']);
+    assert.equal(operations.operations.length, 60);
+    assert.deepEqual(operations.operations.filter(item => item.category === 'PDF').map(item => item.type), ['pdf.upload', 'pdf.pipe', 'pdf.preview', 'pdf.merge', 'pdf.extract', 'pdf.rotate', 'pdf.remove', 'pdf.reverse', 'pdf.reduce', 'pdf.sign', 'pdf.encrypt', 'pdf.decrypt']);
     assert.equal(operations.operations.filter(item => item.category === 'Image' && item.group === 'Transform').length, 8);
     assert.deepEqual(operations.operations.filter((item) => item.section === "PDF").map((item) => item.type), ["document.toPdf"]);
     const sample = await (await fetch(`${url}/api/sample`)).json();

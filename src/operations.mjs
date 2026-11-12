@@ -52,13 +52,13 @@ export class OperationRegistry {
     }
   }
 
-  async execute(type, input, options = {}, { signal } = {}) {
+  async execute(type, input, options = {}, { signal, secrets, attachment } = {}) {
     const operation = this.get(type);
     this.validateOptions(type, options);
     assertPayload(input, operation.inputType);
     operation.validateInput?.(input.value);
     signal?.throwIfAborted();
-    const output = await operation.run(input, options, { signal });
+    const output = await operation.run(input, options, { signal, secrets, attachment });
     signal?.throwIfAborted();
     assertPayload(output, operation.outputType);
     operation.validateOutput?.(output.value);

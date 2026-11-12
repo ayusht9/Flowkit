@@ -9,6 +9,7 @@ import { mediaOperations } from './media-operations.mjs';
 import packageInfo from '../package.json' with { type: 'json' };
 import { nativeToolRecommendations } from './setup.mjs';
 import { pdfOperations } from './pdf-operations.mjs';
+import { findGhostscript } from './pdf-reducer.mjs';
 
 function check(command, argument = "--version") {
   const run = spawnSync(command, [argument], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
@@ -26,6 +27,7 @@ export async function diagnoseMcp(workspace) {
     ffmpeg: check(process.env.FFMPEG_PATH || "ffmpeg", "-version"),
     ffprobe: check(process.env.FFPROBE_PATH || "ffprobe", "-version"),
     qpdf: check(process.env.QPDF_PATH || 'qpdf'),
+    ghostscript: check(findGhostscript()),
   };
   for (const [name, tool] of Object.entries(tools)) {
     tool.recommendation = nativeToolRecommendations[name];
@@ -36,7 +38,7 @@ export async function diagnoseMcp(workspace) {
     version: packageInfo.version,
     node: process.version,
     workspace: root,
-    mcpTools: 6 + pdfOperations.length + mediaOperations.length + imageOperations.length + documentConversions.length,
+    mcpTools: 7 + pdfOperations.length + mediaOperations.length + imageOperations.length + documentConversions.length,
     processingReady: Object.values(tools).every((tool) => tool.available),
     tools,
   };

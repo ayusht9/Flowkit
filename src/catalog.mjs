@@ -6,7 +6,7 @@ import { pdfOperations } from './pdf-operations.mjs';
 export const catalog = [
   ...['upload', 'pipe', 'preview'].map(action => ({ type: `pdf.${action}`, category: 'PDF',
     title: ({ upload: 'Upload PDF', pipe: 'Pipe', preview: 'Download PDF' })[action],
-    description: ({ upload: 'Start with a PDF; encrypted files support inspection only', pipe: 'Pass the PDF through unchanged', preview: 'Download the processed PDF' })[action],
+    description: ({ upload: 'Upload a PDF and view its metadata', pipe: 'Pass the PDF through unchanged', preview: 'Download the processed PDF' })[action],
     inputType: 'pdf', outputType: 'pdf', icon: action === 'upload' ? 'upload' : action === 'preview' ? 'download' : 'arrow',
     color: action === 'upload' ? 'blue' : action === 'preview' ? 'orange' : 'teal', group: action === 'upload' ? 'Input' : action === 'preview' ? 'Output' : 'Pipe' })),
   { type: 'pdf.merge', category: 'PDF', title: 'Merge PDFs', description: 'Combine 2-10 PDFs in incoming connection order', inputType: 'pdf', outputType: 'pdf', icon: 'arrow', color: 'teal', group: 'Pipe', acceptsMany: true },
@@ -206,7 +206,10 @@ export function parseWorkflow(value) {
   if (value.nodes.length > 20 || value.edges.length > 20)
     throw new Error("Workflows support up to 20 nodes.");
   const ids = new Set();
-  const nodes = value.nodes.map((node) => {
+  const nodes = value.nodes.map((original) => {
+    const legacy = original?.data?.operation;
+    const node = legacy === 'pdf.optimize' ? { ...original, data: { ...original.data, operation: 'pdf.reduce', options: { factor: 1, autoQuality: true } } }
+      : legacy === 'pdf.inspect' ? { ...original, data: { ...original.data, operation: 'pdf.pipe', kind: 'pipe', options: {} } } : original;
     if (
       !node ||
       typeof node.id !== "string" ||

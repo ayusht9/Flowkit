@@ -1,4 +1,5 @@
 export const nativeToolRecommendations = {
+  ghostscript: { name: 'Ghostscript', testedVersion: '10.08.0', purpose: 'PDF Size Reducer with image recompression', url: 'https://ghostscript.com/releases/gsdnld.html', environment: 'GHOSTSCRIPT_PATH' },
   qpdf: { name: 'qpdf', testedVersion: '12.2.0', purpose: 'PDF page operations, optimization, and inspection', url: 'https://github.com/qpdf/qpdf/releases', environment: 'QPDF_PATH' },
   pandoc: { name: 'Pandoc', testedVersion: '3.13', purpose: 'document conversions', url: 'https://pandoc.org/installing.html', environment: 'PANDOC_PATH' },
   imagemagick: { name: 'ImageMagick', testedVersion: '7.1.1-47', purpose: 'image processing', url: 'https://imagemagick.org/download/', environment: 'IMAGEMAGICK_PATH' },

@@ -32,6 +32,8 @@ import { imageOperations } from '../src/image-operations.mjs';
 import { documentReaders, documentInputLabel } from '../src/document-formats.mjs';
 import { mediaOperations } from '../src/media-operations.mjs';
 import { pdfOperations, selectPdfPages } from '../src/pdf-operations.mjs';
+import FileMetadata, { metadataSummary } from './file-metadata.jsx';
+import PdfControls from './pdf-controls.jsx';
 import "./styles.css";
 
 function readWorkspace() {
@@ -192,6 +194,7 @@ function OperationNode({ data, selected }) {
             title={isUpload(item.type) ? "Click to choose a file" : undefined}>
             <NodeSubtitle item={item} data={data} />
           </p>
+            {isUpload(item.type) && data.metadata && <small className="upload-metadata-summary" aria-label="Upload metadata">{metadataSummary(data.metadata)}</small>}
           {data.status && (
             <span className={`node-status-pill status-${statusState}`}>
               {statusState === "succeeded"
@@ -273,6 +276,9 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorId, setAnchorId] = useState(null);
   const [files, setFiles] = useState({});
+  const [uploadMetadata, setUploadMetadata] = useState({});
+  const [runtimeInputs, setRuntimeInputs] = useState({});
+  const metadataRequests = useRef(new Map());
   const [result, setResult] = useState(null);
   const [events, setEvents] = useState([]);
   const [states, setStates] = useState({});
@@ -408,7 +414,13 @@ function App() {
     (node) => node.id === selectedId,
   )?.output;
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => { abortRef.current?.abort(); for (const controller of metadataRequests.current.values()) controller.abort(); }, []);
+  useEffect(() => {
+    if (!Object.keys(files).length) {
+      for (const controller of metadataRequests.current.values()) controller.abort();
+      metadataRequests.current.clear(); setUploadMetadata({}); setRuntimeInputs({});
+    }
+  }, [files]);
   useEffect(() => {
     const focusSearch = (event) => {
       if (
@@ -462,6 +474,23 @@ function App() {
     setMessage("");
   }
 
+  async function readUploadMetadata(uploadId, uploaded) {
+    metadataRequests.current.get(uploadId)?.abort();
+    const controller = new AbortController();
+    metadataRequests.current.set(uploadId, controller);
+    setUploadMetadata(current => ({ ...current, [uploadId]: { state: 'loading' } }));
+    try {
+      const response = await fetch('/api/metadata', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: { name: uploaded.name, data: uploaded.data } }), signal: controller.signal });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Metadata is unavailable; retry after checking native tools.');
+      if (metadataRequests.current.get(uploadId) === controller) setUploadMetadata(current => ({ ...current, [uploadId]: { state: 'ready', metadata: body.metadata } }));
+    } catch (error) {
+      if (!controller.signal.aborted && metadataRequests.current.get(uploadId) === controller)
+        setUploadMetadata(current => ({ ...current, [uploadId]: { state: 'error', error: error.message } }));
+    } finally { if (metadataRequests.current.get(uploadId) === controller) metadataRequests.current.delete(uploadId); }
+  }
+
   async function chooseFile(candidate, uploadId) {
     if (!candidate || running) return;
     if (!uploadId) return setMessage("Select an Upload node before choosing a file.");
@@ -480,12 +509,14 @@ function App() {
         reader.onerror = () => reject(new Error("Could not read this file."));
         reader.readAsDataURL(candidate);
       });
-      setFiles((current) => ({ ...current, [uploadId]: { name: candidate.name, data, size: candidate.size } }));
+      const uploaded = { name: candidate.name, data, size: candidate.size };
+      setFiles((current) => ({ ...current, [uploadId]: uploaded }));
       const category = fileCategory(candidate.name);
       const operation = category === "Text" ? "file.upload" : `${category.toLowerCase()}.upload`;
       setNodes((current) => adaptNodes(current.map((node) => node.id === uploadId
         ? { ...node, data: { ...node.data, fileType: category, operation } } : node), edges));
       invalidate();
+      void readUploadMetadata(uploadId, uploaded);
     } catch (error) {
       setMessage(error.message);
     }
@@ -506,6 +537,9 @@ function App() {
 
   function removeNode(id) {
     if (running) return;
+    metadataRequests.current.get(id)?.abort(); metadataRequests.current.delete(id);
+    setUploadMetadata(current => { const next = { ...current }; delete next[id]; return next; });
+    setRuntimeInputs(current => { const next = { ...current }; delete next[id]; return next; });
     const nextNodes = nodes.filter((node) => node.id !== id);
     const nextEdges = edges.filter((edge) => edge.source !== id && edge.target !== id);
     setNodes(nextNodes);
@@ -548,6 +582,7 @@ function App() {
   }
   function changeProcess(id, changes) {
     if (running) return;
+    setRuntimeInputs(current => { const next = { ...current }; delete next[id]; return next; });
     setNodes((current) => adaptNodes(current.map((node) => node.id === id
       ? { ...node, data: { ...node.data, ...changes, options: defaultOptions(changes.operation) } } : node), edges));
     setSelectedId(id);
@@ -705,6 +740,8 @@ function App() {
         body: JSON.stringify({
           pipeline: toPipeline(nodes, edges),
           inputs: Object.fromEntries(uploads.map((node) => [node.id, { name: files[node.id].name, data: files[node.id].data }])),
+          runtimeInputs: Object.fromEntries(nodes.filter(node => ['pdf.sign', 'pdf.encrypt', 'pdf.decrypt'].includes(node.data.operation))
+            .map(node => [node.id, runtimeInputs[node.id] || {}])),
         }),
         signal: controller.signal,
       });
@@ -795,6 +832,7 @@ function App() {
               ? "running"
               : states[node.id]?.status,
           filename: files[node.id]?.name,
+          metadata: uploadMetadata[node.id],
           running,
           inferred: edges.some((edge) => edge.target === node.id),
           inputType: nodeItem(nodes.find((source) => source.id === edges.find((edge) => edge.target === node.id)?.source)).outputType,
@@ -814,7 +852,7 @@ function App() {
           },
         },
       })),
-    [nodes, states, selectedId, files, edges, running],
+    [nodes, states, selectedId, files, uploadMetadata, edges, running],
   );
   const displayEdges = useMemo(
     () =>
@@ -1273,9 +1311,11 @@ function App() {
                     </div>
                   </div>
                   <p className="file-types">
-                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel, PDF: 'PDF · Up to 1000 pages for processing; encrypted files support inspection only' })[inputCategory]} · Up to 20 MiB
+                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel, PDF: 'PDF · Up to 1000 pages; decrypt protected files before other operations' })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
+                {isUpload(selectedItem?.type) && <FileMetadata entry={uploadMetadata[selectedId]}
+                  onRefresh={() => files[selectedId] && readUploadMetadata(selectedId, files[selectedId])} />}
                 {selectedPdfOperation && (
                   <div className="inspector-section resize-settings">
                       {selectedPdfOperation.hasPages && <><label>{selectedItem.type === 'pdf.remove' ? 'Pages to remove' : 'Pages'}
@@ -1298,7 +1338,13 @@ function App() {
                         {[90, 180, 270].map(degrees => <option key={degrees} value={degrees}>{degrees}°</option>)}
                       </select>
                     </label>}
-                    <p>{selectedItem.type === 'pdf.inspect' ? 'Reports page count and encryption status. The original PDF passes through unchanged; encrypted page counts are unavailable.' : selectedItem.type === 'pdf.optimize' ? 'Compresses streams and file structure without changing image quality. Output may be the same size or larger. Maximum 8 MiB; originals are preserved.' : 'PDF output: up to 8 MiB. Originals are preserved.'}</p>
+                    <PdfControls operation={selectedItem.type} options={selected.data.options || {}} runtime={runtimeInputs[selectedId]} disabled={running}
+                      onOption={(key, value) => {
+                        setNodes(current => current.map(node => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, [key]: value } } } : node));
+                        invalidate();
+                      }}
+                      onRuntime={value => { setRuntimeInputs(current => ({ ...current, [selectedId]: typeof value === 'function' ? value(current[selectedId] || {}) : value })); invalidate(false); }} onError={setMessage} />
+                    <p>PDF output: up to 8 MiB. Originals are preserved.</p>
                   </div>
                 )}
                 {selectedItem?.type === 'pdf.merge' && <div className="inspector-section">
@@ -1497,6 +1543,8 @@ function App() {
                     {typeof documentOutput.encrypted === 'boolean' && <p>Encryption: {documentOutput.encrypted ? 'encrypted' : 'not encrypted'}</p>}
                     {documentOutput.pageCountUnavailableReason && <p>{documentOutput.pageCountUnavailableReason}</p>}
                     {documentOutput.originalSizeBytes !== undefined && <p>Original: {formatBytes(documentOutput.originalSizeBytes)} · Size change: {documentOutput.sizeChangeBytes > 0 ? '+' : ''}{documentOutput.sizeChangeBytes} bytes</p>}
+                    {documentOutput.achievedFactor !== undefined && <p>{documentOutput.achievedFactor.toFixed(2)}× reduction · {documentOutput.targetMet ? 'Target reached' : 'Best available reduction; target not reached'} · Quality {documentOutput.qualityUsed}/100</p>}
+                    {documentOutput.signatureType && <p>{documentOutput.signatureType === 'certificate' ? 'Certificate digital signature' : 'Visible signature image'}</p>}
                     <p>{formatBytes(Uint8Array.from(atob(documentOutput.data), (character) => character.charCodeAt(0)).byteLength)} {result.output.type === 'pdf' ? 'available locally' : 'converted locally'}</p>
                     <button className="button primary download-result" onClick={() => exportResult()}>
                       <Icon name="download" size={16} /> {result.output.type === 'pdf' ? 'Download PDF' : 'Download document'}

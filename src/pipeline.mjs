@@ -60,7 +60,7 @@ export function validatePipeline(pipeline, registry) {
 }
 
 /** Invalid definitions reject before execution; operation failures return a failed run. */
-export async function runPipeline(pipeline, registry, { input, inputs, signal, onEvent } = {}) {
+export async function runPipeline(pipeline, registry, { input, inputs, signal, onEvent, runtimeInputs = {} } = {}) {
   const ordered = validatePipeline(pipeline, registry);
   const edges = pipeline.edges;
   const roots = ordered.filter(node => !edges.some(edge => edge.target === node.id));
@@ -96,7 +96,7 @@ export async function runPipeline(pipeline, registry, { input, inputs, signal, o
       const sources = edges.filter(edge => edge.target === node.id).map(edge => outputs.get(edge.source));
       const definition = registry.get(node.type);
       const value = sources.length ? (definition.acceptsMany ? { type: definition.inputType, value: sources.map(source => source.value) } : sources[0]) : supplied[node.id];
-      const output = await registry.execute(node.type, value, node.options, { signal });
+      const output = await registry.execute(node.type, value, node.options, { ...runtimeInputs[node.id], signal });
       outputs.set(node.id, output);
       state.status = 'succeeded';
       state.output = output;
