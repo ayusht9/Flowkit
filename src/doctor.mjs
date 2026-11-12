@@ -6,6 +6,7 @@ import { findImageMagick } from "./image.mjs";
 import { imageOperations } from './image-operations.mjs';
 import { documentConversions } from './document-formats.mjs';
 import { mediaOperations } from './media-operations.mjs';
+import packageInfo from '../package.json' with { type: 'json' };
 
 function check(command, argument = "--version") {
   const run = spawnSync(command, [argument], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
@@ -26,7 +27,7 @@ export async function diagnoseMcp(workspace) {
   return {
     installed: true,
     package: "flowkit-mcp",
-    version: "0.1.0",
+    version: packageInfo.version,
     node: process.version,
     workspace: root,
     mcpTools: 5 + mediaOperations.length + imageOperations.length + documentConversions.length,

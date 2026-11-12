@@ -125,7 +125,7 @@ export function createMediaOperation(operation, { ffmpeg = process.env.FFMPEG_PA
         if (error.killed) throw new Error(`Media processing exceeded its ${timeoutMs} ms execution limit`, { cause: error });
         if (error.code || error instanceof SyntaxError) throw new Error("Media processing failed; check the file content and format", { cause: error });
         throw error;
-      } finally { await rm(directory, { recursive: true, force: true }); }
+      } finally { await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
     },
   };
 }
