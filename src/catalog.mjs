@@ -6,7 +6,7 @@ import { pdfOperations } from './pdf-operations.mjs';
 export const catalog = [
   ...['upload', 'pipe', 'preview'].map(action => ({ type: `pdf.${action}`, category: 'PDF',
     title: ({ upload: 'Upload PDF', pipe: 'Pipe', preview: 'Download PDF' })[action],
-    description: ({ upload: 'Start with an unencrypted PDF', pipe: 'Pass the PDF through unchanged', preview: 'Download the processed PDF' })[action],
+    description: ({ upload: 'Start with a PDF; encrypted files support inspection only', pipe: 'Pass the PDF through unchanged', preview: 'Download the processed PDF' })[action],
     inputType: 'pdf', outputType: 'pdf', icon: action === 'upload' ? 'upload' : action === 'preview' ? 'download' : 'arrow',
     color: action === 'upload' ? 'blue' : action === 'preview' ? 'orange' : 'teal', group: action === 'upload' ? 'Input' : action === 'preview' ? 'Output' : 'Pipe' })),
   { type: 'pdf.merge', category: 'PDF', title: 'Merge PDFs', description: 'Combine 2-10 PDFs in incoming connection order', inputType: 'pdf', outputType: 'pdf', icon: 'arrow', color: 'teal', group: 'Pipe', acceptsMany: true },

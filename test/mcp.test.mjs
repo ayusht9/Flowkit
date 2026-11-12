@@ -63,7 +63,7 @@ test('MCP chains configured media artifacts larger than the upload limit', { ski
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {
   const { workspace, client, call } = await session(t);
   const { tools } = await client.listTools();
-  assert.equal(tools.length, 39);
+  assert.equal(tools.length, 43);
   for (const name of ['audio_volume', 'audio_fade', 'audio_normalize', 'video_convert', 'video_resize', 'video_rotate', 'video_flip', 'video_mute'])
     assert.ok(tools.some(tool => tool.name === `flowkit_${name}`));
   for (const name of ['text', 'rtf', 'latex', 'rst', 'asciidoc', 'pptx'])
@@ -228,7 +228,7 @@ test("MCP doctor proves the installed CLI can inspect its workspace and dependen
   const response = spawnSync(process.execPath, [join(project, "mcp-server.mjs"), "--doctor", "--workspace", project, "--json"], { encoding: "utf8", windowsHide: true });
   const report = JSON.parse(response.stdout);
   assert.equal(report.installed, true);
-  assert.equal(report.mcpTools, 39);
+  assert.equal(report.mcpTools, 43);
   assert.equal(report.workspace, project);
   assert.deepEqual(Object.keys(report.tools), ["pandoc", "imagemagick", "ffmpeg", "ffprobe", "qpdf"]);
   for (const tool of Object.values(report.tools)) {

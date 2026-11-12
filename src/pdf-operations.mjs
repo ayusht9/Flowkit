@@ -1,6 +1,10 @@
 export const pdfOperations = [
-  { type: 'pdf.extract', title: 'Extract PDF pages', description: 'Split out selected pages into one new PDF', defaults: { pages: 'all' } },
-  { type: 'pdf.rotate', title: 'Rotate PDF pages', description: 'Rotate selected pages clockwise without rasterizing', defaults: { pages: 'all', degrees: 90 } },
+  { type: 'pdf.extract', title: 'Extract PDF pages', description: 'Split out selected pages into one new PDF', hasPages: true, defaults: { pages: 'all' } },
+  { type: 'pdf.rotate', title: 'Rotate PDF pages', description: 'Rotate selected pages clockwise without rasterizing', hasPages: true, defaults: { pages: 'all', degrees: 90 } },
+  { type: 'pdf.remove', title: 'Remove PDF pages', description: 'Remove selected pages and keep the remaining pages in order', hasPages: true, defaults: { pages: '1' } },
+  { type: 'pdf.reverse', title: 'Reverse PDF pages', description: 'Reverse the order of all pages', defaults: {} },
+  { type: 'pdf.optimize', title: 'Optimize PDF', description: 'Compress streams and file structure losslessly; size reduction varies', defaults: {} },
+  { type: 'pdf.inspect', title: 'Inspect PDF', description: 'Read page count and encryption status without changing the file', defaults: {} },
 ];
 
 export function selectPdfPages(pages = 'all', pageCount = 1000) {

@@ -119,6 +119,8 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
         ...(value.durationSeconds && { durationSeconds: value.durationSeconds }),
         ...(value.frameRate && { frameRate: value.frameRate }),
         ...(value.pageCount && { pageCount: value.pageCount }),
+        ...(typeof value.encrypted === 'boolean' && { encrypted: value.encrypted }),
+        ...(value.originalSizeBytes !== undefined && { originalSizeBytes: value.originalSizeBytes, sizeChangeBytes: value.sizeChangeBytes }),
         ...(output.type === "markdown" && { preview: value.text.slice(0, 1000), previewTruncated: value.text.length > 1000 }),
       };
     } catch (error) { await rm(directory, { recursive: true, force: true }); throw error; }
@@ -173,10 +175,22 @@ export async function createFlowkitMcpServer({ workspace, registry, signal: shut
     for (const path of inputPaths) files.push(await readInput(path, signal));
     return saveOutput(await registry.execute('pdf.merge', { type: 'pdf', value: files }, {}, { signal }), signal);
   });
-  for (const action of ['extract', 'rotate']) register(`flowkit_pdf_${action}`,
-    `${action === 'extract' ? 'Extract selected pages into one new PDF' : 'Rotate selected pages clockwise relative to their existing rotation'}. Pages: all or 1-based numbers/ranges such as 1-3,5, without spaces. Requires an unencrypted PDF and qpdf. Input at most 20 MiB/1000 pages; output at most 8 MiB. Returns an artifact path and page count.`,
-    { inputPath, pages: z.string().min(1).max(1024).default('all'), ...(action === 'rotate' ? { degrees: z.union([z.literal(90), z.literal(180), z.literal(270)]).default(90) } : {}) },
+  for (const action of ['extract', 'rotate', 'remove', 'reverse', 'optimize']) register(`flowkit_pdf_${action}`,
+    `${({ extract: 'Extract selected pages into one new PDF', rotate: 'Rotate selected pages clockwise relative to their existing rotation',
+      remove: 'Remove selected pages, preserving the order of remaining pages; at least one page must remain',
+      reverse: 'Reverse the order of all PDF pages', optimize: 'Optimize PDF streams and object structure losslessly; images are not downsampled or recompressed as JPEG and size reduction is not guaranteed. Includes originalSizeBytes and sizeChangeBytes (positive means larger)' })[action]}. ${['extract', 'rotate', 'remove'].includes(action) ? 'Pages: all or 1-based numbers/ranges such as 1-3,5, without spaces.' : ''} Requires an unencrypted PDF and qpdf. Input at most 20 MiB/1000 pages; output at most 8 MiB. Returns an artifact path and page count.`,
+    { inputPath, ...(['extract', 'rotate', 'remove'].includes(action) ? { pages: action === 'remove' ? z.string().min(1).max(1024) : z.string().min(1).max(1024).default('all') } : {}),
+      ...(action === 'rotate' ? { degrees: z.union([z.literal(90), z.literal(180), z.literal(270)]).default(90) } : {}) },
     (args, signal) => processFile(`pdf.${action}`, args, signal));
+
+  register('flowkit_pdf_inspect', 'Inspect PDF page count, byte size, and encryption status without creating an artifact or changing the source. Requires qpdf. Input at most 20 MiB; unencrypted PDFs at most 1000 pages. Encrypted files report pageCount=null because their pages cannot be inspected without a password. Returns metadata only.',
+    { inputPath }, async ({ inputPath }, signal) => {
+      const file = await readInput(inputPath, signal);
+      const { value } = await registry.execute('pdf.inspect', { type: 'pdf', value: file }, {}, { signal });
+      return { path: inputPath, name: value.name, type: 'pdf', mimeType: value.mimeType, sizeBytes: file.data.length,
+        encrypted: value.encrypted, pageCount: value.pageCount,
+        ...(value.pageCountUnavailableReason && { pageCountUnavailableReason: value.pageCountUnavailableReason }) };
+    }, true);
 
   return server;
 }

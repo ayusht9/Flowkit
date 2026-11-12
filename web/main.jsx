@@ -395,8 +395,8 @@ function App() {
   const selectedMediaOperation = mediaOperations.find(item => item.type === selectedItem?.type);
   const selectedPdfOperation = pdfOperations.find(item => item.type === selectedItem?.type);
   let pdfPagesError = '';
-  if (selectedPdfOperation) {
-    try { selectPdfPages(selected.data.options?.pages); } catch (error) { pdfPagesError = error.message; }
+  if (selectedPdfOperation?.hasPages) {
+    try { selectPdfPages(selected.data.options?.pages ?? (selectedItem.type === 'pdf.remove' ? '' : 'all')); } catch (error) { pdfPagesError = error.message; }
   }
   const file = files[selectedId] || Object.values(files)[0] || null;
   const output = result?.output?.value;
@@ -1273,21 +1273,21 @@ function App() {
                     </div>
                   </div>
                   <p className="file-types">
-                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel, PDF: 'Unencrypted PDF · Up to 1000 pages' })[inputCategory]} · Up to 20 MiB
+                    {({ Image: "PNG, JPEG · 16 million pixels", Audio: "WAV, MP3, M4A · Up to 5 minutes", Video: "MP4, MOV, WebM, MKV · Up to 5 minutes / 1080p", Text: documentInputLabel, PDF: 'PDF · Up to 1000 pages for processing; encrypted files support inspection only' })[inputCategory]} · Up to 20 MiB
                   </p>
                 </div>
                 {selectedPdfOperation && (
                   <div className="inspector-section resize-settings">
-                    <label>Pages
+                      {selectedPdfOperation.hasPages && <><label>{selectedItem.type === 'pdf.remove' ? 'Pages to remove' : 'Pages'}
                       <input aria-label="Pages" aria-invalid={Boolean(pdfPagesError)} aria-describedby="pdf-pages-help"
-                        value={selected.data.options?.pages ?? 'all'} disabled={running} placeholder="all or 1-3,5"
+                        value={selected.data.options?.pages ?? (selectedItem.type === 'pdf.remove' ? '' : 'all')} disabled={running} placeholder="all or 1-3,5"
                         onChange={event => {
                           const pages = event.target.value;
                           setNodes(current => current.map(node => node.id === selectedId ? { ...node, data: { ...node.data, options: { ...node.data.options, pages } } } : node));
                           invalidate();
                         }} />
                     </label>
-                    <small id="pdf-pages-help" role={pdfPagesError ? 'alert' : undefined}>{pdfPagesError || 'Use all or page numbers/ranges such as 1-3,5, without spaces. Extracting produces one PDF in the listed order.'}</small>
+                    <small id="pdf-pages-help" role={pdfPagesError ? 'alert' : undefined}>{pdfPagesError || (selectedItem.type === 'pdf.remove' ? 'Select pages to remove, such as 1,3-5, without spaces. At least one page must remain.' : 'Use all or page numbers/ranges such as 1-3,5, without spaces. Extracting produces one PDF in the listed order.')}</small></>}
                     {selectedItem.type === 'pdf.rotate' && <label>Clockwise rotation
                       <select aria-label="Clockwise rotation" value={selected.data.options?.degrees ?? 90} disabled={running}
                         onChange={event => {
@@ -1298,7 +1298,7 @@ function App() {
                         {[90, 180, 270].map(degrees => <option key={degrees} value={degrees}>{degrees}°</option>)}
                       </select>
                     </label>}
-                    <p>PDF output: up to 8 MiB. Originals are preserved.</p>
+                    <p>{selectedItem.type === 'pdf.inspect' ? 'Reports page count and encryption status. The original PDF passes through unchanged; encrypted page counts are unavailable.' : selectedItem.type === 'pdf.optimize' ? 'Compresses streams and file structure without changing image quality. Output may be the same size or larger. Maximum 8 MiB; originals are preserved.' : 'PDF output: up to 8 MiB. Originals are preserved.'}</p>
                   </div>
                 )}
                 {selectedItem?.type === 'pdf.merge' && <div className="inspector-section">
@@ -1494,7 +1494,10 @@ function App() {
                     <Icon name="document" size={25} />
                     <strong>{documentOutput.name}</strong>
                     {documentOutput.pageCount && <p>{documentOutput.pageCount} pages</p>}
-                    <p>{formatBytes(Uint8Array.from(atob(documentOutput.data), (character) => character.charCodeAt(0)).byteLength)} converted locally</p>
+                    {typeof documentOutput.encrypted === 'boolean' && <p>Encryption: {documentOutput.encrypted ? 'encrypted' : 'not encrypted'}</p>}
+                    {documentOutput.pageCountUnavailableReason && <p>{documentOutput.pageCountUnavailableReason}</p>}
+                    {documentOutput.originalSizeBytes !== undefined && <p>Original: {formatBytes(documentOutput.originalSizeBytes)} · Size change: {documentOutput.sizeChangeBytes > 0 ? '+' : ''}{documentOutput.sizeChangeBytes} bytes</p>}
+                    <p>{formatBytes(Uint8Array.from(atob(documentOutput.data), (character) => character.charCodeAt(0)).byteLength)} {result.output.type === 'pdf' ? 'available locally' : 'converted locally'}</p>
                     <button className="button primary download-result" onClick={() => exportResult()}>
                       <Icon name="download" size={16} /> {result.output.type === 'pdf' ? 'Download PDF' : 'Download document'}
                     </button>
@@ -1502,6 +1505,12 @@ function App() {
                 ) : ["image", "audio", "video", "pdf"].includes(nodeOutput?.type) ? (
                   <div className="output-document">
                     <strong>{nodeOutput.value.name}</strong>
+                    {nodeOutput.type === 'pdf' && <>
+                      {nodeOutput.value.pageCount && <p>{nodeOutput.value.pageCount} pages</p>}
+                      {typeof nodeOutput.value.encrypted === 'boolean' && <p>Encryption: {nodeOutput.value.encrypted ? 'encrypted' : 'not encrypted'}</p>}
+                      {nodeOutput.value.pageCountUnavailableReason && <p>{nodeOutput.value.pageCountUnavailableReason}</p>}
+                      {nodeOutput.value.originalSizeBytes !== undefined && <p>Original: {formatBytes(nodeOutput.value.originalSizeBytes)} · Size change: {nodeOutput.value.sizeChangeBytes > 0 ? '+' : ''}{nodeOutput.value.sizeChangeBytes} bytes</p>}
+                    </>}
                     <p>{formatBytes(nodeOutput.value.size)} · {nodeOutput.value.width ? `${nodeOutput.value.width} × ${nodeOutput.value.height} pixels` : `${nodeOutput.type} file`}</p>
                   </div>
                 ) : nodeOutput?.type === "document" ? (

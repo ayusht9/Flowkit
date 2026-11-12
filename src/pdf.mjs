@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, readFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertRecord } from './operations.mjs';
-import { selectPdfPages } from './pdf-operations.mjs';
+import { selectPdfPages, pdfOperations } from './pdf-operations.mjs';
 
 const execute = promisify(execFile);
 const MiB = 1024 * 1024;
@@ -28,7 +28,8 @@ function validatePdfInputs(files) {
 }
 
 export function createPdfOperation(operation, { executable = process.env.QPDF_PATH || 'qpdf', timeoutMs = 30_000 } = {}) {
-  if (!['pdf.extract', 'pdf.rotate', 'pdf.merge'].includes(operation)) throw new TypeError('Unknown PDF operation');
+  const definition = pdfOperations.find(item => item.type === operation);
+  if (!definition && operation !== 'pdf.merge') throw new TypeError('Unknown PDF operation');
   if (typeof executable !== 'string' || !executable.trim() || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1)
     throw new TypeError('Configure a qpdf executable and positive timeout');
   return {
@@ -36,9 +37,10 @@ export function createPdfOperation(operation, { executable = process.env.QPDF_PA
     validateInput: operation === 'pdf.merge' ? validatePdfInputs : validatePdf,
     validateOutput: validatePdf,
     validateOptions(options) {
-      const allowed = operation === 'pdf.merge' ? [] : operation === 'pdf.rotate' ? ['pages', 'degrees'] : ['pages'];
+      const allowed = definition?.hasPages ? (operation === 'pdf.rotate' ? ['pages', 'degrees'] : ['pages']) : [];
       if (Object.keys(options).some(key => !allowed.includes(key))) throw new TypeError('Unsupported PDF settings');
-      if (operation !== 'pdf.merge') selectPdfPages(options.pages);
+      if (operation === 'pdf.remove' && options.pages === undefined) throw new TypeError('Choose pages to remove');
+      if (definition?.hasPages) selectPdfPages(options.pages);
       if (operation === 'pdf.rotate' && options.degrees !== undefined && ![90, 180, 270].includes(options.degrees))
         throw new TypeError('Rotation must be 90, 180, or 270 degrees clockwise');
     },
@@ -57,23 +59,38 @@ export function createPdfOperation(operation, { executable = process.env.QPDF_PA
           let encrypted = true;
           try { await run([path, '--is-encrypted']); }
           catch (error) { if (error.code === 2) encrypted = false; else throw error; }
-          if (encrypted) throw new Error('Encrypted PDFs are not supported; provide an unencrypted copy');
+          if (encrypted) {
+            if (operation === 'pdf.inspect') return { type: 'pdf', value: { ...file, mimeType: 'application/pdf', encrypted: true,
+              pageCount: null, pageCountUnavailableReason: 'Page count is unavailable for encrypted PDFs; provide an unencrypted copy to inspect pages' } };
+            throw new Error('Encrypted PDFs are not supported; provide an unencrypted copy');
+          }
           const { stdout } = await run([path, '--show-npages']);
           const count = Number(stdout.trim());
           if (!Number.isSafeInteger(count) || count < 1 || count > 1000) throw new Error('PDFs must contain 1-1000 pages');
           counts.push(count);
         }
+        if (operation === 'pdf.inspect') return { type: 'pdf', value: { ...files[0], mimeType: 'application/pdf', pageCount: counts[0], encrypted: false } };
         const outputPath = join(directory, 'output.pdf');
         let expectedPages;
         if (operation === 'pdf.merge') {
           expectedPages = counts.reduce((sum, count) => sum + count, 0);
           if (expectedPages > 1000) throw new Error('Merged PDFs may contain at most 1000 pages');
           await run(['--empty', '--pages', ...paths.flatMap(path => [path, '1-z']), '--', outputPath]);
+        } else if (operation === 'pdf.reverse') {
+          expectedPages = counts[0];
+          await run([paths[0], '--pages', '.', Array.from({ length: counts[0] }, (_, index) => counts[0] - index).join(','), '--', outputPath]);
+        } else if (operation === 'pdf.optimize') {
+          expectedPages = counts[0];
+          await run([paths[0], '--object-streams=generate', '--compress-streams=y', '--recompress-flate', '--compression-level=9', outputPath]);
         } else {
           const selected = selectPdfPages(options.pages, counts[0]).join(',');
-          if (operation === 'pdf.extract') {
-            expectedPages = selected.split(',').length;
-            await run([paths[0], '--pages', '.', selected, '--', outputPath]);
+          if (operation === 'pdf.extract' || operation === 'pdf.remove') {
+            const excluded = new Set(selected.split(',').map(Number));
+            const pages = operation === 'pdf.extract' ? selected :
+              Array.from({ length: counts[0] }, (_, index) => index + 1).filter(page => !excluded.has(page)).join(',');
+            if (!pages) throw new Error('Removing these pages would leave an empty PDF; keep at least one page');
+            expectedPages = pages.split(',').length;
+            await run([paths[0], '--pages', '.', pages, '--', outputPath]);
           } else {
             expectedPages = counts[0];
             await run([paths[0], `--rotate=+${options.degrees ?? 90}:${selected}`, outputPath]);
@@ -87,7 +104,8 @@ export function createPdfOperation(operation, { executable = process.env.QPDF_PA
         const data = await readFile(outputPath, { signal });
         const stem = files[0].name.replace(/\.pdf$/i, '').slice(0, 170);
         return { type: 'pdf', value: { name: operation === 'pdf.merge' ? 'merged.pdf' : `${stem}-${operation.split('.')[1]}.pdf`,
-          data, mimeType: 'application/pdf', pageCount: expectedPages } };
+          data, mimeType: 'application/pdf', pageCount: expectedPages, encrypted: false,
+          ...(operation === 'pdf.optimize' ? { originalSizeBytes: files[0].data.length, sizeChangeBytes: data.length - files[0].data.length } : {}) } };
       } catch (error) {
         if (signal?.aborted) throw error;
         if (error.code === 'ENOENT') throw new Error('qpdf was not found. Install qpdf or set QPDF_PATH to its executable.', { cause: error });

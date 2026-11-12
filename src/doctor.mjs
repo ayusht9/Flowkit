@@ -8,6 +8,7 @@ import { documentConversions } from './document-formats.mjs';
 import { mediaOperations } from './media-operations.mjs';
 import packageInfo from '../package.json' with { type: 'json' };
 import { nativeToolRecommendations } from './setup.mjs';
+import { pdfOperations } from './pdf-operations.mjs';
 
 function check(command, argument = "--version") {
   const run = spawnSync(command, [argument], { encoding: "utf8", windowsHide: true, timeout: 10_000 });
@@ -35,7 +36,7 @@ export async function diagnoseMcp(workspace) {
     version: packageInfo.version,
     node: process.version,
     workspace: root,
-    mcpTools: 8 + mediaOperations.length + imageOperations.length + documentConversions.length,
+    mcpTools: 6 + pdfOperations.length + mediaOperations.length + imageOperations.length + documentConversions.length,
     processingReady: Object.values(tools).every((tool) => tool.available),
     tools,
   };

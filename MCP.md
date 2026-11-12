@@ -1,12 +1,12 @@
 # FlowKit MCP
 
-FlowKit exposes 39 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
+FlowKit exposes 43 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
 ## Connect an MCP host
 
 Install dependencies with `npm install`. Install Pandoc, ImageMagick and FFmpeg/FFprobe for the operations you want to use. No LLM API key is required by this server; your MCP host provides the model.
 
-PDF merging, page extraction, and rotation require [qpdf](https://github.com/qpdf/qpdf/releases), available for Windows, macOS, and Linux. FlowKit's native PDF tests use qpdf 12.2.0 locally; the container and CI use their distribution's qpdf package. Add qpdf to PATH or set `QPDF_PATH` to its executable in your MCP host environment. The npm package does not bundle native tools.
+PDF page operations, optimization, and inspection require [qpdf](https://github.com/qpdf/qpdf/releases), available for Windows, macOS, and Linux. FlowKit's native PDF tests use qpdf 12.2.0 locally; the container and CI use their distribution's qpdf package. Add qpdf to PATH or set `QPDF_PATH` to its executable in your MCP host environment. The npm package does not bundle native tools.
 
 To install the CLI from npm and verify both the package and native processors:
 
@@ -82,6 +82,10 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 | `flowkit_pdf_merge` | `inputPaths` (2-10 PDFs, ordered) | One PDF in the specified input order, with page count |
 | `flowkit_pdf_extract` | `inputPath`, `pages` (default `all`) | One PDF containing selected pages, in selection order |
 | `flowkit_pdf_rotate` | `inputPath`, `pages` (default `all`), `degrees` (90, 180, 270; default 90) | PDF with selected pages rotated clockwise relative to their existing rotation |
+| `flowkit_pdf_remove` | `inputPath`, `pages` (required) | PDF with selected pages removed; at least one page must remain |
+| `flowkit_pdf_reverse` | `inputPath` | PDF with all pages in reverse order |
+| `flowkit_pdf_optimize` | `inputPath` | Losslessly compress PDF streams and object structure; reports original size and signed byte-size change |
+| `flowkit_pdf_inspect` | `inputPath` | Read-only metadata: input path, byte size, page count, encryption status; no artifact is created |
 | `flowkit_document_to_html` | `inputPath` | Supported document to standalone HTML |
 | `flowkit_document_to_docx` | `inputPath` | Supported document to Word DOCX |
 | `flowkit_document_to_odt` | `inputPath` | Supported document to OpenDocument ODT |
@@ -121,9 +125,13 @@ For portable Windows ImageMagick, also keep its installation directory on the ho
 
 All input paths are relative to the configured workspace. Unknown options and arbitrary native flags are rejected. One tool call runs at a time per server process; a concurrent request returns a busy error and can be retried after the first completes. Cancellation reaches the native operation and removes its temporary files.
 
-Native PDF tools accept unencrypted `.pdf` files with a matching signature. Pages use 1-based numbers or ascending ranges, for example `1-3,5` or `3,1-2`, without spaces. `all` selects the whole file. Out-of-range pages and arbitrary qpdf flags are rejected. Extraction writes a single new PDF; to split into multiple files, make a separate extraction call for each desired range. Rotation retains unselected pages and rotates selected pages without rasterizing. Merge order follows `inputPaths` in MCP and incoming connection order in the editor; the merge inspector lists that order.
+Native PDF transformations accept unencrypted `.pdf` files with a matching signature. Pages use 1-based numbers or ascending ranges, for example `1-3,5` or `3,1-2`, without spaces. `all` selects the whole file. Out-of-range pages and arbitrary qpdf flags are rejected. Extraction writes a single new PDF; to split into multiple files, make a separate extraction call for each desired range. Removal drops selected pages and keeps the rest in their original order; removing every page is rejected. Reversal reverses the entire document. Rotation retains unselected pages and rotates selected pages without rasterizing. Merge order follows `inputPaths` in MCP and incoming connection order in the editor; the merge inspector lists that order.
 
-PDF inputs must total at most 20 MiB per operation and contain at most 1000 pages per file; merged or extracted results are limited to 1000 pages and 8 MiB. qpdf invocations have a 30-second timeout. Files are processed in private temporary directories and cleaned on success, error, timeout, and cancellation. Native outputs are checked with qpdf and verified for expected page count. Results include `pageCount`, MIME type, byte size, and the reusable artifact path. Encrypted/password-protected PDFs are unsupported, including PDFs that open with an empty password. Source files remain unchanged. Page operations can change bookmarks, forms, and other document-level features, and invalidate digital signatures; these tools do not sanitize PDF active content. PDF input remains unsupported by Pandoc document conversions; use the dedicated PDF tools for existing PDFs.
+PDF inputs must total at most 20 MiB per operation and contain at most 1000 pages per unencrypted file; transformed results are limited to 1000 pages and 8 MiB. qpdf invocations have a 30-second timeout. Files are processed in private temporary directories and cleaned on success, error, timeout, and cancellation. Native outputs are checked with qpdf and verified for expected page count. Results include `pageCount`, MIME type, byte size, and the reusable artifact path. Encrypted/password-protected PDFs are unsupported for transformations, including PDFs that open with an empty password. Source files remain unchanged. Page operations can change bookmarks, forms, and other document-level features, and invalidate digital signatures; these tools do not sanitize PDF active content. PDF input remains unsupported by Pandoc document conversions; use the dedicated PDF tools for existing PDFs.
+
+Optimization compresses streams and object structure, with no image downsampling or lossy JPEG recompression. It may increase the PDF version to support object streams. Files may become smaller, stay the same size, or grow. `originalSizeBytes` is the input size; `sizeChangeBytes` is output minus input (negative means smaller). The editor displays this comparison.
+
+Inspection returns metadata without rewriting or saving an artifact in MCP. In the visual pipeline, Inspect PDF adds metadata and passes the original bytes through unchanged; downloading after inspection returns the original PDF, up to the 20 MiB input limit. Encrypted files are accepted for inspection only and report `encrypted: true`, `pageCount: null`, and `pageCountUnavailableReason`; no password is requested and their pages are not inspected. Unencrypted PDFs report their actual page count and `encrypted: false`. Both the intermediate inspector and final PDF download panel display these results.
 
 Pandoc inputs include DOCX, ODT, HTML/HTM, EPUB, Markdown (`.md`/`.markdown`), TXT, RTF, LaTeX (`.tex`), and reStructuredText (`.rst`). Markdown and TXT are parsed as CommonMark. PDF, AsciiDoc and PowerPoint are export-only for compatibility with older Pandoc installations. LaTeX output is source text and requires no TeX installation; PDF still requires the configured pdfroff engine. Conversions use fixed options and Pandoc's sandbox; user filters, templates, scripts, include paths and native flags cannot be supplied. Format conversion can lose layout or features that the target cannot represent; PowerPoint maps headings to slides rather than reproducing document page layouts.
 
