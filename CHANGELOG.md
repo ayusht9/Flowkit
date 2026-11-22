@@ -4,6 +4,8 @@ All notable changes to `flowkit-mcp` are listed here. Versions follow [semantic 
 
 ## Unreleased
 
+- Added a companion Agent Skill in `skill/flowkit/` (tool selection, chaining, rules, error handling, setup, config templates), `npm run skill:pack` to build a marketplace zip, and tests that keep the skill in sync with the live tools.
+
 - Added a full benchmark suite (`npm run benchmark`): 13 tasks, multi-step workflows, retries, tool-list cost per group, session break-even, output kept out of context, execution time for every tool, and safety-boundary checks. It writes [docs/BENCHMARKS.md](docs/BENCHMARKS.md), SVG charts, and the site's data.
 - Added the MIT license, contributing guide, security policy, code of conduct, and issue and pull request templates.
 - Rewrote the README and landing page, with screenshots captured by `npm run screenshots`.

@@ -57,7 +57,8 @@
     "benchmark:mcp": "node benchmarks/mcp-token-benchmark.mjs",
     "test:e2e": "playwright test",
     "benchmark": "node benchmarks/run.mjs",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "skill:pack": "node scripts/pack-skill.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",

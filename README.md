@@ -170,6 +170,10 @@ npx @modelcontextprotocol/inspector flowkit-mcp --workspace /path/to/files
 ```
 </details>
 
+### Companion agent skill
+
+[`skill/flowkit/`](skill/flowkit/SKILL.md) is an [Agent Skill](https://agentskills.io) that teaches your agent when to use FlowKit, how to chain tools, and how to set FlowKit up if it's missing. To install it in Claude Code, copy the folder to `~/.claude/skills/flowkit/` (or `.claude/skills/flowkit/` in a project). Other skill-aware agents use the same folder. Build a zip for skill marketplaces with `npm run skill:pack`.
+
 ## What's included
 
 | Group | Tools | Engine |
