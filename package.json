@@ -1,14 +1,23 @@
 {
   "name": "flowkit-mcp",
   "version": "0.3.1",
-  "description": "Local document, image, audio, and video tools exposed through MCP",
+  "description": "46 local MCP tools for documents, PDFs, images, audio, and video, plus a visual workflow studio",
+  "license": "MIT",
   "keywords": [
     "mcp",
     "model-context-protocol",
     "documents",
     "images",
     "audio",
-    "video"
+    "video",
+    "pdf",
+    "pandoc",
+    "ffmpeg",
+    "imagemagick",
+    "qpdf",
+    "ai-agents",
+    "claude",
+    "llm-tools"
   ],
   "repository": {
     "type": "git",
@@ -29,7 +38,8 @@
     "mcp-server.mjs",
     "src",
     "README.md",
-    "MCP.md"
+    "MCP.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=22.12.0"
@@ -45,7 +55,9 @@
     "mcp": "node mcp-server.mjs",
     "mcp:doctor": "node mcp-server.mjs --doctor",
     "benchmark:mcp": "node benchmarks/mcp-token-benchmark.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "benchmark": "node benchmarks/run.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",

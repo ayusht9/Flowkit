@@ -2,34 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="FlowKit turns document and media operations into visual workflows and compact MCP tools for AI agents.">
-  <meta name="theme-color" content="#f4f3f8"><title>FlowKit — Visual media workflows & local MCP server</title>
-  <link rel="icon" href="flowkit.svg?v=20261029"><link rel="stylesheet" href="styles.css">
+  <meta name="description" content="FlowKit is a local MCP server with 46 document, PDF, image, audio, and video tools for AI agents — plus a visual workflow studio. About 80% fewer tokens per file task than writing scripts.">
+  <meta property="og:title" content="FlowKit — local file tools for AI agents">
+  <meta property="og:description" content="46 MCP tools for documents, PDFs, images, audio, and video. Runs locally with Pandoc, qpdf, ImageMagick, and FFmpeg.">
+  <meta property="og:image" content="assets/screenshots/workflow-studio.png">
+  <meta name="theme-color" content="#f4f3f8"><title>FlowKit — Local MCP file tools & visual workflows</title>
+  <link rel="icon" href="flowkit.svg?v=20261029"><link rel="stylesheet" href="styles.css?v=20261122">
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="#top" aria-label="FlowKit home"><img src="flowkit.svg?v=20261029" alt="" width="34" height="34"><span>FlowKit</span></a>
     <nav aria-label="Primary navigation">
-      <a href="#install">Installation</a>
-      <a href="#testing">Testing</a>
-      <a href="#benchmark">Benchmark</a>
+      <a href="#install">Install</a>
+      <a href="#tools">Tools</a>
+      <a href="#benchmark">Benchmarks</a>
       <a href="#agents">Agent setup</a>
-      <button type="button" class="nav-results-btn open-results-modal-btn">Test Results</button>
+      <button type="button" class="nav-results-btn open-results-modal-btn">Test results</button>
       <a href="https://github.com/ayusht9/Flowkit">GitHub</a>
       <a class="nav-cta" href="https://flowkit-ruddy.vercel.app">Open FlowKit</a>
     </nav>
   </header>
   <main id="top">
-    <!-- Hero Section -->
     <section class="hero">
       <div class="hero-copy">
-        <p class="status"><span></span>Visual workflows + local MCP</p>
+        <p class="status"><span></span>flowkit-mcp&nbsp;<b data-bind="version">0.3.1</b>&nbsp;· MIT licensed</p>
         <h1>Process files once.<br>Let agents reuse the tools.</h1>
-        <p class="intro">Build document, image, audio, and video pipelines on a visual canvas. FlowKit runs trusted operations with Pandoc, ImageMagick, and FFmpeg, then exposes the same 15 operations to AI agents through MCP.</p>
+        <p class="intro">FlowKit gives AI agents <strong><span data-bind="tools">46</span> ready-made tools</strong> for documents, PDFs, images, audio, and video. They run locally with Pandoc, qpdf, ImageMagick, and FFmpeg, so an agent sends a short tool call instead of writing a script — <strong>about <span data-bind="reduction">80</span>% fewer tokens</strong> per task. The same operations power a visual workflow studio.</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://flowkit-ruddy.vercel.app">Launch the workflow studio</a>
-          <a class="button secondary" href="#install">Install MCP Server</a>
-          <button type="button" class="button secondary open-results-modal-btn">📊 View Test Results</button>
+          <a class="button primary" href="#install">Install the MCP server</a>
+          <a class="button secondary" href="https://flowkit-ruddy.vercel.app">Launch the workflow studio</a>
+          <a class="button secondary" href="#benchmark">See the benchmarks</a>
         </div>
       </div>
       <div class="workflow-stage" aria-label="Example FlowKit workflow">
@@ -39,40 +41,42 @@
         <div class="node process-node"><span class="node-icon purple">✦</span><span><strong>Process</strong><small>Extract audio</small></span><i></i></div>
         <div class="connector second"><b></b></div>
         <div class="node download-node"><span class="node-icon orange">↓</span><span><strong>Download</strong><small>clip.mp3</small></span><i></i></div>
-        <p class="stage-note">The same typed operation is available to an agent through MCP.</p>
+        <p class="stage-note">The same typed operation is available to an agent as <code>flowkit_video_extract_audio</code>.</p>
       </div>
     </section>
 
-    <!-- Capabilities Bar -->
-    <section class="capabilities" aria-label="FlowKit capabilities">
-      <article><span>Document</span><strong>DOCX · HTML · EPUB → Markdown</strong></article>
-      <article><span>Image</span><strong>Resize PNG and JPEG</strong></article>
-      <article><span>Audio</span><strong>Convert and trim MP3/WAV</strong></article>
-      <article><span>Video</span><strong>Trim clips and extract audio</strong></article>
+    <section class="capabilities capabilities-5" aria-label="FlowKit capabilities">
+      <article><span>Documents · 14 tools</span><strong>DOCX, HTML, EPUB, Markdown, PDF & 7 more formats</strong></article>
+      <article><span>PDF · 9 tools</span><strong>Merge, extract, reduce, encrypt, sign</strong></article>
+      <article><span>Images · 8 tools</span><strong>Resize, crop, rotate, filter, convert</strong></article>
+      <article><span>Audio · 5 tools</span><strong>Convert, trim, fade, normalize</strong></article>
+      <article><span>Video · 7 tools</span><strong>Trim, resize, rotate, mute, extract audio</strong></article>
     </section>
 
-    <!-- MCP Installation Section -->
     <section class="mcp-section install-section" id="install" aria-labelledby="install-heading">
       <div class="mcp-copy">
-        <p class="status"><span></span>MCP Installation</p>
-        <h2 id="install-heading">Install FlowKit MCP in seconds.</h2>
-        <p>Deploy 15 local document, image, audio, and video operations directly to your coding agent over standard stdio. Runs locally with Pandoc, ImageMagick, and FFmpeg—no external API keys needed.</p>
+        <p class="status"><span></span>Installation</p>
+        <h2 id="install-heading">Install in a minute.</h2>
+        <p>Install the CLI from npm, check your setup with <code>--doctor</code>, then add it to your agent. FlowKit only reads and writes inside the workspace folder you choose. No API keys, accounts, or uploads.</p>
         <div class="prereq-box">
-          <small class="prereq-title">Prerequisites (discovered automatically)</small>
+          <small class="prereq-title">Requirements: install only the engines for the tools you use</small>
           <div class="prereq-tags">
             <code>Node.js 22.12+</code>
-            <code>Pandoc</code>
-            <code>ImageMagick</code>
-            <code>FFmpeg & FFprobe</code>
+            <code>Pandoc · documents</code>
+            <code>qpdf · PDF</code>
+            <code>Ghostscript · PDF size</code>
+            <code>ImageMagick · images</code>
+            <code>FFmpeg · audio/video</code>
           </div>
         </div>
-        <a class="text-link" href="https://github.com/ayusht9/Flowkit/blob/main/MCP.md">Read the full setup guide <span>↗</span></a>
+        <a class="text-link" href="https://github.com/ayusht9/Flowkit#readme">Read the full setup guide <span>↗</span></a>
       </div>
       <div class="terminal-container">
         <div class="terminal-tabs" role="tablist" aria-label="Installation methods">
-          <button role="tab" aria-selected="true" data-install="global">Global CLI (Recommended)</button>
-          <button role="tab" aria-selected="false" data-install="npx">npx on-demand</button>
-          <button role="tab" aria-selected="false" data-install="source">From Source</button>
+          <button role="tab" aria-selected="true" data-install="global">npm (recommended)</button>
+          <button role="tab" aria-selected="false" data-install="npx">npx</button>
+          <button role="tab" aria-selected="false" data-install="source">From source</button>
+          <button role="tab" aria-selected="false" data-install="engines">Native engines</button>
         </div>
         <div class="terminal" aria-label="MCP installation command">
           <div class="terminal-head">
@@ -82,282 +86,180 @@
           <pre><code id="install-command"></code></pre>
           <div class="terminal-foot">
             <span id="install-note">Installs flowkit-mcp into your global PATH</span>
-            <a href="https://github.com/ayusht9/Flowkit/archive/refs/heads/main.zip">Download ZIP</a>
+            <a href="https://www.npmjs.com/package/flowkit-mcp">npm package</a>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- MCP Testing & Verification Section (Clean Front Page Overview) -->
+    <section class="tools-section" id="tools" aria-labelledby="tools-heading">
+      <div class="tools-heading">
+        <p class="status"><span></span>Tools</p>
+        <h2 id="tools-heading"><span data-bind="tools">46</span> tools. Load only the groups you need.</h2>
+        <p>Every tool writes a new file under <code>.flowkit-artifacts/</code> and returns its path and metadata, never the file bytes. Agents chain tools by passing one result's path into the next call. Add <code>--tools pdf,image</code> to load fewer tool definitions and cut the start-up cost from <span data-bind="fixedAll">6,068</span> to about <span data-bind="fixedOne">1,668</span> tokens.</p>
+      </div>
+      <div class="tool-groups" id="tool-groups"></div>
+    </section>
+
     <section class="mcp-section testing-section" id="testing" aria-labelledby="testing-heading">
       <div class="mcp-copy">
-        <p class="status"><span></span>Testing & Verification</p>
-        <h2 id="testing-heading">Tested, verified, and benchmarked.</h2>
-        <p>Never guess whether tools and native processors are ready. FlowKit tests all 15 typed operations across Pandoc, ImageMagick, and FFmpeg with rigorous sandboxing and latency tracking.</p>
-        
-        <!-- Clean High-Level Overview Card -->
+        <p class="status"><span></span>Testing & verification</p>
+        <h2 id="testing-heading">Every tool runs against real files.</h2>
+        <p>The benchmark starts the published server over MCP stdio and calls every tool on generated documents, PDFs, images, audio, and video, then checks that unsafe inputs are rejected. The automated test suite covers the same paths in CI.</p>
         <div class="front-test-card">
           <div class="front-stats-row">
-            <div class="front-stat-item">
-              <strong class="stat-highlight">94.4%</strong>
-              <span>Pass Rate (17 / 18)</span>
-            </div>
-            <div class="front-stat-item">
-              <strong>15 Tools</strong>
-              <span>Registered & Typed</span>
-            </div>
-            <div class="front-stat-item">
-              <strong>4 Engines</strong>
-              <span>Pandoc, Magick, FFmpeg</span>
-            </div>
+            <div class="front-stat-item"><strong class="stat-highlight" data-bind="passed">46 / 47</strong><span>tool runs passed</span></div>
+            <div class="front-stat-item"><strong data-bind="boundaries">6/6</strong><span>safety checks blocked</span></div>
+            <div class="front-stat-item"><strong data-bind="median">380 ms</strong><span>median tool call</span></div>
           </div>
-          
           <div class="front-card-actions">
-            <button type="button" class="button primary open-results-modal-btn">
-              <span>📊 View Test Results & Charts</span>
-            </button>
+            <button type="button" class="button primary open-results-modal-btn"><span>View test results & timing</span></button>
           </div>
         </div>
       </div>
-      
       <div class="terminal-container">
         <div class="terminal-tabs" role="tablist" aria-label="Testing methods">
-          <button role="tab" aria-selected="true" data-test="doctor">flowkit-mcp --doctor</button>
-          <button role="tab" aria-selected="false" data-test="runner">test runner</button>
-          <button role="tab" aria-selected="false" data-test="suite">npm test (71 tests)</button>
+          <button role="tab" aria-selected="true" data-test="doctor">--doctor</button>
+          <button role="tab" aria-selected="false" data-test="benchmark">npm run benchmark</button>
+          <button role="tab" aria-selected="false" data-test="suite">npm test</button>
           <button role="tab" aria-selected="false" data-test="inspector">MCP Inspector</button>
         </div>
         <div class="terminal" aria-label="MCP testing console">
-          <div class="terminal-head">
-            <span id="test-label">Diagnostic Health Check Doctor</span>
-            <button id="copy-test" type="button">Copy</button>
-          </div>
+          <div class="terminal-head"><span id="test-label">Health check</span><button id="copy-test" type="button">Copy</button></div>
           <pre><code id="test-command"></code></pre>
-          <div class="terminal-foot">
-            <span id="test-note">Checks Node runtime, workspace directory, and all 4 native processors</span>
-            <span class="test-status-ready">Verified Operational</span>
-          </div>
+          <div class="terminal-foot"><span id="test-note"></span><span class="test-status-ready">Verified</span></div>
         </div>
       </div>
     </section>
 
-    <!-- Token Benchmark Section -->
     <section class="benchmark-section" id="benchmark" aria-labelledby="benchmark-heading">
       <div class="benchmark-intro">
         <div>
-          <p class="status"><span></span>Token Efficiency Benchmark</p>
-          <h2 id="benchmark-heading">Measure the savings and the overhead.</h2>
+          <p class="status"><span></span>Benchmarks · <b data-bind="date">2026-11-22</b></p>
+          <h2 id="benchmark-heading">Fewer tokens per task. An honest start-up cost.</h2>
         </div>
-        <p>The harness starts the real MCP server, reads its live schemas, and compares fixed tool calls with generated-script instructions. Results use a transparent UTF-8 bytes / 4 token estimate—not provider billing data.</p>
+        <p>Each task compares a compact, safe script an agent would write (with path checks, timeouts, and no overwrites) against one FlowKit tool call. Tool definitions are read from the live server, and every tool is timed on real files. Tokens are estimated as bytes ÷ 4, not billing data.</p>
       </div>
 
-      <div class="metric-grid" aria-label="Current benchmark results">
-        <article><strong id="metric-savings">74.6%</strong><span>smaller marginal task payloads</span></article>
-        <article><strong id="metric-schema-tokens">2,441</strong><span>estimated schema tokens loaded once</span></article>
-        <article><strong id="metric-breakeven">12 rounds</strong><span>estimated break-even point</span></article>
+      <div class="metric-grid metric-grid-4" aria-label="Current benchmark results">
+        <article><strong data-bind="reductionPct">80%</strong><span>fewer tokens per task<br>(<span data-bind="saved">406</span> saved on average)</span></article>
+        <article><strong data-bind="workflow">65–77%</strong><span>fewer tokens on multi-step workflows</span></article>
+        <article><strong data-bind="fixedOneShort">1.7K</strong><span>tokens to load one tool group<br>(<span data-bind="fixedAllShort">6.1K</span> for all tools)</span></article>
+        <article><strong data-bind="breakEven">4–6 tasks</strong><span>to pay off with one group<br>(<span data-bind="breakEvenAll">15</span> with all tools)</span></article>
+      </div>
+
+      <div class="benchmark-charts">
+        <figure><img src="assets/benchmarks/session-totals.svg" alt="Line chart: total tokens across a session for own scripts versus FlowKit with all tools or one tool group" width="880" height="380"></figure>
+        <figure><img src="assets/benchmarks/tokens-per-task.svg" alt="Bar chart: tokens per task for 13 tasks, own script versus FlowKit MCP" width="880" height="636"></figure>
       </div>
 
       <div class="benchmark-actions">
-        <code id="benchmark-command">npm run benchmark:mcp</code>
+        <code id="benchmark-command">npm run benchmark</code>
         <button id="copy-benchmark" type="button">Copy command</button>
-        <button type="button" class="benchmark-modal-btn open-results-modal-btn" data-target-tab="tokens">View token comparison graph ↗</button>
+        <button type="button" class="benchmark-modal-btn open-results-modal-btn" data-target-tab="tokens">Explore all results ↗</button>
+        <a class="benchmark-modal-btn" href="https://github.com/ayusht9/Flowkit/blob/main/docs/BENCHMARKS.md">Full report ↗</a>
       </div>
-      <p class="benchmark-caveat">At ten rounds, the full 15-tool schema costs 12.5% more estimated context than the conservative baseline. Savings begin after the schema is reused across enough operations.</p>
+      <p class="benchmark-caveat">For a single one-off task, writing a script is cheaper because the tool list costs tokens up front. FlowKit wins once a session has a handful of file tasks, and clients that load tool definitions on demand pay even less.</p>
     </section>
 
-    <!-- Agent Setup Section -->
+    <section class="gallery-section" aria-labelledby="gallery-heading">
+      <div class="tools-heading">
+        <p class="status"><span></span>Workflow studio</p>
+        <h2 id="gallery-heading">See the same tools on a canvas.</h2>
+        <p>Drag Upload, Process, and Download nodes, drop in a file, and run. FlowKit detects the file type, shows metadata, and previews the result.</p>
+      </div>
+      <div class="gallery">
+        <figure class="gallery-main"><img src="assets/screenshots/workflow-studio.png" alt="FlowKit workflow studio converting an HTML document to Markdown with the output preview open" loading="lazy"><figcaption>Document → Markdown with a live preview</figcaption></figure>
+        <figure><img src="assets/screenshots/pdf-workflow.png" alt="A PDF upload automatically switches the workflow to PDF page extraction and shows the page count" loading="lazy"><figcaption>PDF uploads switch to PDF tools automatically</figcaption></figure>
+        <figure><img src="assets/screenshots/image-workflow.png" alt="Image resize workflow with the resized result previewed" loading="lazy"><figcaption>Image resize with result preview</figcaption></figure>
+      </div>
+    </section>
+
     <section class="client-section" id="agents" aria-labelledby="client-heading">
       <div class="client-heading">
         <p class="status"><span></span>Agent setup</p>
         <h2 id="client-heading">Connect FlowKit to your agent.</h2>
-        <p>Install once, choose your client, then point FlowKit at the folder containing the files it may process.</p>
+        <p>Choose your client, replace <code>/path/to/files</code> with the folder FlowKit may work in, and restart the client. Add <code>--tools</code> to load only the groups you need.</p>
       </div>
       <div class="client-setup">
         <div class="client-tabs" role="tablist" aria-label="MCP client">
-          <button role="tab" aria-selected="true" aria-controls="client-command" data-client="codex">Codex</button>
-          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="claude">Claude Code</button>
-          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="agy">AGY</button>
+          <button role="tab" aria-selected="true" aria-controls="client-command" data-client="claude">Claude Code</button>
+          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="desktop">Claude Desktop</button>
+          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="codex">Codex</button>
+          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="cursor">Cursor</button>
+          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="vscode">VS Code</button>
+          <button role="tab" aria-selected="false" aria-controls="client-command" data-client="agy">Antigravity</button>
         </div>
         <div class="terminal client-terminal">
-          <div class="terminal-head"><span id="client-label">Codex CLI</span><button id="copy-client" type="button">Copy</button></div>
+          <div class="terminal-head"><span id="client-label">Claude Code</span><button id="copy-client" type="button">Copy</button></div>
           <pre id="client-command" role="tabpanel" tabindex="0"><code></code></pre>
-          <div class="terminal-foot"><span id="client-note">Verify with codex mcp list</span><a id="client-docs" href="https://learn.chatgpt.com/docs/extend/mcp">Official docs</a></div>
+          <div class="terminal-foot"><span id="client-note"></span><a id="client-docs" href="#">Official docs</a></div>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Interactive Test Results & Latency Modal Dialog (Appears on click) -->
   <div id="test-results-modal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-window">
-      <!-- Modal Header -->
       <div class="modal-header">
         <div class="modal-title-group">
-          <div class="modal-badge">MCP Automated Test Report</div>
-          <h2 id="modal-title">FlowKit MCP Verification & Performance</h2>
-          <p class="modal-subtitle">18 automated tests · 15 typed tools · 4 native processors · End-to-end stdio transport</p>
+          <div class="modal-badge">Benchmark report · <span data-bind="date">2026-11-22</span></div>
+          <h2 id="modal-title">FlowKit MCP tests, timing, and tokens</h2>
+          <p class="modal-subtitle" id="modal-subtitle"></p>
         </div>
         <div class="modal-header-actions">
           <button type="button" class="modal-close-btn" id="close-modal-btn" aria-label="Close dialog">✕</button>
         </div>
       </div>
-
-      <!-- Navigation Tabs Inside Modal (Crisp Dots, No Glitchy Emojis) -->
-      <div class="modal-tabs" role="tablist" aria-label="Report Views">
-        <button role="tab" class="modal-tab-btn active" data-modal-tab="charts">
-          <span class="tab-indicator tab-purple"></span> Latency & Engines
-        </button>
-        <button role="tab" class="modal-tab-btn" data-modal-tab="table">
-          <span class="tab-indicator tab-teal"></span> Test Matrix (18 Tests)
-        </button>
-        <button role="tab" class="modal-tab-btn" data-modal-tab="tokens">
-          <span class="tab-indicator tab-orange"></span> Token Efficiency
-        </button>
+      <div class="modal-tabs" role="tablist" aria-label="Report views">
+        <button role="tab" class="modal-tab-btn active" data-modal-tab="charts"><span class="tab-indicator tab-purple"></span> Timing & engines</button>
+        <button role="tab" class="modal-tab-btn" data-modal-tab="table"><span class="tab-indicator tab-teal"></span> Test matrix</button>
+        <button role="tab" class="modal-tab-btn" data-modal-tab="tokens"><span class="tab-indicator tab-orange"></span> Token efficiency</button>
       </div>
-
-      <!-- Modal Body Content -->
       <div class="modal-content">
-        <!-- Tab 1: Latency Bar Chart, Summary Cards & Engine Health -->
         <div class="modal-tab-panel active" id="modal-tab-charts">
-          <!-- Compact Summary Cards Grid -->
-          <div class="summary-cards-grid">
-            <div class="summary-card">
-              <div class="summary-card-val">94.4%</div>
-              <div class="summary-card-label">Pass Rate</div>
-              <div class="summary-card-sub">17 / 18 tests passed</div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-card-val">15 / 15</div>
-              <div class="summary-card-label">MCP Tools Ready</div>
-              <div class="summary-card-sub">Typed schemas & bounds</div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-card-val">4 / 4 Active</div>
-              <div class="summary-card-label">Native Engines</div>
-              <div class="summary-card-sub">Pandoc, Magick, FFmpeg</div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-card-val">3 / 3 Passed</div>
-              <div class="summary-card-label">Security Boundaries</div>
-              <div class="summary-card-sub">Path escapes blocked</div>
-            </div>
-          </div>
-
-          <!-- Charts Grid (Latency Bar Chart & Engines Status) -->
+          <div class="summary-cards-grid" id="summary-cards"></div>
           <div class="charts-grid">
-            <!-- Latency Bar Chart Card -->
             <div class="chart-card latency-chart-card">
               <div class="chart-header">
-                <div>
-                  <h3>Tool Execution Latency (ms)</h3>
-                  <p class="chart-subtitle">Execution time per tool call over stdio transport</p>
-                </div>
-                <div class="chart-controls">
-                  <button class="chart-filter-btn active" data-chart-filter="all">All (14)</button>
-                  <button class="chart-filter-btn" data-chart-filter="Filesystem">Filesystem</button>
-                  <button class="chart-filter-btn" data-chart-filter="Document">Document</button>
-                  <button class="chart-filter-btn" data-chart-filter="Media">Media</button>
-                </div>
+                <div><h3>Tool execution time (median)</h3><p class="chart-subtitle">Per call over MCP stdio, including native engine start-up</p></div>
+                <div class="chart-controls" id="chart-controls"></div>
               </div>
-              <div class="chart-body" id="latency-bars-container">
-                <!-- Rendered dynamically by script.js with its own smooth scroll -->
-              </div>
-              <div class="chart-legend">
-                <span><i class="legend-dot dot-teal"></i> Filesystem (3-11ms)</span>
-                <span><i class="legend-dot dot-purple"></i> Document (83-169ms)</span>
-                <span><i class="legend-dot dot-blue"></i> Image (179ms)</span>
-                <span><i class="legend-dot dot-orange"></i> Audio/Video (155-184ms)</span>
-              </div>
+              <div class="chart-body" id="latency-bars-container"></div>
             </div>
-
-            <!-- Donut Pass Distribution & Engine Status Card -->
             <div class="chart-card engine-health-card">
-              <div class="chart-header">
-                <div>
-                  <h3>Pass Rate & Engines</h3>
-                  <p class="chart-subtitle">Diagnostic health & engine readiness</p>
-                </div>
-              </div>
-              <div class="donut-and-engines">
-                <div class="donut-wrapper">
-                  <svg class="donut-svg" viewBox="0 0 160 160" width="110" height="110">
-                    <circle class="donut-bg" cx="80" cy="80" r="64" />
-                    <circle class="donut-segment pass-segment" cx="80" cy="80" r="64" />
-                    <circle class="donut-segment optional-segment" cx="80" cy="80" r="64" />
-                  </svg>
-                  <div class="donut-center">
-                    <strong>94.4%</strong>
-                    <small>Pass Rate</small>
-                  </div>
-                </div>
-                <div class="donut-legend">
-                  <div class="legend-item"><span class="legend-pill pill-pass"></span> <strong>17 Passed</strong> (94.4%)</div>
-                  <div class="legend-item"><span class="legend-pill pill-optional"></span> <strong>1 Optional</strong> (PDF)</div>
-                  <div class="legend-item"><span class="legend-pill pill-zero"></span> <strong>0 Critical Failures</strong></div>
-                </div>
-              </div>
-
-              <div class="engine-status-list">
-                <h4>Native Engine Verification</h4>
-                <div class="engine-items-grid" id="engine-items">
-                  <!-- Dynamically populated by script.js -->
-                </div>
-              </div>
+              <div class="chart-header"><div><h3>Test machine & engines</h3><p class="chart-subtitle">Versions detected by <code>--doctor</code></p></div></div>
+              <div class="engine-status-list"><div class="engine-items-grid" id="engine-items"></div></div>
             </div>
           </div>
         </div>
-
-        <!-- Tab 2: Test Matrix Table -->
         <div class="modal-tab-panel" id="modal-tab-table">
           <div class="matrix-card">
             <div class="matrix-header">
-              <div>
-                <h3>Automated Test Execution Matrix</h3>
-                <p class="chart-subtitle">Individual test case telemetry, required engines, and output validation</p>
-              </div>
+              <div><h3>Every tool run and safety check</h3><p class="chart-subtitle">Status, engine, timing, and what came back</p></div>
               <div class="matrix-filters">
-                <div class="filter-pills" role="tablist">
-                  <button class="pill-btn active" data-table-filter="all">All Tests (18)</button>
-                  <button class="pill-btn" data-table-filter="Document">Document (6)</button>
-                  <button class="pill-btn" data-table-filter="Filesystem">Filesystem (2)</button>
-                  <button class="pill-btn" data-table-filter="Image">Image (1)</button>
-                  <button class="pill-btn" data-table-filter="Audio/Video">Audio & Video (4)</button>
-                  <button class="pill-btn" data-table-filter="Security">Security (3)</button>
-                </div>
-                <input type="text" id="table-search" class="table-search-input" placeholder="Search test or tool..." aria-label="Search test cases">
+                <div class="filter-pills" role="tablist" id="table-filters"></div>
+                <input type="text" id="table-search" class="table-search-input" placeholder="Search tool or engine…" aria-label="Search tests">
               </div>
             </div>
-
             <div class="table-container">
               <table class="results-table">
-                <thead>
-                  <tr>
-                    <th>Test ID</th>
-                    <th>Tool / Test Name</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Duration</th>
-                    <th>Engine / Layer</th>
-                    <th>Verification Summary</th>
-                  </tr>
-                </thead>
-                <tbody id="test-results-tbody">
-                  <!-- Rendered dynamically by script.js -->
-                </tbody>
+                <thead><tr><th>Tool / check</th><th>Group</th><th>Status</th><th>Median</th><th>Engine</th><th>Result</th></tr></thead>
+                <tbody id="test-results-tbody"></tbody>
               </table>
             </div>
           </div>
         </div>
-
-        <!-- Tab 3: Token Efficiency -->
         <div class="modal-tab-panel" id="modal-tab-tokens">
           <div class="token-comparison-container">
             <div class="token-comparison-header">
-              <h3>Marginal Token Payload Comparison</h3>
-              <p>Tokens per task: LLM Script Generation vs FlowKit Typed MCP Call (-74.6% average reduction)</p>
+              <h3>Tokens per task</h3>
+              <p id="token-subtitle"></p>
             </div>
-            <div class="token-comparison-bars" id="token-comparison-bars">
-              <!-- Rendered dynamically by script.js -->
+            <div class="token-comparison-bars" id="token-comparison-bars"></div>
+            <div class="token-comparison-header"><h3>Session totals</h3><p>Total tokens after N tasks, including FlowKit's one-time tool list.</p></div>
+            <div class="table-container">
+              <table class="results-table"><thead><tr><th>Tasks</th><th>Own scripts</th><th>MCP, all tools</th><th>MCP, one group</th></tr></thead><tbody id="session-tbody"></tbody></table>
             </div>
           </div>
         </div>
@@ -367,9 +269,10 @@
 
   <footer>
     <a class="brand" href="#top"><img src="flowkit.svg?v=20261029" alt="" width="28" height="28"><span>FlowKit</span></a>
-    <p>Prebuilt operations for smaller prompts and repeatable results.</p>
-    <a href="https://github.com/ayusht9/Flowkit">Source on GitHub</a>
+    <p>Prebuilt file tools for smaller prompts and repeatable results. MIT licensed.</p>
+    <nav aria-label="Footer"><a href="https://github.com/ayusht9/Flowkit">GitHub</a> · <a href="https://www.npmjs.com/package/flowkit-mcp">npm</a> · <a href="https://github.com/ayusht9/Flowkit/blob/main/docs/BENCHMARKS.md">Benchmarks</a> · <a href="https://github.com/ayusht9/Flowkit/blob/main/LICENSE">License</a></nav>
   </footer>
-  <script src="script.js"></script>
+  <script src="benchmark-data.js"></script>
+  <script src="script.js?v=20261122"></script>
 </body>
 </html>

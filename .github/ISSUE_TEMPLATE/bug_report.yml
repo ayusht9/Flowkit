@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in the MCP server or workflow studio doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please don't attach private files; a small sample that reproduces the problem is ideal.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options: [MCP server, Workflow studio (browser), Both, Installation / --doctor, Benchmarks, Docs]
+    validations: { required: true }
+  - type: input
+    id: tool
+    attributes:
+      label: Tool or operation
+      placeholder: e.g. flowkit_pdf_reduce
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the exact tool arguments and the error text the server returned.
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. flowkit-mcp --workspace ./files --tools pdf
+        2. Call flowkit_pdf_extract with { "inputPath": "a.pdf", "pages": "2-3" }
+        3. ...
+    validations: { required: true }
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `flowkit-mcp --doctor --workspace <dir>`
+      render: text
+    validations: { required: true }
+  - type: input
+    id: client
+    attributes:
+      label: MCP client and OS
+      placeholder: e.g. Claude Code 2.x on Windows 11
