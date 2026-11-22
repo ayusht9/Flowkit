@@ -1479,3 +1479,10 @@ footer nav a { font-weight: 600; color: var(--ink); }
   .capabilities-5, .metric-grid-4, .gallery { grid-template-columns: 1fr; }
   footer nav { display: none; }
 }
+
+/* Agent skill callout (Agent setup section) */
+.skill-callout { max-width: 470px; margin-top: 28px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
+.skill-callout strong { display: block; font-size: 15px; }
+.skill-callout p { margin: 6px 0 12px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.skill-callout a { color: #5d43be; font-weight: 600; font-size: 14px; }
+.skill-callout a:hover { text-decoration: underline; }

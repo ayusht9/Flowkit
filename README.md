@@ -12,8 +12,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A522.12-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/MCP-stdio-7256d8)](https://modelcontextprotocol.io)
+[![Agent skill on Agensi](https://img.shields.io/badge/agent%20skill-Agensi-0b0b0b)](https://agensi.io/skills/flowkit-local-file-tools)
 
-[Website](https://ayusht9.github.io/Flowkit/) · [Workflow studio](https://flowkit-ruddy.vercel.app) · [Tool reference](MCP.md) · [Benchmarks](docs/BENCHMARKS.md) · [Changelog](CHANGELOG.md)
+[Website](https://ayusht9.github.io/Flowkit/) · [Workflow studio](https://flowkit-ruddy.vercel.app) · [Tool reference](MCP.md) · [Benchmarks](docs/BENCHMARKS.md) · [Agent skill](https://agensi.io/skills/flowkit-local-file-tools) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -172,7 +173,12 @@ npx @modelcontextprotocol/inspector flowkit-mcp --workspace /path/to/files
 
 ### Companion agent skill
 
-[`skill/flowkit/`](skill/flowkit/SKILL.md) is an [Agent Skill](https://agentskills.io) that teaches your agent when to use FlowKit, how to chain tools, and how to set FlowKit up if it's missing. To install it in Claude Code, copy the folder to `~/.claude/skills/flowkit/` (or `.claude/skills/flowkit/` in a project). Other skill-aware agents use the same folder. Build a zip for skill marketplaces with `npm run skill:pack`.
+FlowKit has a free companion [Agent Skill](https://agentskills.io) that teaches your agent when to use FlowKit, how to chain tools, and how to set FlowKit up if it's missing. It works alongside the MCP server; it doesn't replace it.
+
+- **Install from Agensi:** [FlowKit: Local File Tools](https://agensi.io/skills/flowkit-local-file-tools), which works with Claude Code, Cursor, Copilot, and other skill-aware agents.
+- **Or install from this repo:** copy [`skill/flowkit/`](skill/flowkit/SKILL.md) to `~/.claude/skills/flowkit/` (or `.claude/skills/flowkit/` in a project).
+
+Maintainers: build the marketplace zip with `npm run skill:pack`.
 
 ## What's included
 
