@@ -45,8 +45,7 @@ async function session(t, registry, { mediaOutputMiB = 8 } = {}) {
 test('MCP chains configured media artifacts larger than the upload limit', { skip: native ? false : 'Install all native processing tools' }, async t => {
   const { workspace, client, call } = await session(t, undefined, { mediaOutputMiB: 64 });
   await writeFile(join(workspace, 'long.wav'), makeWav(125));
-  const tools = (await client.listTools()).tools;
-  assert.match(tools.find(tool => tool.name === 'flowkit_audio_convert').description, /64 MiB/);
+  assert.match(client.getInstructions(), /audio\/video outputs at most 64 MiB/);
   const converted = await call('audio_convert', { inputPath: 'long.wav', format: 'wav' });
   assert.ok(!converted.isError, JSON.stringify(converted));
   assert.ok(converted.structuredContent.sizeBytes > 20 * 1024 * 1024);
@@ -58,6 +57,30 @@ test('MCP chains configured media artifacts larger than the upload limit', { ski
   const rejected = await call('audio_convert', { inputPath: 'oversized.wav', format: 'mp3' });
   assert.equal(rejected.isError, true);
   assert.match(rejected.content[0].text, /20 MiB/);
+});
+
+test("MCP toolsets limit advertised tools and keep compact schemas valid", async (t) => {
+  const workspace = await mkdtemp(join(tmpdir(), "flowkit-mcp-toolsets-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const registry = { get() { throw new Error("not executed"); } };
+  const list = async (tools) => {
+    const server = await createFlowkitMcpServer({ workspace, registry, tools });
+    const client = new Client({ name: "flowkit-test", version: "1.0.0" });
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide); await client.connect(clientSide);
+    try { return (await client.listTools()).tools; } finally { await client.close(); await server.close(); }
+  };
+  const all = await list(undefined);
+  assert.equal(all.length, 46);
+  assert.ok(all.every(tool => !("$schema" in tool.inputSchema)));
+  const rotate = all.find(tool => tool.name === "flowkit_image_rotate").inputSchema.properties.degrees;
+  assert.deepEqual(rotate.enum, [90, 180, 270]);
+  assert.deepEqual(all.find(tool => tool.name === "flowkit_audio_trim").inputSchema.properties.format.enum, ["mp3", "wav"]);
+  const pdf = await list("pdf, image");
+  assert.deepEqual(new Set(pdf.map(tool => tool.name.split("_")[1])), new Set(["list", "read", "file", "pdf", "image"]));
+  assert.ok((await list(["document"])).some(tool => tool.name === "flowkit_merge_documents"));
+  assert.equal((await list("all")).length, 46);
+  await assert.rejects(list("pdf,spreadsheets"), /Unknown toolset: spreadsheets/);
 });
 
 test("MCP stdio discovers tools, chains artifacts and returns bounded text without overwriting sources", async (t) => {

@@ -75,6 +75,16 @@ If native executables are missing from the host's PATH, add their absolute paths
 
 For portable Windows ImageMagick, also keep its installation directory on the host's PATH so coder DLL dependencies can load. Host-specific configuration locations vary. See the [official MCP host setup guide](https://ts.sdk.modelcontextprotocol.io/v2/get-started/real-host.html).
 
+### Load only the tools you need
+
+Every tool definition is sent to the model at the start of a session. All 46 tools cost about 6,000 tokens; one group costs about 1,300–2,000. Pass `--tools` (or set `FLOWKIT_TOOLS` in the host's `env`) with a comma-separated list of groups: `document`, `pdf`, `image`, `audio`, `video`, or `all` (the default). `flowkit_list_files`, `flowkit_read_text`, and `flowkit_file_metadata` are always included.
+
+```sh
+claude mcp add --transport stdio flowkit -- flowkit-mcp --workspace /absolute/path/to/files --tools pdf,image
+```
+
+Shared limits (input size, page count, pixel, duration, and media output caps) are stated once in the server instructions rather than repeated in each tool description.
+
 ## Tools
 
 | Tool | Arguments | Result |
@@ -194,4 +204,4 @@ This is a local stdio server, not an authenticated remote endpoint. The existing
 
 `flowkit-mcp --doctor --workspace <path>` verifies the installed CLI, workspace and six native executables. `node --test test/mcp.test.mjs test/pdf.test.mjs test/pdf-security.test.mjs` covers MCP discovery/chaining, metadata, limits, credentials, compression, AES-256, visible signatures, and cryptographic certificate verification. Certificate fixtures/verification use OpenSSL (Windows tests also discover Git's bundled OpenSSL). `npm run test:e2e -- e2e/pdf.spec.mjs e2e/pdf-security.spec.mjs` checks the full editor flows and that saved workflows exclude secrets and attachments.
 
-Run `npm run benchmark:mcp` for a reproducible JSON comparison between fixed MCP calls and explicit generated-script instructions. It measures actual UTF-8 payload bytes and reports a transparent `bytes / 4` token estimate, including the one-time MCP tool-schema cost. It is not provider billing data; use your model host's usage fields for exact billed input/output tokens.
+Run `npm run benchmark:mcp` (add `-- --json` for machine-readable output) to compare each MCP call and result against what an agent emits and reads without FlowKit: a compact, safe processing script sent through a shell tool, plus its output. It also reports the one-time tool-list and instruction cost for all tools and for each `--tools` group, the number of tasks needed to break even, and session totals. Retries after a failed first script are excluded, so the script baseline is a lower bound. Token counts are a transparent `bytes / 4` estimate, not provider billing data; use your model host's usage fields for exact billed tokens.
