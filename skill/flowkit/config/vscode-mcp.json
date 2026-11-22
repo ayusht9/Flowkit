@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "flowkit": {
+      "type": "stdio",
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "${workspaceFolder}"],
+      "env": {
+        "FLOWKIT_TOOLS": "all"
+      }
+    }
+  }
+}

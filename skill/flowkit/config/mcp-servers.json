@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "flowkit": {
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "/absolute/path/to/files"],
+      "env": {
+        "FLOWKIT_TOOLS": "all"
+      }
+    }
+  }
+}

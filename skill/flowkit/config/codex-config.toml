@@ -1,0 +1,9 @@
+# Merge into ~/.codex/config.toml
+[mcp_servers.flowkit]
+command = "flowkit-mcp"
+args = ["--workspace", "/absolute/path/to/files"]
+startup_timeout_sec = 20
+tool_timeout_sec = 180
+
+[mcp_servers.flowkit.env]
+FLOWKIT_TOOLS = "all"
