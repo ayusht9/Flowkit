@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ayusht9/Flowkit/security/advisories/new
+    about: Please report security issues privately, not as public issues.
+  - name: Setup guide and tool reference
+    url: https://github.com/ayusht9/Flowkit/blob/main/MCP.md
+    about: Connection examples, the full tool catalog, limits, and troubleshooting.

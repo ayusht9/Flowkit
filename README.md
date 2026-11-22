@@ -1,128 +1,308 @@
+<div align="center">
+
+<img src="public/flowkit-512.png" alt="FlowKit logo" width="88" height="88">
+
 # FlowKit
 
-[![CI](https://github.com/ayusht9/Flowkit/actions/workflows/pages.yml/badge.svg)](https://github.com/ayusht9/Flowkit/actions/workflows/pages.yml) [![Deploy](https://github.com/ayusht9/Flowkit/actions/workflows/deploy.yml/badge.svg)](https://github.com/ayusht9/Flowkit/actions/workflows/deploy.yml) [![npm](https://img.shields.io/npm/v/flowkit-mcp?logo=npm)](https://www.npmjs.com/package/flowkit-mcp) [![GitHub stars](https://img.shields.io/github/stars/ayusht9/Flowkit?style=flat&logo=github)](https://github.com/ayusht9/Flowkit)
+**46 local file tools for AI agents: documents, PDFs, images, audio, and video. Plus a visual workflow studio.**
 
-Local MCP tools for documents, images, audio, and video - with a visual workflow studio for composing and inspecting the same operations.
+[![npm](https://img.shields.io/npm/v/flowkit-mcp?logo=npm&color=cb3837)](https://www.npmjs.com/package/flowkit-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/flowkit-mcp?color=cb3837)](https://www.npmjs.com/package/flowkit-mcp)
+[![Tests](https://github.com/ayusht9/Flowkit/actions/workflows/deploy.yml/badge.svg)](https://github.com/ayusht9/Flowkit/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A522.12-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![MCP](https://img.shields.io/badge/MCP-stdio-7256d8)](https://modelcontextprotocol.io)
 
-[Repository](https://github.com/ayusht9/Flowkit) · [MCP guide](MCP.md) · [Deployment](DEPLOYMENT.md) · [Report an issue](https://github.com/ayusht9/Flowkit/issues/new)
+[Website](https://ayusht9.github.io/Flowkit/) · [Workflow studio](https://flowkit-ruddy.vercel.app) · [Tool reference](MCP.md) · [Benchmarks](docs/BENCHMARKS.md) · [Changelog](CHANGELOG.md)
 
-![FlowKit workflow studio](docs/screenshots/workflow-studio.png)
+</div>
 
-## MCP first
+FlowKit is an [MCP](https://modelcontextprotocol.io) server that gives Claude, Codex, Cursor, VS Code, and other agents ready-made tools for everyday file work: convert a DOCX to Markdown, merge and shrink PDFs, resize images, trim audio and video. Tools run **on your machine** with Pandoc, qpdf, Ghostscript, ImageMagick, and FFmpeg. Instead of writing and debugging a script for each job, the agent sends one short tool call.
 
-FlowKit exposes local document, image, audio, and video operations over MCP stdio. An MCP client can call each tool independently, chain returned file paths, and receive compact metadata with bounded text previews.
+<table>
+<tr>
+<td align="center"><b>~80% fewer tokens</b><br><sub>per file task vs. a hand-written script</sub></td>
+<td align="center"><b>65–77% fewer</b><br><sub>on multi-step workflows</sub></td>
+<td align="center"><b>46 / 47 tool runs pass</b><br><sub>on real files, 1 optional engine skipped</sub></td>
+<td align="center"><b>6 / 6 safety checks</b><br><sub>path escapes and bad input blocked</sub></td>
+</tr>
+</table>
 
-### Install and check
+<sub>Numbers from <code>npm run benchmark</code>, 2026-11-22. See <a href="docs/BENCHMARKS.md">the full benchmark report</a> for method and caveats.</sub>
 
-Install the published MCP CLI and show its native-tool setup notice:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/workflow-studio-dark.png">
+  <img src="docs/screenshots/workflow-studio.png" alt="FlowKit workflow studio converting a document to Markdown, with the output preview open">
+</picture>
+
+## Contents
+
+- [Quick start](#quick-start)
+- [Connect your agent](#connect-your-agent)
+- [What's included](#whats-included)
+- [Benchmarks](#benchmarks)
+- [How it works](#how-it-works)
+- [Workflow studio](#workflow-studio)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [License](#license)
+
+## Quick start
+
+**1. Install** (requires [Node.js](https://nodejs.org) 22.12 or newer):
 
 ```sh
-npm install --global flowkit-mcp --foreground-scripts
-flowkit-mcp --setup
-flowkit-mcp --doctor --workspace /absolute/path/to/files
+npm install --global flowkit-mcp
 ```
 
-The notice recommends the versions used in FlowKit verification: Pandoc 3.13, ImageMagick 7.1.1-47, and FFmpeg/FFprobe 9.0.2. These are tested versions, not enforced minimums. Only install the processors needed for your operations; PDF export also needs pdfroff (GNU groff) and Ghostscript. The package does not install native software automatically.
+**2. Install the native engines** for the tools you plan to use. You don't need all of them.
 
-Existing PDF files use [qpdf](https://github.com/qpdf/qpdf/releases) for page operations, encryption/decryption, and metadata (tested locally with 12.2.0). PDF Size Reducer also uses [Ghostscript](https://ghostscript.com/releases/gsdnld.html), tested locally with 10.08.0, for image recompression. Configure `QPDF_PATH` / `GHOSTSCRIPT_PATH` if they are not on PATH. PDF inputs total at most 20 MiB, outputs at most 8 MiB, and results at most 1000 pages. Decrypt protected PDFs before other operations. `--setup` includes download links and configuration.
+| Engine | Used for | macOS | Ubuntu / Debian | Windows |
+| --- | --- | --- | --- | --- |
+| [Pandoc](https://pandoc.org/installing.html) | Documents | `brew install pandoc` | `sudo apt install pandoc` | `winget install JohnMacFarlane.Pandoc` |
+| [qpdf](https://github.com/qpdf/qpdf/releases) | PDF pages, encryption | `brew install qpdf` | `sudo apt install qpdf` | `winget install QPDF.QPDF` |
+| [Ghostscript](https://ghostscript.com/releases/gsdnld.html) | PDF size reduction | `brew install ghostscript` | `sudo apt install ghostscript` | `winget install ArtifexSoftware.GhostScript` |
+| [ImageMagick](https://imagemagick.org/script/download.php) | Images | `brew install imagemagick` | `sudo apt install imagemagick` | `winget install ImageMagick.ImageMagick` |
+| [FFmpeg](https://ffmpeg.org/download.html) | Audio and video | `brew install ffmpeg` | `sudo apt install ffmpeg` | `winget install Gyan.FFmpeg` |
 
-npm may hide lifecycle-script output, or skip it when scripts are disabled. `--setup` always displays the guide without checking or changing your system. `--doctor` reports the detected versions and setup recommendations. On Windows, use `npm.cmd` and `flowkit-mcp.cmd` if PowerShell blocks the `.ps1` shims.
+Tested with Pandoc 3.13, qpdf 12.2.0, Ghostscript 10.08.0, ImageMagick 7.1.1, and FFmpeg 9.0.2. Document → PDF export also needs pdfroff (GNU groff).
 
-npm 12 blocks dependency install scripts by default. To allow just FlowKit's text-only notice, add `--allow-scripts=flowkit-mcp` to the install command, or simply run `flowkit-mcp --setup` after installation.
+**3. Check your setup.** The workspace is the folder FlowKit may read from and write to:
 
-For a source checkout:
+```sh
+flowkit-mcp --doctor --workspace /path/to/files
+```
+
+```text
+FlowKit MCP 0.3.1: installed
+Workspace: /path/to/files
+pandoc: ready - pandoc 3.13
+imagemagick: ready - Version: ImageMagick 7.1.1-47 Q16-HDRI x64
+ffmpeg: ready - ffmpeg version 9.0.2
+ffprobe: ready - ffprobe version 9.0.2
+qpdf: ready - qpdf version 12.2.0
+ghostscript: ready - 10.08.0
+Processing tools: ready
+```
+
+**4. Connect your agent** (below), then ask it something like *"Merge cover.pdf and report.pdf, then shrink the result to half its size."*
+
+> [!TIP]
+> On Windows, if PowerShell blocks the command, use `flowkit-mcp.cmd` (and `npm.cmd`). Or skip the global install and run it with `npx -y flowkit-mcp`.
+
+## Connect your agent
+
+Replace `/path/to/files` with an absolute path to a folder that holds only the files you want processed.
+
+<details open>
+<summary><b>Claude Code</b></summary>
+
+```sh
+claude mcp add --transport stdio flowkit -- flowkit-mcp --workspace /path/to/files
+claude mcp list
+```
+</details>
+
+<details>
+<summary><b>Claude Desktop</b></summary>
+
+Open **Settings → Developer → Edit Config**, add this to `claude_desktop_config.json`, and restart Claude:
+
+```json
+{
+  "mcpServers": {
+    "flowkit": {
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "/path/to/files"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>Codex CLI</b></summary>
+
+```sh
+codex mcp add flowkit -- flowkit-mcp --workspace /path/to/files
+codex mcp list
+```
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+Add the Claude Desktop JSON above to `.cursor/mcp.json` (one project) or `~/.cursor/mcp.json` (all projects).
+</details>
+
+<details>
+<summary><b>VS Code (GitHub Copilot)</b></summary>
+
+Create `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "flowkit": {
+      "type": "stdio",
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "${workspaceFolder}"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>Google Antigravity</b></summary>
+
+Copy [`clients/agy.mcp_config.json`](clients/agy.mcp_config.json) to `<workspace>/.agents/mcp_config.json`, set the workspace path, and open `/mcp` to check the connection.
+</details>
+
+<details>
+<summary><b>Any other MCP client</b></summary>
+
+Configure a **stdio** server with command `flowkit-mcp` and arguments `--workspace /path/to/files`. No API keys or network access are needed; your client provides the model. To try the tools interactively:
+
+```sh
+npx @modelcontextprotocol/inspector flowkit-mcp --workspace /path/to/files
+```
+</details>
+
+## What's included
+
+| Group | Tools | Engine |
+| --- | --- | --- |
+| **Always available** | `list_files`, `read_text`, `file_metadata` | Node.js, mixed |
+| **Documents** (`--tools document`) | `document_to_markdown`, `_html`, `_docx`, `_odt`, `_epub`, `_pdf`, `_text`, `_rtf`, `_latex`, `_rst`, `_asciidoc`, `_pptx`, `clean_markdown`, `merge_documents` | Pandoc |
+| **PDF** (`--tools pdf`) | `pdf_merge`, `pdf_extract`, `pdf_rotate`, `pdf_remove`, `pdf_reverse`, `pdf_reduce`, `pdf_encrypt`, `pdf_decrypt`, `pdf_sign` | qpdf, Ghostscript |
+| **Images** (`--tools image`) | `image_resize`, `image_crop`, `image_rotate`, `image_flip`, `image_grayscale`, `image_blur`, `image_sharpen`, `image_convert` | ImageMagick |
+| **Audio** (`--tools audio`) | `audio_convert`, `audio_trim`, `audio_volume`, `audio_fade`, `audio_normalize` | FFmpeg |
+| **Video** (`--tools video`) | `video_trim`, `video_convert`, `video_resize`, `video_rotate`, `video_flip`, `video_mute`, `video_extract_audio` | FFmpeg |
+
+Every tool name starts with `flowkit_`, for example `flowkit_pdf_merge`. Arguments, limits, and results for each tool are in the **[tool reference (MCP.md)](MCP.md#tools)**.
+
+## Benchmarks
+
+The benchmark compares two ways an agent can do the same file task:
+
+- **Own script:** the agent writes a compact, safe Node.js script (path checks, timeouts, no overwrites), runs it, and reads the output.
+- **FlowKit:** the agent sends one tool call and reads FlowKit's JSON result.
+
+![Tokens per task: own script vs FlowKit MCP](docs/benchmarks/tokens-per-task.svg)
+
+FlowKit has one up-front cost: the client sends the tool list to the model when it connects (about 6,100 tokens for all 46 tools). Loading only the groups you need with `--tools` cuts that to about 1,300–2,000 tokens.
+
+![Total tokens across a session](docs/benchmarks/session-totals.svg)
+
+| | Own scripts | FlowKit, all tools | FlowKit, one group |
+| --- | ---: | ---: | ---: |
+| 1 task | **507** | 6,169 | 1,769 |
+| 10 tasks | 5,073 | 7,081 | **2,681** |
+| 30 tasks | 15,219 | 9,107 | **4,707** |
+| Break-even | — | 15 tasks | 4–6 tasks |
+
+For a single one-off task, a script is cheaper. With a few file tasks in a session, FlowKit pays off, and clients that load tool definitions on demand pay even less of the up-front cost.
+
+FlowKit also keeps large outputs out of the model's context. A converted document comes back as a path plus a 1,000-character preview, which is **98.7% fewer tokens** than reading the whole file. Binary files are never base64-encoded into results.
+
+The **[full report](docs/BENCHMARKS.md)** also covers multi-step workflows, failed attempts, cost per tool group, timing for every tool, and safety checks. Run it yourself:
+
+```sh
+npm run benchmark                  # full report, charts, and site data (needs the native engines)
+npm run benchmark -- --tokens-only # token scenarios only
+npm run benchmark:mcp              # quick token summary in the terminal
+```
+
+Token counts are estimated as bytes ÷ 4, not provider billing data.
+
+## How it works
+
+```mermaid
+flowchart LR
+  A[Agent] -- "flowkit_pdf_merge {inputPaths}" --> B[FlowKit MCP server]
+  B -- validate paths and options --> C[qpdf / Pandoc / ImageMagick / FFmpeg]
+  C -- new file --> D[(".flowkit-artifacts/")]
+  B -- "{path, pageCount, sizeBytes}" --> A
+  A -- "flowkit_pdf_reduce {inputPath: path}" --> B
+```
+
+- **Chaining:** every processing tool writes a new file under `.flowkit-artifacts/` in the workspace and returns its `path`. The agent passes that path to the next tool.
+- **Small results:** results carry metadata (size, dimensions, duration, page count) and at most a 1,000-character text preview. Agents read more with `flowkit_read_text` only when they need to.
+- **Safety:** paths must stay inside the workspace, including after symlinks are resolved. Arguments are schema-validated and unknown ones are rejected. Engines run without a shell, with fixed arguments, timeouts, and size limits. Source files are never overwritten. Passwords are read from files, never passed as arguments. See [SECURITY.md](SECURITY.md).
+
+Example conversation: *"Convert report.docx to Markdown, clean it up, and show me the first part."*
+
+```text
+flowkit_document_to_markdown({ inputPath: "report.docx" })
+  → { path: ".flowkit-artifacts/run-ABC123/report.md", sizeBytes: 21480, preview: "# Quarterly report…" }
+flowkit_clean_markdown({ inputPath: ".flowkit-artifacts/run-ABC123/report.md" })
+  → { path: ".flowkit-artifacts/run-DEF456/report.md", … }
+flowkit_read_text({ inputPath: ".flowkit-artifacts/run-DEF456/report.md", limit: 2000 })
+```
+
+## Workflow studio
+
+The same operations run in a browser-based, drag-and-drop editor. Upload a file, connect **Process**, **Pipe**, and **Download** nodes, and click **Run**. FlowKit detects the file type, shows metadata on the upload node, and previews results. Workflows can be saved locally or exported as JSON.
+
+| PDF uploads switch to PDF tools automatically | Image resize with result preview |
+| --- | --- |
+| ![PDF workflow](docs/screenshots/pdf-workflow.png) | ![Image workflow](docs/screenshots/image-workflow.png) |
+
+Try the [hosted demo](https://flowkit-ruddy.vercel.app) (no accounts; don't upload confidential files), or run it locally:
 
 ```sh
 git clone https://github.com/ayusht9/Flowkit.git
-cd FlowKit
+cd Flowkit
 npm install
-npm run mcp:doctor
+npm run dev          # http://127.0.0.1:3000
 ```
 
-Make sure the native tools you need are available: [Pandoc](https://pandoc.org/installing.html), [ImageMagick 7](https://imagemagick.org/script/downloads.php), and [FFmpeg](https://ffmpeg.org/download.html). Node.js 22.12+ is required. Configure non-default executable locations with `PANDOC_PATH`, `IMAGEMAGICK_PATH`, `FFMPEG_PATH`, and `FFPROBE_PATH`.
+For a production build, run `npm run build && npm start`. Container and Vercel deployment are covered in [DEPLOYMENT.md](DEPLOYMENT.md).
 
-### Connect an MCP client
+## Configuration
 
-Use [mcp.example.json](mcp.example.json) as a starting point, or run the server directly:
+| Option | Default | Description |
+| --- | --- | --- |
+| `--workspace <dir>` | required | Folder FlowKit may read and write. Outputs go to `<dir>/.flowkit-artifacts/`. |
+| `--tools <groups>` / `FLOWKIT_TOOLS` | `all` | Comma-separated groups to load: `document`, `pdf`, `image`, `audio`, `video`. |
+| `FLOWKIT_MEDIA_MAX_OUTPUT_MIB` | `8` | Maximum audio/video output size (1–256 MiB). |
+| `PANDOC_PATH`, `QPDF_PATH`, `GHOSTSCRIPT_PATH`, `IMAGEMAGICK_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | found on `PATH` | Custom engine locations. |
+| `--doctor [--json]` | | Check the install, workspace, and engines. |
+| `--setup` | | Print engine installation guidance. |
 
-```sh
-npm run mcp
-```
+Set environment variables in your MCP client's `env` block, for example `"env": { "FLOWKIT_TOOLS": "pdf,image" }`. Default limits: inputs up to 20 MiB, outputs up to 8 MiB, PDFs up to 1,000 pages, images up to 16 megapixels, audio/video up to 5 minutes and 1080p at 60 fps.
 
-See [MCP.md](MCP.md) for the complete tool catalog, connection configuration, safety limits, and token benchmark.
+## Troubleshooting
 
-## Visual workflow studio
+| Problem | Fix |
+| --- | --- |
+| The client can't start the server | Run the same command with `--doctor` in a terminal. On Windows, use `flowkit-mcp.cmd` or `npx -y flowkit-mcp` as the command. |
+| "engine missing" or a tool fails immediately | `--doctor` shows what's missing. Install it, or point to it with the `*_PATH` variables above. |
+| "Path must stay inside the configured workspace" | Use paths relative to the workspace, or the `path` a previous tool returned. |
+| New tools don't appear after upgrading | Restart your MCP client, and check that `--tools` isn't limiting the groups. |
+| `document_to_pdf` fails | Install pdfroff (GNU groff) and Ghostscript. Other formats only need Pandoc. |
 
-- Build a linear drag-and-drop workflow in the browser.
-- Convert DOCX, ODT, HTML, EPUB, Markdown, TXT, RTF, LaTeX, and reStructuredText with Pandoc; also export AsciiDoc and PowerPoint slides.
-- Merge 2-10 PDFs, extract page selections such as `1-3,5`, and rotate selected pages by 90, 180, or 270 degrees. Uploading a PDF selects PDF operations automatically. For merging, connect PDF Upload nodes to a PDF Pipe; the inspector shows the incoming file order.
-- Remove PDF pages or reverse their order. PDF Size Reducer accepts a compression factor and Auto/manual quality; Auto preserves lossless results when possible and reports actual savings and whether the target was reached.
-- Place a visible signature image or create a certificate digital signature from a `.p12`/`.pfx` file. Encrypt with AES-256 or decrypt with a supplied password. Passwords and signature attachments remain separate from saved/exported workflows.
-- Upload nodes automatically display metadata across documents, PDFs, images, audio, and video. Standalone Inspect PDF is replaced by the shared metadata engine and the read-only `flowkit_file_metadata` MCP tool.
-- Resize, crop, rotate, mirror, grayscale, blur, sharpen, and convert PNG/JPEG images with ImageMagick.
-- Trim and convert audio/video with FFmpeg; adjust volume, fade and normalize audio, and resize, rotate, mirror or mute video.
-- Run the same operations from an MCP-compatible client.
-- Save workflows locally, or export/import workflow JSON.
+More answers are in the [tool reference](MCP.md#troubleshooting). If you're still stuck, [open an issue](https://github.com/ayusht9/Flowkit/issues/new/choose) and include your `--doctor` output.
 
-### Run the browser app
+## Development
 
 ```sh
 npm install
-npm run dev
+npm test                 # unit and integration tests (native-engine tests skip if an engine is missing)
+npm run build            # production build of the workflow studio
+npm run test:e2e         # browser tests (Playwright)
+npm run benchmark        # regenerate docs/BENCHMARKS.md, charts, and site data
+npm run screenshots      # regenerate README and site screenshots (after npm run build)
 ```
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). On Windows PowerShell, use `npm.cmd run dev` if your execution policy blocks `npm.ps1`.
+Project layout: `mcp-server.mjs` (CLI), `src/` (MCP server, operation registry, engine adapters), `web/` (workflow studio), `site/` (landing page), `benchmarks/` (benchmark suite), and `test/` + `e2e/` (tests).
 
-Run the default document workflow, or use **New** to choose a blank, text/document, image, audio, or video template. Upload a file, connect **Process**, **Pipe**, and **Download** nodes, then click **Run**.
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report security issues privately as described in [SECURITY.md](SECURITY.md).
 
-The default workflow is:
+**Limitations:** FlowKit doesn't yet isolate engines in a container or sandbox, and it doesn't provide OCR, PDF editing, remote (HTTP) MCP, or accounts.
 
-```text
-Upload document -> Convert to Markdown -> Clean Markdown -> Preview & download
-```
+## License
 
-## Production build
-
-```sh
-npm run build
-npm start
-```
-
-The server binds to `127.0.0.1` by default. Container deployments should set `HOST=0.0.0.0` and configure `PUBLIC_ORIGINS`. This project has no accounts or persistent cloud storage; uploaded files and execution results stay local to the running server. Cloud uploads should remain below roughly 3 MB when using Vercel Functions.
-
-## Verify your setup
-
-```sh
-npm test
-node examples/pipeline.mjs
-npm run build
-npm run test:e2e
-```
-
-Native-tool tests report explicit skips when Pandoc, ImageMagick, or FFmpeg is unavailable. Run `npm run mcp:doctor` to check the MCP installation and native dependencies.
-
-## Useful examples
-
-```sh
-node examples/document.mjs
-node examples/document.mjs "C:\\path\\to\\report.docx"
-node examples/pipeline.mjs
-```
-
-For adapter contracts, limits, deployment, and the full media/document behavior, see:
-
-- [MCP guide](MCP.md)
-- [Deployment guide](DEPLOYMENT.md)
-- [Media pipeline notes](docs/MEDIA_PIPELINES.md)
-
-## Project boundaries
-
-FlowKit executes trusted native adapters locally. It does not yet provide OS/container worker isolation, persistent artifact storage, PDF editing, PDF-to-text OCR, authenticated remote MCP, or accounts. Original planning material remains in the ignored [`archieve/`](archieve/) folder.
-
-## Development workflow
-
-Use `develop` for integration and `main` for completed work. Create temporary feature branches from `develop`, verify and commit them, merge into `develop`, then merge the verified result into `main`. Keep `develop` synchronized with `main`; deployments are manual.
-
-## Contributing
-
-Bug reports and focused improvements are welcome. Please open an [issue](https://github.com/ayusht9/Flowkit/issues) before larger changes, keep pull requests scoped, and run `npm test` plus `npm run build` before submitting.
+[MIT](LICENSE) © 2026 Ayush

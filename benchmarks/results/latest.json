@@ -1,0 +1,1375 @@
+{
+  "generatedBy": "node benchmarks/run.mjs",
+  "environment": {
+    "date": "2026-11-22",
+    "flowkitVersion": "0.3.1",
+    "node": "v26.1.0",
+    "os": "Windows_NT 10.0.19044 (x64)",
+    "cpu": "AMD Ryzen 5 3500U with Radeon Vega Mobile Gfx, 8 threads",
+    "memoryGiB": 10,
+    "engines": {
+      "pandoc": "3.13",
+      "imagemagick": "7.1.1-47",
+      "ffmpeg": "9.0.2-full_build-www.gyan.dev",
+      "ffprobe": "9.0.2-full_build-www.gyan.dev",
+      "qpdf": "12.2.0",
+      "ghostscript": "10.08.0"
+    }
+  },
+  "summary": {
+    "averageReductionPercent": 80,
+    "averageSavedTokens": 406,
+    "workflowReduction": [
+      65.4,
+      77
+    ],
+    "allToolsFixedTokens": 6068,
+    "oneToolsetFixedTokens": 1668,
+    "breakEvenAll": 15,
+    "breakEvenOneToolset": [
+      4,
+      6
+    ],
+    "session30": {
+      "tasks": 30,
+      "ownScripts": 15219,
+      "ownScriptsWithRetries": 19852,
+      "mcpAllTools": 9107,
+      "mcpOneToolset": 4707
+    },
+    "toolsRun": 47,
+    "toolsPassed": 46,
+    "toolsSkipped": 1,
+    "toolsFailed": 0,
+    "medianToolMs": 465.2,
+    "boundariesBlocked": "6/6",
+    "contextReductionPercent": 98.7,
+    "binaryBytesKeptOut": 8094768
+  },
+  "tokens": {
+    "methodology": {
+      "tokenEstimate": "UTF-8 bytes / 4 (a transparent approximation, not provider billing data)",
+      "baseline": "Request + a compact, safe Node.js script sent through a shell tool + its stdout. Scripts validate workspace paths and sizes, avoid the shell, set timeouts, and refuse to overwrite.",
+      "mcp": "Request + FlowKit tool call(s) + FlowKit's JSON result(s), plus the once-per-session tool list and server instructions.",
+      "chains": "Baseline writes one combined script for the whole workflow; MCP makes one call per step.",
+      "retries": "A retry adds a failed first attempt: the broken script and its error output (baseline) or the rejected call and its validation error (MCP). Session totals with retries assume 25% of tasks need one.",
+      "deferredSchemas": "Clients that load tool schemas on demand pay little of the fixed cost; the all-tools figures are the worst case."
+    },
+    "retryRate": 0.25,
+    "fixedCost": {
+      "all": {
+        "tools": 46,
+        "schemaTokens": 5874,
+        "instructionTokens": 194,
+        "fixedTokens": 6068,
+        "breakEvenTasks": 15,
+        "breakEvenTasksWithRetries": 12,
+        "name": "all"
+      },
+      "document": {
+        "tools": 17,
+        "schemaTokens": 1696,
+        "instructionTokens": 194,
+        "fixedTokens": 1890,
+        "breakEvenTasks": 5,
+        "breakEvenTasksWithRetries": 4,
+        "name": "document"
+      },
+      "pdf": {
+        "tools": 12,
+        "schemaTokens": 1850,
+        "instructionTokens": 194,
+        "fixedTokens": 2044,
+        "breakEvenTasks": 6,
+        "breakEvenTasksWithRetries": 4,
+        "name": "pdf"
+      },
+      "image": {
+        "tools": 11,
+        "schemaTokens": 1434,
+        "instructionTokens": 194,
+        "fixedTokens": 1628,
+        "breakEvenTasks": 5,
+        "breakEvenTasksWithRetries": 3,
+        "name": "image"
+      },
+      "audio": {
+        "tools": 8,
+        "schemaTokens": 1136,
+        "instructionTokens": 194,
+        "fixedTokens": 1330,
+        "breakEvenTasks": 4,
+        "breakEvenTasksWithRetries": 3,
+        "name": "audio"
+      },
+      "video": {
+        "tools": 10,
+        "schemaTokens": 1253,
+        "instructionTokens": 194,
+        "fixedTokens": 1447,
+        "breakEvenTasks": 4,
+        "breakEvenTasksWithRetries": 3,
+        "name": "video"
+      }
+    },
+    "perTool": [
+      {
+        "name": "flowkit_pdf_sign",
+        "tokens": 359
+      },
+      {
+        "name": "flowkit_image_crop",
+        "tokens": 189
+      },
+      {
+        "name": "flowkit_pdf_reduce",
+        "tokens": 188
+      },
+      {
+        "name": "flowkit_audio_trim",
+        "tokens": 173
+      },
+      {
+        "name": "flowkit_audio_fade",
+        "tokens": 173
+      },
+      {
+        "name": "flowkit_pdf_encrypt",
+        "tokens": 173
+      },
+      {
+        "name": "flowkit_image_convert",
+        "tokens": 158
+      },
+      {
+        "name": "flowkit_read_text",
+        "tokens": 155
+      },
+      {
+        "name": "flowkit_audio_normalize",
+        "tokens": 154
+      },
+      {
+        "name": "flowkit_video_resize",
+        "tokens": 153
+      },
+      {
+        "name": "flowkit_video_trim",
+        "tokens": 149
+      },
+      {
+        "name": "flowkit_image_resize",
+        "tokens": 148
+      },
+      {
+        "name": "flowkit_audio_volume",
+        "tokens": 148
+      },
+      {
+        "name": "flowkit_pdf_rotate",
+        "tokens": 148
+      },
+      {
+        "name": "flowkit_pdf_decrypt",
+        "tokens": 146
+      },
+      {
+        "name": "flowkit_pdf_remove",
+        "tokens": 137
+      },
+      {
+        "name": "flowkit_pdf_extract",
+        "tokens": 126
+      },
+      {
+        "name": "flowkit_video_convert",
+        "tokens": 125
+      },
+      {
+        "name": "flowkit_file_metadata",
+        "tokens": 125
+      },
+      {
+        "name": "flowkit_image_flip",
+        "tokens": 124
+      },
+      {
+        "name": "flowkit_video_flip",
+        "tokens": 123
+      },
+      {
+        "name": "flowkit_image_rotate",
+        "tokens": 119
+      },
+      {
+        "name": "flowkit_video_extract_audio",
+        "tokens": 119
+      },
+      {
+        "name": "flowkit_video_rotate",
+        "tokens": 118
+      },
+      {
+        "name": "flowkit_image_sharpen",
+        "tokens": 116
+      },
+      {
+        "name": "flowkit_image_blur",
+        "tokens": 115
+      },
+      {
+        "name": "flowkit_audio_convert",
+        "tokens": 115
+      },
+      {
+        "name": "flowkit_clean_markdown",
+        "tokens": 111
+      },
+      {
+        "name": "flowkit_pdf_merge",
+        "tokens": 109
+      },
+      {
+        "name": "flowkit_merge_documents",
+        "tokens": 107
+      },
+      {
+        "name": "flowkit_document_to_markdown",
+        "tokens": 102
+      },
+      {
+        "name": "flowkit_document_to_pptx",
+        "tokens": 96
+      },
+      {
+        "name": "flowkit_document_to_rst",
+        "tokens": 94
+      },
+      {
+        "name": "flowkit_document_to_pdf",
+        "tokens": 93
+      },
+      {
+        "name": "flowkit_image_grayscale",
+        "tokens": 93
+      },
+      {
+        "name": "flowkit_video_mute",
+        "tokens": 93
+      },
+      {
+        "name": "flowkit_pdf_reverse",
+        "tokens": 93
+      },
+      {
+        "name": "flowkit_document_to_latex",
+        "tokens": 92
+      },
+      {
+        "name": "flowkit_list_files",
+        "tokens": 91
+      },
+      {
+        "name": "flowkit_document_to_text",
+        "tokens": 91
+      },
+      {
+        "name": "flowkit_document_to_asciidoc",
+        "tokens": 91
+      },
+      {
+        "name": "flowkit_document_to_html",
+        "tokens": 90
+      },
+      {
+        "name": "flowkit_document_to_docx",
+        "tokens": 90
+      },
+      {
+        "name": "flowkit_document_to_rtf",
+        "tokens": 90
+      },
+      {
+        "name": "flowkit_document_to_odt",
+        "tokens": 89
+      },
+      {
+        "name": "flowkit_document_to_epub",
+        "tokens": 87
+      }
+    ],
+    "singles": [
+      {
+        "id": "doc-markdown",
+        "label": "DOCX → Markdown (with preview)",
+        "toolset": "document",
+        "tool": "flowkit_document_to_markdown",
+        "scriptLines": 26,
+        "ownTokens": 661,
+        "mcpTokens": 330,
+        "savedTokens": 331,
+        "reductionPercent": 50.1,
+        "ownRetryTokens": 1198,
+        "mcpRetryTokens": 382
+      },
+      {
+        "id": "doc-pdf",
+        "label": "Markdown → PDF",
+        "toolset": "document",
+        "tool": "flowkit_document_to_pdf",
+        "scriptLines": 25,
+        "ownTokens": 366,
+        "mcpTokens": 60,
+        "savedTokens": 306,
+        "reductionPercent": 83.6,
+        "ownRetryTokens": 876,
+        "mcpRetryTokens": 110
+      },
+      {
+        "id": "pdf-merge",
+        "label": "Merge 3 PDFs",
+        "toolset": "pdf",
+        "tool": "flowkit_pdf_merge",
+        "scriptLines": 27,
+        "ownTokens": 455,
+        "mcpTokens": 78,
+        "savedTokens": 377,
+        "reductionPercent": 82.9,
+        "ownRetryTokens": 1042,
+        "mcpRetryTokens": 134
+      },
+      {
+        "id": "pdf-extract",
+        "label": "Extract PDF pages 2-4,7",
+        "toolset": "pdf",
+        "tool": "flowkit_pdf_extract",
+        "scriptLines": 28,
+        "ownTokens": 429,
+        "mcpTokens": 74,
+        "savedTokens": 355,
+        "reductionPercent": 82.8,
+        "ownRetryTokens": 990,
+        "mcpRetryTokens": 128
+      },
+      {
+        "id": "pdf-reduce",
+        "label": "Halve a scanned PDF's size",
+        "toolset": "pdf",
+        "tool": "flowkit_pdf_reduce",
+        "scriptLines": 37,
+        "ownTokens": 634,
+        "mcpTokens": 119,
+        "savedTokens": 515,
+        "reductionPercent": 81.2,
+        "ownRetryTokens": 1386,
+        "mcpRetryTokens": 171
+      },
+      {
+        "id": "pdf-encrypt",
+        "label": "Encrypt a PDF (AES-256)",
+        "toolset": "pdf",
+        "tool": "flowkit_pdf_encrypt",
+        "scriptLines": 27,
+        "ownTokens": 445,
+        "mcpTokens": 84,
+        "savedTokens": 361,
+        "reductionPercent": 81.1,
+        "ownRetryTokens": 1018,
+        "mcpRetryTokens": 142
+      },
+      {
+        "id": "image-resize",
+        "label": "Resize image to fit 800×800",
+        "toolset": "image",
+        "tool": "flowkit_image_resize",
+        "scriptLines": 31,
+        "ownTokens": 514,
+        "mcpTokens": 76,
+        "savedTokens": 438,
+        "reductionPercent": 85.2,
+        "ownRetryTokens": 1158,
+        "mcpRetryTokens": 132
+      },
+      {
+        "id": "image-convert",
+        "label": "PNG → JPEG at quality 85",
+        "toolset": "image",
+        "tool": "flowkit_image_convert",
+        "scriptLines": 28,
+        "ownTokens": 459,
+        "mcpTokens": 77,
+        "savedTokens": 382,
+        "reductionPercent": 83.2,
+        "ownRetryTokens": 1051,
+        "mcpRetryTokens": 135
+      },
+      {
+        "id": "audio-trim",
+        "label": "Trim audio 0:30 for 45 s",
+        "toolset": "audio",
+        "tool": "flowkit_audio_trim",
+        "scriptLines": 30,
+        "ownTokens": 531,
+        "mcpTokens": 83,
+        "savedTokens": 448,
+        "reductionPercent": 84.4,
+        "ownRetryTokens": 1190,
+        "mcpRetryTokens": 143
+      },
+      {
+        "id": "audio-normalize",
+        "label": "Normalize loudness to −16 LUFS",
+        "toolset": "audio",
+        "tool": "flowkit_audio_normalize",
+        "scriptLines": 30,
+        "ownTokens": 568,
+        "mcpTokens": 73,
+        "savedTokens": 495,
+        "reductionPercent": 87.1,
+        "ownRetryTokens": 1274,
+        "mcpRetryTokens": 128
+      },
+      {
+        "id": "video-trim",
+        "label": "Trim video 0:12 for 20 s",
+        "toolset": "video",
+        "tool": "flowkit_video_trim",
+        "scriptLines": 31,
+        "ownTokens": 576,
+        "mcpTokens": 87,
+        "savedTokens": 489,
+        "reductionPercent": 84.9,
+        "ownRetryTokens": 1277,
+        "mcpRetryTokens": 146
+      },
+      {
+        "id": "video-audio",
+        "label": "Extract a video's soundtrack",
+        "toolset": "video",
+        "tool": "flowkit_video_extract_audio",
+        "scriptLines": 29,
+        "ownTokens": 491,
+        "mcpTokens": 68,
+        "savedTokens": 423,
+        "reductionPercent": 86.2,
+        "ownRetryTokens": 1117,
+        "mcpRetryTokens": 119
+      },
+      {
+        "id": "metadata",
+        "label": "Inspect a PDF's metadata",
+        "toolset": "core",
+        "tool": "flowkit_file_metadata",
+        "scriptLines": 27,
+        "ownTokens": 466,
+        "mcpTokens": 108,
+        "savedTokens": 358,
+        "reductionPercent": 76.8,
+        "ownRetryTokens": 1048,
+        "mcpRetryTokens": 159
+      }
+    ],
+    "chains": [
+      {
+        "id": "chain-contract",
+        "label": "Contract packet: merge → drop page → shrink → encrypt",
+        "toolset": "pdf",
+        "steps": 4,
+        "ownTokens": 990,
+        "mcpTokens": 343,
+        "savedTokens": 647,
+        "reductionPercent": 65.4
+      },
+      {
+        "id": "chain-podcast",
+        "label": "Podcast clip: extract audio → trim → normalize",
+        "toolset": "video+audio",
+        "steps": 3,
+        "ownTokens": 961,
+        "mcpTokens": 221,
+        "savedTokens": 740,
+        "reductionPercent": 77
+      },
+      {
+        "id": "chain-thumbnail",
+        "label": "Thumbnail: resize → JPEG",
+        "toolset": "image",
+        "steps": 2,
+        "ownTokens": 656,
+        "mcpTokens": 151,
+        "savedTokens": 505,
+        "reductionPercent": 77
+      }
+    ],
+    "averages": {
+      "ownTokens": 507,
+      "mcpTokens": 101,
+      "savedTokens": 406,
+      "reductionPercent": 80,
+      "ownRetryTokens": 1125,
+      "mcpRetryTokens": 156,
+      "oneToolsetFixedTokens": 1668
+    },
+    "sessions": [
+      {
+        "tasks": 1,
+        "ownScripts": 507,
+        "ownScriptsWithRetries": 662,
+        "mcpAllTools": 6169,
+        "mcpOneToolset": 1769
+      },
+      {
+        "tasks": 2,
+        "ownScripts": 1015,
+        "ownScriptsWithRetries": 1323,
+        "mcpAllTools": 6271,
+        "mcpOneToolset": 1870
+      },
+      {
+        "tasks": 3,
+        "ownScripts": 1522,
+        "ownScriptsWithRetries": 1985,
+        "mcpAllTools": 6372,
+        "mcpOneToolset": 1972
+      },
+      {
+        "tasks": 5,
+        "ownScripts": 2537,
+        "ownScriptsWithRetries": 3309,
+        "mcpAllTools": 6575,
+        "mcpOneToolset": 2174
+      },
+      {
+        "tasks": 10,
+        "ownScripts": 5073,
+        "ownScriptsWithRetries": 6617,
+        "mcpAllTools": 7081,
+        "mcpOneToolset": 2681
+      },
+      {
+        "tasks": 15,
+        "ownScripts": 7610,
+        "ownScriptsWithRetries": 9926,
+        "mcpAllTools": 7588,
+        "mcpOneToolset": 3187
+      },
+      {
+        "tasks": 20,
+        "ownScripts": 10146,
+        "ownScriptsWithRetries": 13235,
+        "mcpAllTools": 8094,
+        "mcpOneToolset": 3694
+      },
+      {
+        "tasks": 30,
+        "ownScripts": 15219,
+        "ownScriptsWithRetries": 19852,
+        "mcpAllTools": 9107,
+        "mcpOneToolset": 4707
+      },
+      {
+        "tasks": 50,
+        "ownScripts": 25365,
+        "ownScriptsWithRetries": 33087,
+        "mcpAllTools": 11133,
+        "mcpOneToolset": 6733
+      }
+    ]
+  },
+  "context": [
+    {
+      "tool": "flowkit_document_to_markdown",
+      "label": "document_to_markdown",
+      "fullTokens": 3394,
+      "returnedTokens": 309
+    },
+    {
+      "tool": "flowkit_document_to_html",
+      "label": "document_to_html",
+      "fullTokens": 7458,
+      "returnedTokens": 33
+    },
+    {
+      "tool": "flowkit_document_to_text",
+      "label": "document_to_text",
+      "fullTokens": 5535,
+      "returnedTokens": 33
+    },
+    {
+      "tool": "flowkit_document_to_latex",
+      "label": "document_to_latex",
+      "fullTokens": 10105,
+      "returnedTokens": 35
+    },
+    {
+      "tool": "flowkit_document_to_rst",
+      "label": "document_to_rst",
+      "fullTokens": 6672,
+      "returnedTokens": 33
+    },
+    {
+      "tool": "flowkit_document_to_asciidoc",
+      "label": "document_to_asciidoc",
+      "fullTokens": 3547,
+      "returnedTokens": 34
+    }
+  ],
+  "latency": {
+    "runs": 3,
+    "toolCount": 46,
+    "startupMs": 598.9,
+    "listToolsMs": 15.9,
+    "rows": [
+      {
+        "tool": "flowkit_list_files",
+        "name": "flowkit_list_files",
+        "group": "core",
+        "engine": "Node.js",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 4.5,
+        "minMs": 2.9,
+        "maxMs": 35.2,
+        "outputBytes": null,
+        "resultBytes": 647,
+        "summary": "16 entries"
+      },
+      {
+        "tool": "flowkit_read_text",
+        "name": "flowkit_read_text",
+        "group": "core",
+        "engine": "Node.js",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 3.6,
+        "minMs": 3.1,
+        "maxMs": 5.6,
+        "outputBytes": null,
+        "resultBytes": 2450,
+        "summary": "2000 of 2060 characters"
+      },
+      {
+        "tool": "flowkit_file_metadata",
+        "name": "flowkit_file_metadata",
+        "group": "core",
+        "engine": "Mixed",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 668.2,
+        "minMs": 626.2,
+        "maxMs": 670.1,
+        "outputBytes": 2489,
+        "resultBytes": 753,
+        "summary": "pdf, 8 pages"
+      },
+      {
+        "tool": "flowkit_document_to_markdown",
+        "name": "flowkit_document_to_markdown",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 304.6,
+        "minMs": 297.8,
+        "maxMs": 311.6,
+        "outputBytes": 13574,
+        "resultBytes": 1235,
+        "summary": "markdown, 13.3 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_html",
+        "name": "flowkit_document_to_html",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 306,
+        "minMs": 298.2,
+        "maxMs": 312.8,
+        "outputBytes": 29830,
+        "resultBytes": 132,
+        "summary": "document, 29.1 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_docx",
+        "name": "flowkit_document_to_docx",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 234.6,
+        "minMs": 230.5,
+        "maxMs": 237,
+        "outputBytes": 14117,
+        "resultBytes": 194,
+        "summary": "document, 13.8 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_odt",
+        "name": "flowkit_document_to_odt",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 335.6,
+        "minMs": 325.2,
+        "maxMs": 340.1,
+        "outputBytes": 10705,
+        "resultBytes": 160,
+        "summary": "document, 10.5 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_epub",
+        "name": "flowkit_document_to_epub",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 312.2,
+        "minMs": 311.3,
+        "maxMs": 330,
+        "outputBytes": 7350,
+        "resultBytes": 142,
+        "summary": "document, 7.2 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_pdf",
+        "name": "flowkit_document_to_pdf",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": false,
+        "status": "skipped",
+        "error": "pdfroff (GNU groff) is not installed on the benchmark machine",
+        "runs": 1,
+        "medianMs": 365.4,
+        "minMs": 365.4,
+        "maxMs": 365.4,
+        "outputBytes": null,
+        "resultBytes": 85,
+        "summary": null
+      },
+      {
+        "tool": "flowkit_document_to_text",
+        "name": "flowkit_document_to_text",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 334.1,
+        "minMs": 328.5,
+        "maxMs": 334.9,
+        "outputBytes": 22140,
+        "resultBytes": 131,
+        "summary": "document, 21.6 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_rtf",
+        "name": "flowkit_document_to_rtf",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 295.9,
+        "minMs": 282.6,
+        "maxMs": 299.9,
+        "outputBytes": 65393,
+        "resultBytes": 136,
+        "summary": "document, 63.9 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_latex",
+        "name": "flowkit_document_to_latex",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 303.5,
+        "minMs": 300.9,
+        "maxMs": 323.4,
+        "outputBytes": 40418,
+        "resultBytes": 138,
+        "summary": "document, 39.5 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_rst",
+        "name": "flowkit_document_to_rst",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 304.5,
+        "minMs": 302,
+        "maxMs": 312.5,
+        "outputBytes": 26685,
+        "resultBytes": 131,
+        "summary": "document, 26.1 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_asciidoc",
+        "name": "flowkit_document_to_asciidoc",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 292.8,
+        "minMs": 280.2,
+        "maxMs": 324.9,
+        "outputBytes": 14187,
+        "resultBytes": 136,
+        "summary": "document, 13.9 KiB"
+      },
+      {
+        "tool": "flowkit_document_to_pptx",
+        "name": "flowkit_document_to_pptx",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 394.8,
+        "minMs": 387.3,
+        "maxMs": 422.4,
+        "outputBytes": 77106,
+        "resultBytes": 196,
+        "summary": "document, 75.3 KiB"
+      },
+      {
+        "tool": "flowkit_clean_markdown",
+        "name": "flowkit_clean_markdown",
+        "group": "document",
+        "engine": "Node.js",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 5.1,
+        "minMs": 4.7,
+        "maxMs": 7.3,
+        "outputBytes": 1900,
+        "resultBytes": 1281,
+        "summary": "markdown, 1.9 KiB"
+      },
+      {
+        "tool": "flowkit_merge_documents",
+        "name": "flowkit_merge_documents",
+        "group": "document",
+        "engine": "Pandoc",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 513.1,
+        "minMs": 492.2,
+        "maxMs": 529.6,
+        "outputBytes": 17047,
+        "resultBytes": 194,
+        "summary": "document, 16.6 KiB"
+      },
+      {
+        "tool": "flowkit_image_resize",
+        "name": "flowkit_image_resize",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 400.4,
+        "minMs": 382.6,
+        "maxMs": 528.4,
+        "outputBytes": 4621,
+        "resultBytes": 165,
+        "summary": "image, 4.5 KiB, 800×500"
+      },
+      {
+        "tool": "flowkit_image_crop",
+        "name": "flowkit_image_crop",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 282.3,
+        "minMs": 278.9,
+        "maxMs": 282.7,
+        "outputBytes": 2890,
+        "resultBytes": 165,
+        "summary": "image, 2.8 KiB, 600×400"
+      },
+      {
+        "tool": "flowkit_image_rotate",
+        "name": "flowkit_image_rotate",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 445.7,
+        "minMs": 431.2,
+        "maxMs": 476.6,
+        "outputBytes": 13901,
+        "resultBytes": 168,
+        "summary": "image, 13.6 KiB, 1000×1600"
+      },
+      {
+        "tool": "flowkit_image_flip",
+        "name": "flowkit_image_flip",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 475.5,
+        "minMs": 470.6,
+        "maxMs": 481.9,
+        "outputBytes": 13921,
+        "resultBytes": 168,
+        "summary": "image, 13.6 KiB, 1600×1000"
+      },
+      {
+        "tool": "flowkit_image_grayscale",
+        "name": "flowkit_image_grayscale",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 370,
+        "minMs": 365.2,
+        "maxMs": 379.8,
+        "outputBytes": 5665,
+        "resultBytes": 171,
+        "summary": "image, 5.5 KiB, 1600×1000"
+      },
+      {
+        "tool": "flowkit_image_blur",
+        "name": "flowkit_image_blur",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 1360.4,
+        "minMs": 1313.5,
+        "maxMs": 1381.6,
+        "outputBytes": 14002,
+        "resultBytes": 168,
+        "summary": "image, 13.7 KiB, 1600×1000"
+      },
+      {
+        "tool": "flowkit_image_sharpen",
+        "name": "flowkit_image_sharpen",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 1637.9,
+        "minMs": 1619.4,
+        "maxMs": 1644.5,
+        "outputBytes": 13958,
+        "resultBytes": 172,
+        "summary": "image, 13.6 KiB, 1600×1000"
+      },
+      {
+        "tool": "flowkit_image_convert",
+        "name": "flowkit_image_convert",
+        "group": "image",
+        "engine": "ImageMagick",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 282.8,
+        "minMs": 282.2,
+        "maxMs": 284.2,
+        "outputBytes": 18923,
+        "resultBytes": 173,
+        "summary": "image, 18.5 KiB, 1600×1000"
+      },
+      {
+        "tool": "flowkit_audio_convert",
+        "name": "flowkit_audio_convert",
+        "group": "audio",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 482.8,
+        "minMs": 460.3,
+        "maxMs": 571.1,
+        "outputBytes": 321035,
+        "resultBytes": 166,
+        "summary": "audio, 313.5 KiB, 20.0 s"
+      },
+      {
+        "tool": "flowkit_audio_trim",
+        "name": "flowkit_audio_trim",
+        "group": "audio",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 373.2,
+        "minMs": 370,
+        "maxMs": 379.7,
+        "outputBytes": 160957,
+        "resultBytes": 166,
+        "summary": "audio, 157.2 KiB, 10.0 s"
+      },
+      {
+        "tool": "flowkit_audio_volume",
+        "name": "flowkit_audio_volume",
+        "group": "audio",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 437.8,
+        "minMs": 435,
+        "maxMs": 446.3,
+        "outputBytes": 321035,
+        "resultBytes": 166,
+        "summary": "audio, 313.5 KiB, 20.0 s"
+      },
+      {
+        "tool": "flowkit_audio_fade",
+        "name": "flowkit_audio_fade",
+        "group": "audio",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 465.2,
+        "minMs": 465,
+        "maxMs": 479.8,
+        "outputBytes": 321035,
+        "resultBytes": 166,
+        "summary": "audio, 313.5 KiB, 20.0 s"
+      },
+      {
+        "tool": "flowkit_audio_normalize",
+        "name": "flowkit_audio_normalize",
+        "group": "audio",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 1293.5,
+        "minMs": 1277.4,
+        "maxMs": 1293.7,
+        "outputBytes": 321035,
+        "resultBytes": 166,
+        "summary": "audio, 313.5 KiB, 20.0 s"
+      },
+      {
+        "tool": "flowkit_video_trim",
+        "name": "flowkit_video_trim",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 566.7,
+        "minMs": 477.3,
+        "maxMs": 588.5,
+        "outputBytes": 551875,
+        "resultBytes": 204,
+        "summary": "video, 538.9 KiB, 640×360, 3.0 s"
+      },
+      {
+        "tool": "flowkit_video_extract_audio",
+        "name": "flowkit_video_extract_audio",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 352.6,
+        "minMs": 338.9,
+        "maxMs": 356.7,
+        "outputBytes": 97009,
+        "resultBytes": 164,
+        "summary": "audio, 94.7 KiB, 6.0 s"
+      },
+      {
+        "tool": "flowkit_video_convert",
+        "name": "flowkit_video_convert",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 667.3,
+        "minMs": 650.5,
+        "maxMs": 677.9,
+        "outputBytes": 1445156,
+        "resultBytes": 205,
+        "summary": "video, 1411.3 KiB, 640×360, 6.0 s"
+      },
+      {
+        "tool": "flowkit_video_resize",
+        "name": "flowkit_video_resize",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 592.5,
+        "minMs": 588.3,
+        "maxMs": 602.7,
+        "outputBytes": 376392,
+        "resultBytes": 204,
+        "summary": "video, 367.6 KiB, 320×180, 6.0 s"
+      },
+      {
+        "tool": "flowkit_video_rotate",
+        "name": "flowkit_video_rotate",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 635.9,
+        "minMs": 634.7,
+        "maxMs": 643.9,
+        "outputBytes": 1066894,
+        "resultBytes": 205,
+        "summary": "video, 1041.9 KiB, 360×640, 6.0 s"
+      },
+      {
+        "tool": "flowkit_video_flip",
+        "name": "flowkit_video_flip",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 638,
+        "minMs": 611.9,
+        "maxMs": 663.4,
+        "outputBytes": 1047382,
+        "resultBytes": 205,
+        "summary": "video, 1022.8 KiB, 640×360, 6.0 s"
+      },
+      {
+        "tool": "flowkit_video_mute",
+        "name": "flowkit_video_mute",
+        "group": "video",
+        "engine": "FFmpeg",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 616.6,
+        "minMs": 613.6,
+        "maxMs": 1015.6,
+        "outputBytes": 982444,
+        "resultBytes": 204,
+        "summary": "video, 959.4 KiB, 640×360, 6.0 s"
+      },
+      {
+        "tool": "flowkit_pdf_merge",
+        "name": "flowkit_pdf_merge",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 668.2,
+        "minMs": 658.2,
+        "maxMs": 673,
+        "outputBytes": 3509,
+        "resultBytes": 163,
+        "summary": "pdf, 3.4 KiB, 10 pages"
+      },
+      {
+        "tool": "flowkit_pdf_extract",
+        "name": "flowkit_pdf_extract",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 488.9,
+        "minMs": 472.7,
+        "maxMs": 504.3,
+        "outputBytes": 1608,
+        "resultBytes": 182,
+        "summary": "pdf, 1.6 KiB, 4 pages"
+      },
+      {
+        "tool": "flowkit_pdf_rotate",
+        "name": "flowkit_pdf_rotate",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 470,
+        "minMs": 461.9,
+        "maxMs": 494.4,
+        "outputBytes": 2860,
+        "resultBytes": 180,
+        "summary": "pdf, 2.8 KiB, 8 pages"
+      },
+      {
+        "tool": "flowkit_pdf_remove",
+        "name": "flowkit_pdf_remove",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 487.5,
+        "minMs": 461.2,
+        "maxMs": 530.9,
+        "outputBytes": 2523,
+        "resultBytes": 180,
+        "summary": "pdf, 2.5 KiB, 7 pages"
+      },
+      {
+        "tool": "flowkit_pdf_reverse",
+        "name": "flowkit_pdf_reverse",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 463.4,
+        "minMs": 463.1,
+        "maxMs": 464.4,
+        "outputBytes": 2827,
+        "resultBytes": 182,
+        "summary": "pdf, 2.8 KiB, 8 pages"
+      },
+      {
+        "tool": "flowkit_pdf_reduce",
+        "name": "flowkit_pdf_reduce",
+        "group": "pdf",
+        "engine": "qpdf + Ghostscript",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 1429.4,
+        "minMs": 1416.3,
+        "maxMs": 1447.3,
+        "outputBytes": 742059,
+        "resultBytes": 400,
+        "summary": "pdf, 724.7 KiB, 1 pages, 3.28× smaller"
+      },
+      {
+        "tool": "flowkit_pdf_encrypt",
+        "name": "flowkit_pdf_encrypt",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 641.2,
+        "minMs": 630.4,
+        "maxMs": 660.7,
+        "outputBytes": 3677,
+        "resultBytes": 181,
+        "summary": "pdf, 3.6 KiB, 8 pages, encrypted"
+      },
+      {
+        "tool": "flowkit_pdf_decrypt",
+        "name": "flowkit_pdf_decrypt",
+        "group": "pdf",
+        "engine": "qpdf",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 619.5,
+        "minMs": 616.6,
+        "maxMs": 695.9,
+        "outputBytes": 2893,
+        "resultBytes": 198,
+        "summary": "pdf, 2.8 KiB, 8 pages, decrypted"
+      },
+      {
+        "tool": "flowkit_pdf_sign",
+        "name": "flowkit_pdf_sign",
+        "group": "pdf",
+        "engine": "pdf-lib",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 866.3,
+        "minMs": 845.4,
+        "maxMs": 882,
+        "outputBytes": 2241,
+        "resultBytes": 208,
+        "summary": "pdf, 2.2 KiB, 8 pages, visible-image signature"
+      },
+      {
+        "tool": "flowkit_pdf_sign (certificate)",
+        "name": "flowkit_pdf_sign",
+        "group": "pdf",
+        "engine": "pdf-lib",
+        "ok": true,
+        "status": "pass",
+        "runs": 3,
+        "medianMs": 1001.8,
+        "minMs": 983.5,
+        "maxMs": 1083.1,
+        "outputBytes": 36234,
+        "resultBytes": 207,
+        "summary": "pdf, 35.4 KiB, 8 pages, certificate signature"
+      }
+    ],
+    "boundaries": [
+      {
+        "check": "Path escape (../)",
+        "tool": "flowkit_read_text",
+        "blocked": true,
+        "message": "Path must stay inside the configured workspace",
+        "ms": 2.4
+      },
+      {
+        "check": "Absolute path",
+        "tool": "flowkit_file_metadata",
+        "blocked": true,
+        "message": "Use a relative workspace path",
+        "ms": 1.4
+      },
+      {
+        "check": "Out-of-range option",
+        "tool": "flowkit_image_resize",
+        "blocked": true,
+        "message": "Input validation error: Invalid arguments for tool flowkit_image_resize: width: Too small: expected number to be >=1",
+        "ms": 2.7
+      },
+      {
+        "check": "Unknown argument",
+        "tool": "flowkit_pdf_reverse",
+        "blocked": true,
+        "message": "Input validation error: Invalid arguments for tool flowkit_pdf_reverse: Unrecognized key: \"shell\"",
+        "ms": 1.7
+      },
+      {
+        "check": "Missing file",
+        "tool": "flowkit_document_to_markdown",
+        "blocked": true,
+        "message": "File or directory is missing or inaccessible in the workspace",
+        "ms": 1.7
+      },
+      {
+        "check": "Wrong file type",
+        "tool": "flowkit_read_text",
+        "blocked": true,
+        "message": "Read text accepts Markdown or TXT; convert other documents first",
+        "ms": 1.2
+      }
+    ]
+  }
+}

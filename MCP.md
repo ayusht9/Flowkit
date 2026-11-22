@@ -2,6 +2,8 @@
 
 FlowKit exposes 46 local tools over MCP stdio. The connected LLM chooses each step and passes the returned artifact path into its next call. The tools reuse the same validated operation registry as the visual workflow app.
 
+**Contents:** [Connect an MCP host](#connect-an-mcp-host) · [Load only the tools you need](#load-only-the-tools-you-need) · [Tools](#tools) · [Example agent flow](#example-agent-flow) · [Files and limits](#files-and-limits) · [Verification and benchmarks](#verification-and-benchmarks) · [Troubleshooting](#troubleshooting)
+
 ## Connect an MCP host
 
 Install dependencies with `npm install`. Install Pandoc, ImageMagick and FFmpeg/FFprobe for the operations you want to use. No LLM API key is required by this server; your MCP host provides the model.
@@ -41,6 +43,45 @@ claude mcp list
 ```
 
 The equivalent project configuration is in [`clients/claude.mcp.json`](clients/claude.mcp.json).
+
+### Connect Claude Desktop
+
+Open **Settings → Developer → Edit Config** and add FlowKit to `claude_desktop_config.json`, then restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "flowkit": {
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "/absolute/path/to/files"]
+    }
+  }
+}
+```
+
+On Windows, use `"command": "flowkit-mcp.cmd"` if the bare command is not found, or `"command": "npx", "args": ["-y", "flowkit-mcp", "--workspace", "C:/path/to/files"]`.
+
+### Connect Cursor
+
+Add the same `mcpServers` entry to `.cursor/mcp.json` in your project, or to `~/.cursor/mcp.json` for every project. Cursor lists the server under **Settings → MCP**.
+
+### Connect VS Code (GitHub Copilot)
+
+Create `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "flowkit": {
+      "type": "stdio",
+      "command": "flowkit-mcp",
+      "args": ["--workspace", "${workspaceFolder}"]
+    }
+  }
+}
+```
+
+Start the server from the MCP view or the Copilot Chat tools menu.
 
 ### Connect Google Antigravity (AGY)
 
@@ -87,18 +128,20 @@ Shared limits (input size, page count, pixel, duration, and media output caps) a
 
 ## Tools
 
+Tools are grouped by the `--tools` option that loads them. Every processing tool writes a new artifact and returns its path and metadata.
+
+### Always available
+
 | Tool | Arguments | Result |
 | --- | --- | --- |
-| `flowkit_pdf_merge` | `inputPaths` (2-10 PDFs, ordered) | One PDF in the specified input order, with page count |
-| `flowkit_pdf_extract` | `inputPath`, `pages` (default `all`) | One PDF containing selected pages, in selection order |
-| `flowkit_pdf_rotate` | `inputPath`, `pages` (default `all`), `degrees` (90, 180, 270; default 90) | PDF with selected pages rotated clockwise relative to their existing rotation |
-| `flowkit_pdf_remove` | `inputPath`, `pages` (required) | PDF with selected pages removed; at least one page must remain |
-| `flowkit_pdf_reverse` | `inputPath` | PDF with all pages in reverse order |
-| `flowkit_pdf_reduce` | `inputPath`, `factor` (1-10; default 2), `autoQuality` (default true), `quality` (20-95; default 80) | Size-reduced PDF with actual savings, achieved factor, quality used, and `targetMet` |
-| `flowkit_pdf_sign` | `inputPath`, `mode` (`image` or `certificate`), attachment paths and placement options described below | Visible signature image or a detached certificate digital signature |
-| `flowkit_pdf_encrypt` | `inputPath`, `passwordFilePath`, optional `ownerPasswordFilePath` | AES-256 encrypted PDF with an opening password |
-| `flowkit_pdf_decrypt` | `inputPath`, `passwordFilePath` | Unencrypted PDF using a supplied opening or owner password |
 | `flowkit_file_metadata` | `inputPath` | Shared read-only metadata for documents, PDFs, images, audio, and video; no artifact is created |
+| `flowkit_list_files` | `directory` (default `.`) | Up to 100 non-hidden entries; no recursion or symlink following |
+| `flowkit_read_text` | `inputPath`, `offset` (default 0), `limit` (default 2000, max 12000) | Text excerpt, total characters, next offset |
+
+### Documents — `--tools document`
+
+| Tool | Arguments | Result |
+| --- | --- | --- |
 | `flowkit_document_to_html` | `inputPath` | Supported document to standalone HTML |
 | `flowkit_document_to_docx` | `inputPath` | Supported document to Word DOCX |
 | `flowkit_document_to_odt` | `inputPath` | Supported document to OpenDocument ODT |
@@ -111,10 +154,27 @@ Shared limits (input size, page count, pixel, duration, and media output caps) a
 | `flowkit_document_to_asciidoc` | `inputPath` | AsciiDoc source (`.adoc`), export only |
 | `flowkit_document_to_pptx` | `inputPath` | PowerPoint (`.pptx`), export only; level-2 headings begin slides |
 | `flowkit_merge_documents` | `inputPaths` (2-10 same-format files) | Combined Word DOCX |
-| `flowkit_list_files` | `directory` (default `.`) | Up to 100 non-hidden entries; no recursion or symlink following |
-| `flowkit_read_text` | `inputPath`, `offset` (default 0), `limit` (default 2000, max 12000) | Text excerpt, total characters, next offset |
 | `flowkit_document_to_markdown` | `inputPath` | Supported document → Markdown |
 | `flowkit_clean_markdown` | `inputPath`, `collapseBlankLines` (default true) | New normalized Markdown file |
+
+### PDF — `--tools pdf`
+
+| Tool | Arguments | Result |
+| --- | --- | --- |
+| `flowkit_pdf_merge` | `inputPaths` (2-10 PDFs, ordered) | One PDF in the specified input order, with page count |
+| `flowkit_pdf_extract` | `inputPath`, `pages` (default `all`) | One PDF containing selected pages, in selection order |
+| `flowkit_pdf_rotate` | `inputPath`, `pages` (default `all`), `degrees` (90, 180, 270; default 90) | PDF with selected pages rotated clockwise relative to their existing rotation |
+| `flowkit_pdf_remove` | `inputPath`, `pages` (required) | PDF with selected pages removed; at least one page must remain |
+| `flowkit_pdf_reverse` | `inputPath` | PDF with all pages in reverse order |
+| `flowkit_pdf_reduce` | `inputPath`, `factor` (1-10; default 2), `autoQuality` (default true), `quality` (20-95; default 80) | Size-reduced PDF with actual savings, achieved factor, quality used, and `targetMet` |
+| `flowkit_pdf_sign` | `inputPath`, `mode` (`image` or `certificate`), attachment paths and placement options described below | Visible signature image or a detached certificate digital signature |
+| `flowkit_pdf_encrypt` | `inputPath`, `passwordFilePath`, optional `ownerPasswordFilePath` | AES-256 encrypted PDF with an opening password |
+| `flowkit_pdf_decrypt` | `inputPath`, `passwordFilePath` | Unencrypted PDF using a supplied opening or owner password |
+
+### Images — `--tools image`
+
+| Tool | Arguments | Result |
+| --- | --- | --- |
 | `flowkit_image_resize` | `inputPath`, `width` and/or `height` (1–4096) | PNG/JPEG → resized PNG |
 | `flowkit_image_crop` | `inputPath`, `width`, `height` (1–4096), `x`, `y` (0–8191; default 0) | Crop inside the auto-oriented image; output PNG |
 | `flowkit_image_rotate` | `inputPath`, `degrees` (90, 180, 270; default 90) | Clockwise rotation; output PNG |
@@ -123,13 +183,23 @@ Shared limits (input size, page count, pixel, duration, and media output caps) a
 | `flowkit_image_blur` | `inputPath`, `sigma` (0.1–10; default 1) | Gaussian blur; output PNG |
 | `flowkit_image_sharpen` | `inputPath`, `sigma` (0.1–5; default 1) | Sharpen details; output PNG |
 | `flowkit_image_convert` | `inputPath`, `format` (`png` or `jpeg`; default `png`), `quality` (1–100; default 85, JPEG only) | PNG/JPEG conversion; JPEG flattens transparency onto white |
+
+### Audio — `--tools audio`
+
+| Tool | Arguments | Result |
+| --- | --- | --- |
 | `flowkit_audio_convert` | `inputPath`, `format` (`mp3` or `wav`, default `mp3`) | WAV/MP3/M4A → audio file |
 | `flowkit_audio_trim` | `inputPath`, `startSeconds`, `durationSeconds`, `format` | Trimmed audio file |
-| `flowkit_video_trim` | `inputPath`, `startSeconds`, `durationSeconds` | MP4/MOV/WebM/MKV → trimmed H.264 MP4 |
-| `flowkit_video_extract_audio` | `inputPath`, `format` | Video → MP3/WAV audio track |
 | `flowkit_audio_volume` | `inputPath`, `gainDb` (−60 to +12; default 0), `format` | Adjust volume; positive gain can clip |
 | `flowkit_audio_fade` | `inputPath`, `fadeInSeconds`, `fadeOutSeconds` (0–30; default 0.25 each), `format` | Fade in/out; the combined fades must fit the source duration |
 | `flowkit_audio_normalize` | `inputPath`, `targetLufs` (−24 to −9; default −16), `format` | Single-pass loudness normalization; fixed target peak −1.5 dBTP and LRA 11 |
+
+### Video — `--tools video`
+
+| Tool | Arguments | Result |
+| --- | --- | --- |
+| `flowkit_video_trim` | `inputPath`, `startSeconds`, `durationSeconds` | MP4/MOV/WebM/MKV → trimmed H.264 MP4 |
+| `flowkit_video_extract_audio` | `inputPath`, `format` | Video → MP3/WAV audio track |
 | `flowkit_video_convert` | `inputPath`, `quality` (`compact`, `balanced`, `high`; default `balanced`) | H.264/AAC MP4; CRF 28, 23 or 18 respectively |
 | `flowkit_video_resize` | `inputPath`, `width` and/or `height` (2–1920) | Fit without upscaling; preserve aspect ratio and round dimensions down to even pixels |
 | `flowkit_video_rotate` | `inputPath`, `degrees` (90, 180, 270; default 90) | Clockwise rotation into MP4 |
@@ -200,8 +270,21 @@ Paths must remain within the selected workspace, including after resolving symli
 
 This is a local stdio server, not an authenticated remote endpoint. The existing web deployment does not expose it. Native file processing still needs OS/container worker isolation before hosting untrusted users. File contents and filenames are untrusted document data, not instructions to the agent.
 
-## Verification
+## Verification and benchmarks
 
 `flowkit-mcp --doctor --workspace <path>` verifies the installed CLI, workspace and six native executables. `node --test test/mcp.test.mjs test/pdf.test.mjs test/pdf-security.test.mjs` covers MCP discovery/chaining, metadata, limits, credentials, compression, AES-256, visible signatures, and cryptographic certificate verification. Certificate fixtures/verification use OpenSSL (Windows tests also discover Git's bundled OpenSSL). `npm run test:e2e -- e2e/pdf.spec.mjs e2e/pdf-security.spec.mjs` checks the full editor flows and that saved workflows exclude secrets and attachments.
 
-Run `npm run benchmark:mcp` (add `-- --json` for machine-readable output) to compare each MCP call and result against what an agent emits and reads without FlowKit: a compact, safe processing script sent through a shell tool, plus its output. It also reports the one-time tool-list and instruction cost for all tools and for each `--tools` group, the number of tasks needed to break even, and session totals. Retries after a failed first script are excluded, so the script baseline is a lower bound. Token counts are a transparent `bytes / 4` estimate, not provider billing data; use your model host's usage fields for exact billed tokens.
+Run `npm run benchmark` to regenerate [docs/BENCHMARKS.md](docs/BENCHMARKS.md). It compares 13 common tasks and 3 multi-step workflows against a compact, safe script an agent would write; measures the tool-list cost for all tools and each `--tools` group, break-even points, and session totals; calls every tool over MCP stdio on real files to record timing and output sizes; and re-checks the safety boundaries. `npm run benchmark:mcp` prints a quick token summary without native engines. Token counts are a transparent `bytes / 4` estimate, not provider billing data; use your model host's usage fields for exact billed tokens.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| The client says the server failed to start | Run the same command in a terminal with `--doctor`. On Windows, use `flowkit-mcp.cmd` or `npx -y flowkit-mcp` as the command. |
+| `Choose a workspace directory with --workspace` | Add `--workspace <absolute path>` to the server arguments; the folder must exist. |
+| A tool reports a missing engine | `--doctor` lists what is missing. Install it, or set `PANDOC_PATH`, `QPDF_PATH`, `GHOSTSCRIPT_PATH`, `IMAGEMAGICK_PATH`, `FFMPEG_PATH`, or `FFPROBE_PATH` in the client's `env`. |
+| `Path must stay inside the configured workspace` | Use paths relative to the workspace, such as `reports/q3.docx`, or the `path` returned by a previous tool. |
+| `FlowKit is busy` | One tool runs at a time per server. Retry after the current call finishes. |
+| `document_to_pdf` fails | PDF export needs pdfroff (GNU groff) and Ghostscript. Other document formats only need Pandoc. |
+| Tools are missing after an upgrade | Restart the MCP client so it reloads the tool list. Check `--tools` / `FLOWKIT_TOOLS` isn't limiting the groups. |
+

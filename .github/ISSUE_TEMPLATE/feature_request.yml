@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a new tool, option, or improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the file task and why the current tools don't cover it.
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed tool or change
+      placeholder: e.g. flowkit_pdf_watermark { inputPath, text, opacity }
+  - type: input
+    id: engine
+    attributes:
+      label: Which native engine could do it?
+      placeholder: e.g. qpdf, Ghostscript, ImageMagick, FFmpeg, Pandoc
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: Runs locally without network access or API keys
+        - label: Works on files inside the workspace only
